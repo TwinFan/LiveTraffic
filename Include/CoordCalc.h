@@ -35,11 +35,11 @@
 //
 /// Square, ie. a^2
 template <class T>
-inline T sqr (const T a) { return a*a; }
+constexpr inline T sqr (const T a) { return a*a; }
 
 /// Pythagoras square, ie. a^2 + b^2
 template <class T>
-inline T pyth2 (const T a, const T b) { return sqr(a) + sqr(b); }
+constexpr inline T pyth2 (const T a, const T b) { return sqr(a) + sqr(b); }
 
 //
 //MARK: Degree/Radian conversion
@@ -59,7 +59,7 @@ constexpr inline double rad2deg360 (const double rad)
 { return ((rad >= 0.0 ? rad : rad+PI+PI) * 180.0 / PI); }
 
 // angle flown, given speed and vsi (both in m/s)
-inline double vsi2deg (const double speed, const double vsi)
+constexpr inline double vsi2deg (const double speed, const double vsi)
 { return rad2deg(std::atan2(vsi,speed)); }
 
 //
@@ -359,6 +359,7 @@ ptTy Bezier (double t, const ptTy& p0, const ptTy& p1, const ptTy& p2, const ptT
 enum flightPhaseE : unsigned char {
     FPH_UNKNOWN     = 0,            ///< used for initializations
     FPH_PARKED      = 5,            ///< Parked at startup position
+    FPH_PUSHBACK,                   ///< Being pushed back
     FPH_TAXI        = 10,           ///< Taxiing
     FPH_TAKE_OFF    = 20,           ///< Group of status for take-off:
     FPH_TO_ROLL,                    ///< Take-off roll

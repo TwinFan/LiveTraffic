@@ -160,12 +160,11 @@ constexpr double PB_MOTION_GS_KT        = 0.3;
 /// thinks "tug is pushing me backward" and renders the nose stuck at
 /// the wrong angle — aircraft appears tail-first / ass-forward.
 ///
-/// 10 kt is a hard upper bound on physical pushback speed (real
-/// pushbacks roll at 1-5 kt; tugs cannot move a 60+ ton airframe
-/// faster than that). Any sustained gs above 10 kt is definitively
+/// real pushbacks roll at 1-5 kt; tugs cannot move a 60+ ton airframe
+/// faster than that). Any sustained gs above 5 kt is definitively
 /// taxi, not pushback, and the state machine is wrong to still be
 /// active. Force-exit and let the normal heading logic take over.
-constexpr double PB_MAX_GS_KT           = 10.0;
+constexpr double PB_MAX_GS_KT           = 5.0;
 
 /// Minimum distance, in metres, between an incoming feed slot and the
 /// latest accepted deque position for the slot to be admitted while the

@@ -1220,6 +1220,7 @@ std::string LTAircraft::FlightPhase2String (flightPhaseE phase)
     switch (phase) {
         case FPH_UNKNOWN:           return "Unknown";
         case FPH_PARKED:            return "Parked";
+        case FPH_PUSHBACK:          return "Pushback";
         case FPH_TAXI:              return "Taxi";
         case FPH_TAKE_OFF:          return "Take Off";
         case FPH_TO_ROLL:           return "Take Off Roll";
@@ -1985,7 +1986,7 @@ bool LTAircraft::CalcPPos()
         // regime: linear position interp + preserve from.heading().
         const double dyMtr = Lat2Dist(to.lat() - from.lat());
         const double dxMtr = Lon2Dist(to.lon() - from.lon(), from.lat());
-        const double chordMtr = std::sqrt(dxMtr * dxMtr + dyMtr * dyMtr);
+        const double chordMtr = std::hypot(dxMtr, dyMtr);
 
         // Leg-average ground speed (chord / duration). Used purely to
         // pick the interpolation method below — see GND_SPLINE_MAX_KT.
@@ -2558,8 +2559,13 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
     else if ( bOnGrnd && speed.kt() <= pMdl->MAX_TAXI_SPEED )
     {
         // if not artifically reducing speed (roll-out)
-        if (!bArtificalPos)
-            phase = FPH_TAXI;
+        if (!bArtificalPos) {
+            // Could be taxxing, could be pushback
+            if (GetToPos().f.flightPhase == FPH_PUSHBACK)
+                phase = FPH_PUSHBACK;
+            else
+                phase = FPH_TAXI;
+        }
         // so we are rolling out artifically...have we stopped?
         else if (speed.isZero())
             phase = FPH_STOPPED_ON_RWY;
@@ -2728,7 +2734,7 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
     }
     
     // Phase Taxi
-    if (ENTERED(FPH_TAXI)) {
+    if (ENTERED(FPH_TAXI) || ENTERED(FPH_PUSHBACK)) {
         SetThrustRatio(0.1f);
         SetLightsLanding(dataRefs.GetLndLightsTaxi());
         SetLightsTaxi(true);
@@ -3176,11 +3182,21 @@ bool LTAircraft::YProbe ()
     // (we do probes only every so often, more often close to the ground,
     //  but less often high up in the air,
     //  and every frame if were in camera view on the ground)
-    if ( !(IsInCameraView() && IsOnGrnd()) && currCycle.simTime < probeNextTs )
+    const bool bEveryFrame = IsInCameraView() && IsOnGrnd();
+    if ( !bEveryFrame && currCycle.simTime < probeNextTs )
         return true;
     
-    // This is terrain altitude right beneath us in [ft]
-    terrainAlt_m = fd.YProbe_at_m(ppos);
+    // Y Probes are the most expensive part of our flight loop processing!
+    // So we really do them only if absolutely needed. probeNextTs/PROBE_DELAY
+    // is one measure...but if we are parked on the ground we don't expect
+    // the ground to move very often either. So let's only ever do y Probes if moving.
+    if (bEveryFrame ||
+        !probeLastPos.isNormal() ||
+        probeLastPos.distRoughSqr(ppos) > sqr(SIMILAR_POS_DIST/2.0))
+    {
+        // This is terrain altitude right beneath us in [m]
+        terrainAlt_m = fd.YProbe_at_m (probeLastPos = ppos);
+    }
     
     if (currCycle.simTime >= probeNextTs)
     {
@@ -3777,7 +3793,7 @@ void LTAircraft::UpdatePosition (float, int cycle)
         if (phase == FPH_PARKED)                        // off while parked
             acRadar.mode = xpmpTransponderMode_Off;
         // reduce to standby during taxiing if settings say so
-        else if (phase == FPH_TAXI && dataRefs.IsAINotOnGnd() && !IsOnRwy())
+        else if ((phase == FPH_TAXI || phase == FPH_PUSHBACK) && dataRefs.IsAINotOnGnd() && !IsOnRwy())
             acRadar.mode = xpmpTransponderMode_Standby;
         // In case any of the S modes is being used, dynamically change the mode based on situation
         if (acRadar.mode >= xpmpTransponderMode_ModeS_Gnd) {

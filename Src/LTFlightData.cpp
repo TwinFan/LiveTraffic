@@ -1654,11 +1654,11 @@ void LTFlightData::CalcHeading (dequePositionTy::iterator it)
 
                     // Local east/north metres around the newest sample.
                     const positionTy& refPos = *samples[3];
-                    std::array<std::pair<double,double>, 4> xy;
+                    std::array<ptTy, 4> aPt;
                     for (size_t i = 0; i < 4; ++i) {
-                        xy[i].first  = Lon2Dist(samples[i]->lon() - refPos.lon(),
-                                                refPos.lat());
-                        xy[i].second = Lat2Dist(samples[i]->lat() - refPos.lat());
+                        aPt[i].x = Lon2Dist(samples[i]->lon() - refPos.lon(),
+                                            refPos.lat());
+                        aPt[i].y = Lat2Dist(samples[i]->lat() - refPos.lat());
                     }
 
                     // Equal-weight centroid. Equal weights are deliberate:
@@ -1667,15 +1667,15 @@ void LTFlightData::CalcHeading (dequePositionTy::iterator it)
                     // older positions as outliers even when they aren't
                     // noisy — the wrong thing for outlier detection.
                     double cx = 0.0, cy = 0.0;
-                    for (const auto& p : xy) { cx += p.first; cy += p.second; }
+                    for (const auto& p : aPt) { cx += p.x; cy += p.y; }
                     cx *= 0.25; cy *= 0.25;
 
-                    // Residual magnitude per sample.
+                    // Residual magnitude (squared) per sample.
                     std::array<std::pair<double,size_t>, 4> resid;
                     for (size_t i = 0; i < 4; ++i) {
-                        const double dx = xy[i].first  - cx;
-                        const double dy = xy[i].second - cy;
-                        resid[i] = { std::sqrt(dx*dx + dy*dy), i };
+                        const double dx = aPt[i].x - cx;
+                        const double dy = aPt[i].y - cy;
+                        resid[i] = { pyth2(dx, dy), i };
                     }
                     // Sort residuals descending; first two are the outliers.
                     std::sort(resid.begin(), resid.end(),
@@ -1694,10 +1694,10 @@ void LTFlightData::CalcHeading (dequePositionTy::iterator it)
                     }
 
                     if (i0 != SIZE_MAX && i1 != SIZE_MAX) {
-                        const double dx = xy[i1].first  - xy[i0].first;
-                        const double dy = xy[i1].second - xy[i0].second;
-                        const double dist = std::sqrt(dx*dx + dy*dy);
-                        if (dist >= SIMILAR_POS_DIST) {
+                        const double distSqr = DistPythSqr(aPt[i0].x, aPt[i0].y,
+                                                           aPt[i1].x, aPt[i1].y);
+                        if (distSqr >= (SIMILAR_POS_DIST * SIMILAR_POS_DIST))
+                        {
                             // Replace the 2-point estimate with the
                             // filtered chord. CoordAngle returns a bearing
                             // in degrees (0..360, north=0, clockwise) — the
@@ -1706,7 +1706,7 @@ void LTFlightData::CalcHeading (dequePositionTy::iterator it)
                                                        samples[i0]->lon(),
                                                        samples[i1]->lat(),
                                                        samples[i1]->lon());
-                            pbTrack.dist  = dist;
+                            pbTrack.dist  = std::sqrt(distSqr);
                         }
                         // If the filtered chord is below noise floor,
                         // leave the 2-point pbTrack alone; bMotion below
@@ -1994,6 +1994,7 @@ void LTFlightData::CalcHeading (dequePositionTy::iterator it)
                         it->heading() = prePosPb.heading();
                     }
                     it->f.bHeadFixed = true;
+                    it->f.flightPhase = FPH_PUSHBACK;
 
                     // Per-slot diagnostic line — emitted only on the
                     // initial override pass (when bHeadFixed flips
@@ -2749,30 +2750,29 @@ void LTFlightData::AddNewPos ( positionTy& pos )
                                     pos.lat(), pos.lon(),
                                     gateDist, gatePos.heading());
                         }
-                    } else {
-                        // Tight lookup failed. Probe a wide radius and
-                        // log the position so the failure mode can be
-                        // distinguished (apt unavailable / no airport /
-                        // closest startup-loc just outside threshold).
+                    }
+                    // Tight lookup failed. Probe a wide radius and
+                    // log the position so the failure mode can be
+                    // distinguished (apt unavailable / no airport /
+                    // closest startup-loc just outside threshold).
+                    else if (dataRefs.ShallLogDiagnostics()) {
                         double probeDist  = NAN;
                         (void)LTAptFindStartupLoc(pos,
                                                   GATE_DETECT_MAX_DIST_M * 10.0,
                                                   &probeDist);
-                        const char* mode;
+                        const char* mode = nullptr;
                         if (!aptAvail)                  mode = "APT_UNAVAIL";
                         else if (!std::isnan(probeDist)) mode = "NEAR";
                         else                            mode = "NOAPT";
-                        if (dataRefs.ShallLogDiagnostics()) {
-                            LOG_MSG(logDEBUG,
-                                    "GND_DIAG_GATE %s %s lat=%.6f lon=%.6f"
-                                    " (tight %.0fm, probe %.0fm: nearest=%.1fm)"
-                                    " — bGateParked stays false",
-                                    key().c_str(), mode,
-                                    pos.lat(), pos.lon(),
-                                    GATE_DETECT_MAX_DIST_M,
-                                    GATE_DETECT_MAX_DIST_M * 10.0,
-                                    std::isnan(probeDist) ? -1.0 : probeDist);
-                        }
+                        LOG_MSG(logDEBUG,
+                                "GND_DIAG_GATE %s %s lat=%.6f lon=%.6f"
+                                " (tight %.0fm, probe %.0fm: nearest=%.1fm)"
+                                " — bGateParked stays false",
+                                key().c_str(), mode,
+                                pos.lat(), pos.lon(),
+                                GATE_DETECT_MAX_DIST_M,
+                                GATE_DETECT_MAX_DIST_M * 10.0,
+                                std::isnan(probeDist) ? -1.0 : probeDist);
                     }
                 }
 

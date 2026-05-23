@@ -403,6 +403,7 @@ protected:
     
     // Y-Probe
     double              probeNextTs;    // timestamp of NEXT probe
+    positionTy          probeLastPos;   ///< last position for which we took a probe
     double              terrainAlt_m;   ///< terrain altitude in meters
     
     // bearing/dist from viewpoint to a/c

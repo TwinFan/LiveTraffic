@@ -47,6 +47,11 @@
       enableGPUValidationMode = "1"
       allowLocationSimulation = "NO"
       launchAutomaticallySubstyle = "2">
+      <RemoteRunnable
+         runnableDebuggingMode = "0"
+         BundleIdentifier = "com.laminar-research.X-Plane"
+         RemotePath = "/Users/birger/Applications/X-Plane/12beta/X-Plane.app">
+      </RemoteRunnable>
       <MacroExpansion>
          <BuildableReference
             BuildableIdentifier = "primary"
@@ -65,19 +70,11 @@
       debugDocumentVersioning = "YES"
       askForAppToLaunch = "Yes"
       launchAutomaticallySubstyle = "2">
-      <PathRunnable
+      <RemoteRunnable
          runnableDebuggingMode = "0"
-         FilePath = "/Users/birger/Library/Developer/Xcode/DerivedData/LiveTraffic-hgjafxepcwpzqibedggufyaeygqd/Build/Products/LiveTraffic">
-      </PathRunnable>
-      <MacroExpansion>
-         <BuildableReference
-            BuildableIdentifier = "primary"
-            BlueprintIdentifier = "D607B19809A556E400699BC3"
-            BuildableName = "LiveTraffic.xpl"
-            BlueprintName = "LiveTraffic"
-            ReferencedContainer = "container:LiveTraffic.xcodeproj">
-         </BuildableReference>
-      </MacroExpansion>
+         BundleIdentifier = "com.laminar-research.X-Plane"
+         RemotePath = "/Users/birger/Applications/X-Plane/12beta/X-Plane.app">
+      </RemoteRunnable>
    </ProfileAction>
    <AnalyzeAction
       buildConfiguration = "Debug">
