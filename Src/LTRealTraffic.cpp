@@ -430,7 +430,6 @@ void RealTrafficConnection::ComputeBody (const positionTy&)
                     LOG_MSG(logDEBUG, "Moved far, by %.1fnm",
                             lastKnownViewPos.dist(curr.pos) / M_per_NM);
                 }
-                lastKnownViewPos = curr.pos;
                 
                 // Send buffered traffic request
                 snprintf(s,sizeof(s), RT_TRAFFIC_POST_BUFFER,
@@ -450,6 +449,7 @@ void RealTrafficConnection::ComputeBody (const positionTy&)
                          box.left(), box.right(),
                          curr.tOff);
             }
+            lastKnownViewPos = curr.pos;
             break;
         }
     }

@@ -448,7 +448,7 @@ void CatmullRomArcLut::Build(const positionTy& P0, const positionTy& P1,
     double xPrev = 0.0;
     double yPrev = 0.0;
 
-    for (int i = 1; i <= N; ++i) {
+    for (size_t i = 1; i <= N; ++i) {
         // Sample the spline at u = i / N. We re-use the existing evaluator
         // rather than inlining the math here — keeps the LUT and the per-frame
         // evaluation guaranteed to use exactly the same curve.
@@ -498,8 +498,8 @@ double CatmullRomArcLut::UFromArcFraction(double f) const
         // sTarget == totalArc within float precision; return u = 1.
         return 1.0;
     }
-    const int    jUpper = int(it - sAtU.begin());
-    const int    jLower = jUpper - 1;
+    const size_t jUpper = size_t(it - sAtU.begin());
+    const size_t jLower = jUpper - 1;
     const double sLow   = sAtU[jLower];
     const double sHigh  = sAtU[jUpper];
 
