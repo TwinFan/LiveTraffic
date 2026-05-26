@@ -2363,9 +2363,9 @@ bool LTFlightData::IsPosOK (const positionTy& lastPos,
         return true;
 
     // aircraft model to use
-    const std::string* pIcaoType = nullptr;
-    const LTAircraft::FlightModel& mdl = LTAircraft::FlightModel::FindFlightModel(*this, false, &pIcaoType);
-    if (!pIcaoType)     // if we can't really determine a model we can't really validate
+    std::string sIcaoType;
+    const LTAircraft::FlightModel& mdl = LTAircraft::FlightModel::FindFlightModel(*this, false, &sIcaoType);
+    if (mdl.modelName.empty())     // if we can't really determine a model we can't really validate
         return true;
     
     // if pHeading not given we assume we can take it from lastPos
@@ -2404,7 +2404,7 @@ bool LTFlightData::IsPosOK (const positionTy& lastPos,
                 keyDbg().c_str(), szViolTxt,
                 std::string(v).c_str(), hDiff,
                 minSpeed, maxSpeed, maxTurn, mdl.VSI_MAX,
-                mdl.modelName.c_str(), pIcaoType->c_str());
+                mdl.modelName.c_str(), sIcaoType.c_str());
         return false;
     }
     

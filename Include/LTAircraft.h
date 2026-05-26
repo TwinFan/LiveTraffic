@@ -264,7 +264,7 @@ public:
         /// @param[out] pIcaoType (optional) receives determined ICAO type, empty if none could be determined
         static const FlightModel& FindFlightModel (LTFlightData& fd,
                                                    bool bForceSearch = false,
-                                                   const std::string** pIcaoType = nullptr);
+                                                   std::string* pIcaoType = nullptr);
         static const FlightModel* GetFlightModel (const std::string& modelName);
         /// Tests if the given call sign matches typical call signs of ground vehicles
         static bool MatchesCar (const std::string& _callSign);

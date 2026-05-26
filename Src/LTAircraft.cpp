@@ -1148,21 +1148,28 @@ const std::string& DetermineIcaoType (const LTFlightData& fd,
 
 // Returns a model based on pAc's type, fd.statData's type or by trying to derive a model from statData.mdlName
 const LTAircraft::FlightModel& LTAircraft::FlightModel::FindFlightModel
-        (LTFlightData& fd, bool bForceSearch, const std::string** pIcaoType)
+        (LTFlightData& fd, bool bForceSearch, std::string* pIcaoType)
 {
     // Do we have cached data available that allows to skip all the searching?
     if (!bForceSearch) {
-        if (fd.hasAc() && fd.GetAircraft()->pMdl)
-            return *(fd.GetAircraft()->pMdl);
-        if (fd.pMdl)
+        if (fd.hasAc() && fd.GetAircraft()->pMdl) {
+            const LTAircraft* pAc = fd.GetAircraft();
+            if (pIcaoType)
+                *pIcaoType = pAc->acIcaoType;
+            return *(pAc->pMdl);
+        }
+        if (fd.pMdl) {
+            if (pIcaoType)
+                *pIcaoType = fd.GetUnsafeStat().acTypeIcao;
             return *reinterpret_cast<const LTAircraft::FlightModel*>(fd.pMdl);
+        }
     }
     
     // 1. find an aircraft ICAO type based on input
     bool bDefaulted;
     const std::string& acTypeIcao = DetermineIcaoType(fd, bDefaulted);
     if (pIcaoType)
-        *pIcaoType = bDefaulted ? nullptr : &acTypeIcao;
+        *pIcaoType = bDefaulted ? std::string() : acTypeIcao;
     
     // 2. find aircraft type specification in the Doc8643
     const Doc8643& acType = Doc8643::get(acTypeIcao);
