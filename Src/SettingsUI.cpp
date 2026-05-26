@@ -893,6 +893,9 @@ void LTSettingsUI::buildInterface()
                     ImGui::TableNextCell();
                 }
 
+                // Filter for Skynet_enabled flights only?
+                ImGui::FilteredCfgCheckbox("SkyNet flights only", sFilter, DR_CFG_SI_SKYNET, "Processes only SkyNet-enabled flights");
+
                 // Connection status details
                 if (ImGui::FilteredLabel("Connection Status", sFilter)) {
                     LTChannel* pSICh = LTFlightDataGetCh(DR_CHANNEL_SAYINTENTIONS);

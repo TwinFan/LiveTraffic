@@ -427,6 +427,7 @@ enum dataRefsLT {
     // channel configuration options
     DR_CFG_FSC_ENV,
     DR_CFG_OGN_USE_REQUREPL,
+    DR_CFG_SI_SKYNET,                   ///< filter for "skynet_enabled"
     DR_CFG_RT_LISTEN_PORT,
     DR_CFG_RT_TRAFFIC_PORT,
     DR_CFG_RT_WEATHER_PORT,
@@ -753,6 +754,7 @@ protected:
     // channel config options
     int fscEnv          = 0;            ///< FSCharter: Which environment to connect to?
     int ognUseRequRepl  = 0;            ///< OGN: Use Request/Reply instead of TCP receiver
+    int siSkynet        = 0;            ///< SI: Filter for Skynet_enabled flights
     int rtListenPort    = 10747;        // port opened for RT to connect
     int rtTrafficPort   = 49005;        // UDP Port receiving traffic
     int rtWeatherPort   = 49004;        // UDP Port receiving weather info
