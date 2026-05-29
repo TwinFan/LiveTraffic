@@ -50,6 +50,7 @@
 #define SI_HEADING              "heading"
 #define SI_AC_TYPE              "aircraft_icao"
 #define SI_SPD                  "airspeed"
+#define SI_SKYNET               "skynet_enabled"
 
 //
 // MARK: SayIntentions connection class

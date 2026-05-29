@@ -415,6 +415,7 @@ enum dataRefsLT {
     // debug options
     DR_DBG_AC_FILTER,
     DR_DBG_AC_POS,
+    DR_DBG_DIAGNOSTIC,                      ///< Detailed diagnostic log output
     DR_DBG_LOG_RAW_FD,
     DR_DBG_LOG_WEATHER,
     DR_DBG_MODEL_MATCHING,
@@ -426,6 +427,7 @@ enum dataRefsLT {
     // channel configuration options
     DR_CFG_FSC_ENV,
     DR_CFG_OGN_USE_REQUREPL,
+    DR_CFG_SI_SKYNET,                   ///< filter for "skynet_enabled"
     DR_CFG_RT_LISTEN_PORT,
     DR_CFG_RT_TRAFFIC_PORT,
     DR_CFG_RT_WEATHER_PORT,
@@ -688,6 +690,7 @@ protected:
     int bShowingAircraft        = false;
     unsigned uDebugAcFilter     = 0;    // icao24 for a/c filter
     int bDebugAcPos             = false;// output debug info on position calc into log file?
+    int bDebugDiagnostic        = false;///< output detailed diagnostic debug messages that really fill up your Log very fast
     int bDebugLogRawFd          = false;// log raw flight data to LTRawFD.log
     int bDebugWeather           = false;///< log weather data for debugging
     exportFDFormat eDebugExportFdFormat = EXP_FD_AITFC; ///< Which format to use when exporting flight data?
@@ -751,6 +754,7 @@ protected:
     // channel config options
     int fscEnv          = 0;            ///< FSCharter: Which environment to connect to?
     int ognUseRequRepl  = 0;            ///< OGN: Use Request/Reply instead of TCP receiver
+    int siSkynet        = 0;            ///< SI: Filter for Skynet_enabled flights
     int rtListenPort    = 10747;        // port opened for RT to connect
     int rtTrafficPort   = 49005;        // UDP Port receiving traffic
     int rtWeatherPort   = 49004;        // UDP Port receiving weather info
@@ -1087,6 +1091,7 @@ public:
     // livetraffic/dbg/ac_pos: Debug Positions for given a/c?
     inline bool GetDebugAcPos(const std::string& key) const
         { return bDebugAcPos && key == GetSelectedAcKey(); }
+    bool ShallLogDiagnostics() const { return bDebugDiagnostic; }
     
     inline bool GetDebugLogRawFD() const        { return bDebugLogRawFd; }
     void SetDebugLogRawFD (bool bLog)           { bDebugLogRawFd = bLog; }

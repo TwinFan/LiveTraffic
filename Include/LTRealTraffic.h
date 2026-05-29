@@ -67,6 +67,13 @@ constexpr size_t RT_NET_BUF_SIZE    = 8192;
 // constexpr double RT_SMOOTH_GROUND   = 35.0; // smooth 35s of ground data
 constexpr double RT_VSI_AIRBORNE    = 80.0; ///< if VSI is more than this then we assume "airborne"
 
+/// [s] interval at which the parked-traffic request is re-issued so RT's
+/// parked snapshot stays fresh while the user sits at an airport. Without
+/// this the parked picture is fetched exactly once (on airport-data load)
+/// and then frozen for the whole visit: new arrivals never appear and
+/// aircraft that have since departed are never reconciled. 300 s = 5 min.
+constexpr time_t RT_PARKED_REFRESH_INTVL_S = 300;
+
 #define MSG_RT_STATUS           "RealTraffic network status changed to: %s"
 #define MSG_RT_LAST_RCVD        " | last msg %.0fs ago"
 #define MSG_RT_ADJUST           " | historic traffic from %s"
@@ -85,8 +92,26 @@ constexpr double RT_VSI_AIRBORNE    = 80.0; ///< if VSI is more than this then w
 #define RT_TRAFFIC_XATTPSX      "XATTPSX"
 #define RT_TRAFFIC_XGPSPSX      "XGPSPSX"
 
-// Constant for direct connection
-constexpr long RT_DRCT_DEFAULT_WAIT = 8000L;                                ///< [ms] Default wait time between traffic requests
+// Constant for direct connection.
+//
+// Floor on the wait between traffic requests in milliseconds. The
+// per-response `rrl` value supplied by the RealTraffic server is the
+// authoritative rate limit (see `ProcessFetchedData`) and is honoured
+// directly when it is at or above this floor. The floor exists only
+// to defend against the server returning rrl=0 (or no rrl at all),
+// in which case we fall back to this conservative interval.
+//
+// RT supports 2 s polling in regular operation; the floor matches that
+// minimum so a 2 s `rrl` from the server is taken at face value rather
+// than overridden to a larger value. The previous 8 s floor predates
+// RT's documented 2 s capability and was capping the per-aircraft
+// position granularity at ~10-20 s, which the ground renderer can
+// observably struggle with (sideways-during-turn, backward routing
+// through SnapToTaxiways, jumpy liftoff). Tighter polling makes the
+// per-aircraft sample gap closer to the EHS heading update interval,
+// so the filtering layers added in earlier commits engage less often
+// and the visual quality improves overall.
+constexpr long RT_DRCT_DEFAULT_WAIT = 2000L;                                ///< [ms] Floor between traffic requests (RT's `rrl` controls the actual cadence)
 constexpr std::chrono::seconds RT_DRCT_ERR_WAIT = std::chrono::seconds(5);  ///< standard wait between errors
 constexpr std::chrono::seconds RT_DRCT_ERR_RATE = std::chrono::seconds(10); ///< wait in case of rate violations, too many sessions
 constexpr std::chrono::minutes RT_DRCT_WX_WAIT = std::chrono::minutes(1);   ///< How often to update weather?
@@ -143,8 +168,9 @@ enum RT_DIRECT_FIELDS_TY {
     RT_DRCT_WindSpeed,              ///< Wind speed (19)
     RT_DRCT_SAT_OAT,                ///< SAT/OAT in C (none)
     RT_DRCT_TAT,                    ///< TAT (none)
-    RT_DRCT_ICAO_ID,                ///< Is this an ICAO valid hex ID (1)
-    RT_DRCT_NUM_FIELDS              ///< Number of known fields
+    RT_DRCT_ICAO_ID,                ///< (47) Is this an ICAO valid hex ID (1)
+    RT_DRCT_Operator,               ///< (48) ICAO operator/airline flag code (e.g. "QFA", "FDX"); empty when the hex is not in the BaseStation DB (~30% of records). Hex-keyed, so unaffected by wet-lease / codeshare callsign confusion. Used to populate `FDStaticData::opIcao` for livery matching. (v6)
+    RT_DRCT_NUM_FIELDS              ///< Number of known fields (= 49 in v6)
 };
 
 /// Fields in a response to a parked aircraft request
@@ -227,9 +253,14 @@ enum RT_RTTFC_FIELDS_TY {
     RT_RTTFC_WINDSPD,               ///< wind speed in kts
     RT_RTTFC_OAT,                   ///< outside air temperature / static air temperature
     RT_RTTFC_TAT,                   ///< total air temperature
-    RT_RTTFC_ISICAOHEX,             ///< is this hexid an ICAO assigned ID.
-    RT_RTTFC_AUGMENTATION_STATUS,   ///< has this record been augmented from multiple sources
-    RT_RTTFC_MIN_TFC_FIELDS         ///< always last, minimum number of fields
+    RT_RTTFC_ISICAOHEX,                 ///< (40) is this hexid an ICAO-assigned ID
+    RT_RTTFC_BARO_ALT_UNCORRECTED,      ///< (41) raw ADS-B baro altitude (1013.25 hPa reference) — v6 occupies this slot; v5 had `augmentation_status` here
+    RT_RTTFC_MIN_TFC_FIELDS,            ///< (= 42) strict minimum-fields parser gate, preserved at the pre-v11.1.452 baseline for backward compat with older RT App builds that don't send the new fields below
+    // ----- v6 OPTIONAL fields (RealTraffic v11.1.452+) -----
+    // These are NOT enforced by the min-fields gate above; readers must
+    // bounds-check `tfc.size() > RT_RTTFC_<field>` before accessing.
+    RT_RTTFC_AUTHENTICATION = RT_RTTFC_MIN_TFC_FIELDS,  ///< (42) authentication checksum (safe to ignore)
+    RT_RTTFC_OPERATOR,                  ///< (43) ICAO operator/airline flag code (e.g. "QFA", "FDX"); empty when the hex is not in the BaseStation DB (~30% of records, mostly private/military). Hex-keyed, so unaffected by wet-lease / codeshare callsign confusion. Used to populate `FDStaticData::opIcao` for livery matching.
 };
 
 // map of id to last received datagram (for duplicate datagram detection)
@@ -330,6 +361,12 @@ protected:
     long lTotalFlights = -1;
     /// Shall we check for parked traffic next time around? (Set from main thread after airport data updates)
     bool bDoParkedTraffic = false;
+    /// Wall-clock time (`std::time`) of the last parked-traffic fetch.
+    /// Drives the periodic re-fetch in `SetRequType` — see
+    /// `RT_PARKED_REFRESH_INTVL_S`. 0 = never fetched yet (so the first
+    /// `SetRequType` call re-arms immediately, which is harmless because
+    /// the connection-init path already arms `bDoParkedTraffic` too).
+    time_t tLastParkedRefresh = 0;
     
     // TCP connection to send current position
     std::thread thrTcpServer;               ///< thread of the TCP listening thread (short-lived)
@@ -346,10 +383,16 @@ protected:
 #endif
     /// last simtime that we received UDP traffic
     double lastReceivedTime     = 0.0;
+    /// TEMPORARY (FEED_DIAG): per-aircraft last feed-timestamp accepted
+    /// by the channel. Used to verify that successive RT positions for
+    /// the same hex id arrive with monotonically increasing timestamps,
+    /// and to flag backwards / duplicate positions that would explain
+    /// rendered aircraft moving backwards. Cleared on connection start.
+    std::map<unsigned long, double> lastFeedTs;
     /// last known position to detect fast movement (to request buffered traffic and the like)
     positionTy lastKnownViewPos;
     /// Expecting buffered traffic first?
-    bool bWaitForBuffers = true;
+    bool bWaitForBuffers = false;
     /// expected bu
     // map of last received datagrams for duplicate detection
     std::map<unsigned long,RTUDPDatagramTy> mapDatagrams;

@@ -215,7 +215,7 @@ while 1:
         line = line.strip()
 
         # Can be traffic or weather data
-        if line.startswith('AITFC') or line.startswith('RTTFC') :
+        if line.startswith('AITFC') or line.startswith('RTTFC') or line.startswith('RTBUF') :
             sendTrafficData(line, _sendLn)
             _sendLn = 1                 # send all following lines
         else:

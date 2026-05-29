@@ -23,3 +23,10 @@ xcuserdata/
 
 # MS Office Temporary Files
 ~$*
+
+# Local assistant artifacts — never commit
+CLAUDE.md
+.claude/
+*claude*
+*Claude*
+.aider*

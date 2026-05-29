@@ -2723,6 +2723,17 @@ positionTy LTAptFindStartupLoc (const positionTy& pos,
                                 double maxDist,
                                 double* outDist)
 {
+    // Airport layout not (yet / currently) loaded? While `AsyncReadApt`
+    // is running, gmapApt is purged-then-half-rebuilt, so a lookup here
+    // would match the wrong startup location or none. Refuse until the
+    // layout is reliably available. (ProcessParkedAcBuffer is already
+    // gated upstream; this also guards the Synthetic channel's call site
+    // and any lookup that races a mid-flight reload.)
+    if (!LTAptAvailable()) {
+        if (outDist) *outDist = NAN;
+        return positionTy();
+    }
+
     // Access to the list of airports is guarded by a lock
     std::unique_lock<std::recursive_timed_mutex> lock(mtxGMapApt,
                                                       dataRefs.IsXPThread() ?
@@ -2763,7 +2774,17 @@ bool LTAptSnap (LTFlightData& fd, dequePositionTy::iterator& posIter,
     // Configured off?
     if (dataRefs.GetFdSnapTaxiDist_m() <= 0)
         return false;
-    
+
+    // Airport layout not (yet / currently) loaded?
+    // `AsyncReadApt` first PURGES airports from gmapApt and then re-adds
+    // them one at a time, releasing the lock between each — so while a
+    // load is in progress the map is half-built. Snapping against that
+    // matches positions to the wrong taxiway/startup location (or none),
+    // and the wrong heading then sticks. `bAptAvailable` is false for the
+    // whole load window; refuse to snap until it is reliably back.
+    if (!LTAptAvailable())
+        return false;
+
     // Access to the list of airports is guarded by a lock
     std::unique_lock<std::recursive_timed_mutex> lock(mtxGMapApt,
                                                       dataRefs.IsXPThread() ?

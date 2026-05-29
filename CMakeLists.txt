@@ -23,7 +23,7 @@ endif()
 set(CACHE{CMAKE_BUILD_TYPE} TYPE STRING VALUE "RelWithDebInfo")
 
 project(LiveTraffic
-        VERSION 4.4.0
+        VERSION 4.5.0
         DESCRIPTION "LiveTraffic X-Plane plugin")
 set(VERSION_BETA 0)
 
@@ -57,25 +57,38 @@ endif()
 # For local builds, set environment variables before running cmake
 
 # Production environment
-if(DEFINED ENV{FSC_PROD_CLIENT_ID})
+#
+# The checks below reject an env var that is DEFINED but EMPTY (in
+# addition to the obvious not-defined case). GitHub Actions exposes
+# repository secrets as env-var assignments unconditionally — when a
+# fork PR doesn't have the secret configured, GA passes the env var
+# as the empty string, NOT as undefined. Without the `STREQUAL ""`
+# guard, the cmake fall-through to the default `"3"` / `"INOP"` stub
+# values never fires, the cmake substitution at line ~320 then emits
+# bare `-DFSC_PROD_CLIENT_ID=` (no value), the preprocessor expands
+# `FSC_PROD_CLIENT_ID` to nothing in `Src/LTFSCharter.cpp`, and the
+# Linux CI build fails with "expected primary-expression before ','".
+# This affects every fork PR; the empty-string guard makes the
+# default-fallback path correct in both unset and empty-string cases.
+if(DEFINED ENV{FSC_PROD_CLIENT_ID} AND NOT "$ENV{FSC_PROD_CLIENT_ID}" STREQUAL "")
     set(FSC_PROD_CLIENT_ID "$ENV{FSC_PROD_CLIENT_ID}" CACHE STRING "FSCharter production client ID")
 else()
     set(FSC_PROD_CLIENT_ID "3" CACHE STRING "FSCharter production client ID")
 endif()
-if(DEFINED ENV{FSC_PROD_CLIENT_SECRET})
+if(DEFINED ENV{FSC_PROD_CLIENT_SECRET} AND NOT "$ENV{FSC_PROD_CLIENT_SECRET}" STREQUAL "")
     set(FSC_PROD_CLIENT_SECRET "$ENV{FSC_PROD_CLIENT_SECRET}" CACHE STRING "FSCharter production client secret (base64)")
 else()
     # Default fallback value, is handled specifically by LiveTraffic code
     set(FSC_PROD_CLIENT_SECRET "INOP" CACHE STRING "FSCharter production client secret (base64)")
 endif()
 
-# Staging environment
-if(DEFINED ENV{FSC_STAGING_CLIENT_ID})
+# Staging environment — same empty-string-guard rationale as above.
+if(DEFINED ENV{FSC_STAGING_CLIENT_ID} AND NOT "$ENV{FSC_STAGING_CLIENT_ID}" STREQUAL "")
     set(FSC_STAGING_CLIENT_ID "$ENV{FSC_STAGING_CLIENT_ID}" CACHE STRING "FSCharter staging client ID")
 else()
     set(FSC_STAGING_CLIENT_ID "3" CACHE STRING "FSCharter staging client ID")
 endif()
-if(DEFINED ENV{FSC_STAGING_CLIENT_SECRET})
+if(DEFINED ENV{FSC_STAGING_CLIENT_SECRET} AND NOT "$ENV{FSC_STAGING_CLIENT_SECRET}" STREQUAL "")
     set(FSC_STAGING_CLIENT_SECRET "$ENV{FSC_STAGING_CLIENT_SECRET}" CACHE STRING "FSCharter staging client secret (base64)")
 else()
     # Default fallback value, is handled specifically by LiveTraffic code

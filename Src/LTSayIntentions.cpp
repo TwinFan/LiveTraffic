@@ -124,12 +124,20 @@ bool SayIntentionsConnection::ProcessFetchedData ()
     const positionTy viewPos = dataRefs.GetViewPos();
     // any a/c filter defined for debugging purposes?
     const std::string acFilter ( dataRefs.GetDebugAcFilter() );
+    // shall we filter for skynet_enabled flights only?
+    const bool bSkynetOnly = DataRefs::GetCfgInt(DR_CFG_SI_SKYNET) > 0;
 
     // Process all flights
     for (size_t i = 0; i < json_array_get_count(pArrAc); ++i)
     {
         const JSON_Object* pAc = json_array_get_object(pArrAc, i);
         if (!pAc) continue;
+        
+        // Skynet only and not a Skynet flight? -> Skip it
+        if (bSkynetOnly &&
+            json_object_has_value(pAc, SI_SKYNET) &&
+            jog_l(pAc, SI_SKYNET) == 0)
+            continue;
         
         // Displayname is matching? My own flight! -> Skip it
         if (jog_s(pAc, SI_DISPLAYNAME) == dataRefs.GetSIDisplayName())
