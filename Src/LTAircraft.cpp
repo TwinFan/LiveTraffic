@@ -3480,15 +3480,15 @@ XPLMCameraPosition_t  LTAircraft::extOffs;
 // start an outside camery view
 void LTAircraft::ToggleCameraView()
 {
-    // reset camera offset
-    extOffs.x = extOffs.y = extOffs.z = extOffs.heading = extOffs.roll = 0.0f;
-    extOffs.zoom = 1.0f;
-    extOffs.pitch = MDL_EXT_CAMERA_PITCH;
-
     // starting a new external view?
     if (!pExtViewAc) {
         pExtViewAc = this;                          // remember ourself as the aircraft to show
         if (!dataRefs.ShallUseExternalCamera()) {
+            // reset camera offset
+            extOffs.x = extOffs.y = extOffs.z = extOffs.heading = extOffs.roll = 0.0f;
+            extOffs.zoom = 1.0f;
+            extOffs.pitch = MDL_EXT_CAMERA_PITCH;
+            
             CalcCameraViewPos();                    // calc first position
 
             // we shall ensure to set an external view first,
