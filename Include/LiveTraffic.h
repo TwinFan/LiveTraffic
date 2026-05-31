@@ -141,6 +141,7 @@ extern DataRefs dataRefs;
 #include "LTChannel.h"
 #include "LTForeFlight.h"
 #include "LTRealTraffic.h"
+#include "LTNavigraph.h"
 #include "LTOpenSky.h"
 #include "LTADSBEx.h"
 #include "LTADSBHub.h"

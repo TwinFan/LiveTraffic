@@ -704,6 +704,38 @@ void LTSettingsUI::buildInterface()
                 if (!*sFilter) ImGui::TreePop();
             }
             
+            // --- Navigraph / Flightradar24 ---
+            const bool bWasNvgrEnabled = dataRefs.IsChannelEnabled(DR_CHANNEL_NVGR_FR24);
+            if (ImGui::TreeNodeCbxLinkHelp("Navigraph/FR24", nCol,
+                                           DR_CHANNEL_NVGR_FR24, "Connect to Navigraph for Flightradar24 tracking data, requires Navigraph Unlimited",
+                                           ICON_FA_EXTERNAL_LINK_SQUARE_ALT " " NVGR_CHECK_NAME,
+                                           NVGR_CHECK_URL,
+                                           NVGR_CHECK_POPUP,
+                                           HELP_SET_CH_NAVIGRAPH, "Open Help on Navigraph in Browser",
+                                           sFilter, nOpCl))
+            {
+                if (NvgrFR24Connection::IsBuiltIn()) {
+                    // If Navigraph has just been enabled then, as a courtesy,
+                    // we also make sure that OpenSky Master data is enabled
+                    if (!bWasNvgrEnabled && dataRefs.IsChannelEnabled(DR_CHANNEL_NVGR_FR24)) {
+                        dataRefs.SetChannelEnabled(DR_CHANNEL_OPEN_SKY_AC_MASTERDATA, true);
+                    }
+                    
+                }
+                
+                // Navigraph's connection status details
+                if (ImGui::FilteredLabel("Connection Status", sFilter)) {
+                    if (const LTChannel* pNvgrCh = LTFlightDataGetCh(DR_CHANNEL_NVGR_FR24)) {
+                        ImGui::TextWrapped("%s", pNvgrCh->GetStatusText().c_str());
+                    } else {
+                        ImGui::TextUnformatted("Off");
+                    }
+                    ImGui::TableNextCell();
+                }
+
+                if (!*sFilter) ImGui::TreePop();
+            }
+
             // --- ADS-B Exchange ---
             if (ImGui::TreeNodeCbxLinkHelp("ADS-B Exchange", nCol,
                                            // we offer the enable checkbox only when an API key is defined
@@ -807,54 +839,56 @@ void LTSettingsUI::buildInterface()
                 LTChannel* pFSCCh = LTFlightDataGetCh(DR_CHANNEL_FSCHARTER);
                 const bool bFSCon = dataRefs.IsChannelEnabled(DR_CHANNEL_FSCHARTER);
                 
-                // User
-                if (ImGui::FilteredLabel("Log In", sFilter)) {
-                    ImGui::Indent(ImGui::GetWidthIconBtn(true));
-                    ImGui::InputTextWithHint("##FSCUser",
-                                             "Email Address",
-                                             &sFSCUser,
-                                             // prohibit changes to the user while channel on
-                                             (bFSCon ? ImGuiInputTextFlags_ReadOnly : ImGuiInputTextFlags_None));
-                    ImGui::Unindent(ImGui::GetWidthIconBtn(true));
-
-                    ImGui::TableNextCell();
-                }
-                
-                // Password
-                if (ImGui::FilteredLabel("Password", sFilter)) {
-                    // "Eye" button changes password flag
-                    ImGui::Selectable(ICON_FA_EYE "##FSCPwdVisible", &bFSCPwdClearText,
-                                      ImGuiSelectableFlags_None, ImVec2(ImGui::GetWidthIconBtn(),0));
-                    if (ImGui::IsItemHovered())
-                        ImGui::SetTooltip("%s", "Show/Hide password");
-                    ImGui::SameLine();  // make text entry the size of the remaining space in cell, but not larger
-                    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
-                    ImGui::InputTextWithHint("##FSCPwd",
-                                             "Enter or paste FSC password",
-                                             &sFSCPwd,
-                                             // clear text or password mode?
-                                             (bFSCPwdClearText ? ImGuiInputTextFlags_None     : ImGuiInputTextFlags_Password) |
-                                             // prohibit changes to the pwd while channel on
-                                             (bFSCon ? ImGuiInputTextFlags_ReadOnly : ImGuiInputTextFlags_None));
-                    
-                    ImGui::TableNextCell();
-                }
-                
-                // Save button or hint how to change
-                if (!*sFilter) {
-                    ImGui::TableNextCell();
-                    if (bFSCon) {
-                        ImGui::TextUnformatted("Disable the channel first if you want to change user/password.");
-                    } else {
-                        if (ImGui::ButtonTooltip(ICON_FA_SAVE " Save and Try", "Saves the credentials and activates the channel")) {
-                            dataRefs.SetFSCharterUser(sFSCUser);
-                            dataRefs.SetFSCharterPwd(sFSCPwd);
-                            if (pFSCCh) pFSCCh->SetValid(true,false);
-                            dataRefs.SetChannelEnabled(DR_CHANNEL_FSCHARTER, true);
-                            bFSCPwdClearText = false;           // and hide the pwd now
-                        }
+                if (FSCConnection::IsBuiltIn()) {
+                    // User
+                    if (ImGui::FilteredLabel("Log In", sFilter)) {
+                        ImGui::Indent(ImGui::GetWidthIconBtn(true));
+                        ImGui::InputTextWithHint("##FSCUser",
+                                                 "Email Address",
+                                                 &sFSCUser,
+                                                 // prohibit changes to the user while channel on
+                                                 (bFSCon ? ImGuiInputTextFlags_ReadOnly : ImGuiInputTextFlags_None));
+                        ImGui::Unindent(ImGui::GetWidthIconBtn(true));
+                        
+                        ImGui::TableNextCell();
                     }
-                    ImGui::TableNextCell();
+                    
+                    // Password
+                    if (ImGui::FilteredLabel("Password", sFilter)) {
+                        // "Eye" button changes password flag
+                        ImGui::Selectable(ICON_FA_EYE "##FSCPwdVisible", &bFSCPwdClearText,
+                                          ImGuiSelectableFlags_None, ImVec2(ImGui::GetWidthIconBtn(),0));
+                        if (ImGui::IsItemHovered())
+                            ImGui::SetTooltip("%s", "Show/Hide password");
+                        ImGui::SameLine();  // make text entry the size of the remaining space in cell, but not larger
+                        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+                        ImGui::InputTextWithHint("##FSCPwd",
+                                                 "Enter or paste FSC password",
+                                                 &sFSCPwd,
+                                                 // clear text or password mode?
+                                                 (bFSCPwdClearText ? ImGuiInputTextFlags_None     : ImGuiInputTextFlags_Password) |
+                                                 // prohibit changes to the pwd while channel on
+                                                 (bFSCon ? ImGuiInputTextFlags_ReadOnly : ImGuiInputTextFlags_None));
+                        
+                        ImGui::TableNextCell();
+                    }
+                    
+                    // Save button or hint how to change
+                    if (!*sFilter) {
+                        ImGui::TableNextCell();
+                        if (bFSCon) {
+                            ImGui::TextUnformatted("Disable the channel first if you want to change user/password.");
+                        } else {
+                            if (ImGui::ButtonTooltip(ICON_FA_SAVE " Save and Try", "Saves the credentials and activates the channel")) {
+                                dataRefs.SetFSCharterUser(sFSCUser);
+                                dataRefs.SetFSCharterPwd(sFSCPwd);
+                                if (pFSCCh) pFSCCh->SetValid(true,false);
+                                dataRefs.SetChannelEnabled(DR_CHANNEL_FSCHARTER, true);
+                                bFSCPwdClearText = false;           // and hide the pwd now
+                            }
+                        }
+                        ImGui::TableNextCell();
+                    }
                 }
 
                 // FSCharter's connection status details

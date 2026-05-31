@@ -57,19 +57,6 @@ endif()
 # For local builds, set environment variables before running cmake
 
 # Production environment
-#
-# The checks below reject an env var that is DEFINED but EMPTY (in
-# addition to the obvious not-defined case). GitHub Actions exposes
-# repository secrets as env-var assignments unconditionally — when a
-# fork PR doesn't have the secret configured, GA passes the env var
-# as the empty string, NOT as undefined. Without the `STREQUAL ""`
-# guard, the cmake fall-through to the default `"3"` / `"INOP"` stub
-# values never fires, the cmake substitution at line ~320 then emits
-# bare `-DFSC_PROD_CLIENT_ID=` (no value), the preprocessor expands
-# `FSC_PROD_CLIENT_ID` to nothing in `Src/LTFSCharter.cpp`, and the
-# Linux CI build fails with "expected primary-expression before ','".
-# This affects every fork PR; the empty-string guard makes the
-# default-fallback path correct in both unset and empty-string cases.
 if(DEFINED ENV{FSC_PROD_CLIENT_ID} AND NOT "$ENV{FSC_PROD_CLIENT_ID}" STREQUAL "")
     set(FSC_PROD_CLIENT_ID "$ENV{FSC_PROD_CLIENT_ID}" CACHE STRING "FSCharter production client ID")
 else()
@@ -82,7 +69,7 @@ else()
     set(FSC_PROD_CLIENT_SECRET "INOP" CACHE STRING "FSCharter production client secret (base64)")
 endif()
 
-# Staging environment — same empty-string-guard rationale as above.
+# Staging environment
 if(DEFINED ENV{FSC_STAGING_CLIENT_ID} AND NOT "$ENV{FSC_STAGING_CLIENT_ID}" STREQUAL "")
     set(FSC_STAGING_CLIENT_ID "$ENV{FSC_STAGING_CLIENT_ID}" CACHE STRING "FSCharter staging client ID")
 else()
@@ -99,6 +86,23 @@ string(SUBSTRING "${FSC_PROD_CLIENT_SECRET}" 0 10 _short_secret)
 message("FSCharter Production          = Client ID: ${FSC_PROD_CLIENT_ID}, Client Secret: ${_short_secret}")
 string(SUBSTRING "${FSC_STAGING_CLIENT_SECRET}" 0 10 _short_secret)
 message("FSCharter Staging             = Client ID: ${FSC_STAGING_CLIENT_ID}, Client Secret: ${_short_secret}")
+
+# Navigraph/FR24 OAuth Configuration
+# These can be set via environment variables or CMake cache variables
+# For GitHub Actions, set these as repository secrets
+# For local builds, set environment variables before running cmake
+if(DEFINED ENV{NVGR_CLIENT_ID} AND NOT "$ENV{NVGR_CLIENT_ID}" STREQUAL "")
+    set(NVGR_CLIENT_ID "$ENV{NVGR_CLIENT_ID}" CACHE STRING "Navigraph client ID")
+else()
+    set(NVGR_CLIENT_ID "INOP" CACHE STRING "Navigraph client ID")
+endif()
+if(DEFINED ENV{NVGR_CLIENT_SECRET} AND NOT "$ENV{NVGR_CLIENT_SECRET}" STREQUAL "")
+    set(NVGR_CLIENT_SECRET "$ENV{NVGR_CLIENT_SECRET}" CACHE STRING "Navigraph client secret")
+else()
+    # Default fallback value, is handled specifically by LiveTraffic code
+    set(NVGR_CLIENT_SECRET "INOP" CACHE STRING "Navigraph client secret")
+endif()
+
 
 # By default we build Release with Debug Info (and strip the debug info in post-processing)
 if ((NOT DEFINED CMAKE_BUILD_TYPE) OR (CMAKE_BUILD_TYPE STREQUAL ""))
@@ -226,6 +230,7 @@ set(Header_Files
     Include/LTForeFlight.h
     Include/LTFSCharter.h
     Include/LTImgWindow.h
+    Include/LTNavigraph.h
     Include/LTOpenGlider.h
     Include/LTOpenSky.h
     Include/LTRealTraffic.h
@@ -275,6 +280,7 @@ set(Source_Files
     Src/LTFSCharter.cpp
     Src/LTImgWindow.cpp
     Src/LTMain.cpp
+    Src/LTNavigraph.cpp
     Src/LTOpenGlider.cpp
     Src/LTOpenSky.cpp
     Src/LTRealTraffic.cpp
@@ -334,6 +340,16 @@ set_property(
         FSC_PROD_CLIENT_SECRET="${FSC_PROD_CLIENT_SECRET}"
         FSC_STAGING_CLIENT_ID=${FSC_STAGING_CLIENT_ID}
         FSC_STAGING_CLIENT_SECRET="${FSC_STAGING_CLIENT_SECRET}"
+)
+
+# Navigraph OAuth Configuration
+# We keep them restricted to the one file for which they are relevat to reduce log output clutter.
+set_property(
+    SOURCE
+        Src/LTNavigraph.cpp
+    PROPERTY COMPILE_DEFINITIONS
+        NVGR_CLIENT_ID="${NVGR_CLIENT_ID}"
+        NVGR_CLIENT_SECRET="${NVGR_CLIENT_SECRET}"
 )
 
 ################################################################################

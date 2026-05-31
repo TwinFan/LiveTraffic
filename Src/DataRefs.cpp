@@ -613,6 +613,7 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/channel/adsb_exchange/online",    DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/adsb_fi/online",          DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/airplanes_live/online",   DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
+    {"livetraffic/channel/navigraph/fr24",          DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/real_traffic/online",     DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
 };
 
@@ -2304,6 +2305,8 @@ bool DataRefs::LoadConfigFile()
                 SetOpenSkyClient(sVal);
             else if (sDataRef == CFG_OPENSKY_SECRET)
                 SetOpenSkySecret(Cleartext(sVal));
+            else if (sDataRef == CFG_NVGR_REFRESH_TOKEN)
+                SetNvrgRefrshToken(Cleartext(sVal));
             else if (sDataRef == CFG_ADSBEX_API_KEY) {
                 // With v4.2 ADSBEx switches to a new service, so we need a new API key
                 if (conv != CFG_V420)
@@ -2456,6 +2459,8 @@ bool DataRefs::SaveConfigFile()
         fOut << CFG_OPENSKY_CLIENT << ' ' << sOpenSkyClient << '\n';
     if (!sOpenSkySecret.empty())
         fOut << CFG_OPENSKY_SECRET << ' ' << Obfuscate(sOpenSkySecret) << '\n';
+    if (!sNvgrRefreshToken.empty())
+        fOut << CFG_NVGR_REFRESH_TOKEN << ' ' << Obfuscate(sNvgrRefreshToken) << '\n';
     if (!GetADSBExAPIKey().empty())
         fOut << CFG_ADSBEX_API_KEY << ' ' << Obfuscate(GetADSBExAPIKey()) << '\n';
     if (!GetRTLicense().empty())

@@ -65,6 +65,8 @@ protected:
     bool bRTZuluTime = false;       ///< Enter time as ZULU or Local?
     std::string sRTPort;            ///< RealTraffic traffic port
     
+    // Channel: Navigraph
+    
     // Channel: FSCharter
     std::string sFSCUser;           ///< FSC user
     std::string sFSCPwd;            ///< FSC password
