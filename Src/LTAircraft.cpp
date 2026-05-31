@@ -3485,7 +3485,10 @@ void LTAircraft::ToggleCameraView()
         pExtViewAc = this;                          // remember ourself as the aircraft to show
         if (!dataRefs.ShallUseExternalCamera()) {
             // reset camera offset
-            extOffs.x = extOffs.y = extOffs.z = extOffs.heading = extOffs.roll = 0.0f;
+            extOffs.x = (float)pMdl->EXT_CAMERA_LON_OFS;
+            extOffs.z = (float)pMdl->EXT_CAMERA_LAT_OFS;
+            extOffs.y = (float)pMdl->EXT_CAMERA_VERT_OFS;
+            extOffs.heading = extOffs.roll = 0.0f;
             extOffs.zoom = 1.0f;
             extOffs.pitch = MDL_EXT_CAMERA_PITCH;
             
@@ -3526,18 +3529,18 @@ void LTAircraft::ToggleCameraView()
     dataRefs.SetCameraAc(pExtViewAc);
 }
 
-// calculate the correct external camera position
+// calculate the correct external camera position relative to the plane's position and heading
 void LTAircraft::CalcCameraViewPos()
 {
     if (IsInCameraView() && !dataRefs.ShallUseExternalCamera()) {
         posExt = ppos;
 
         // move position back along the longitudinal axes
-        posExt += vectorTy(ppos.heading(), pMdl->EXT_CAMERA_LON_OFS + extOffs.x);
+        posExt += vectorTy(ppos.heading(),      extOffs.x);
         // move position a bit to the side
-        posExt += vectorTy(ppos.heading() + 90, pMdl->EXT_CAMERA_LAT_OFS + extOffs.z);
+        posExt += vectorTy(ppos.heading() + 90, extOffs.z);
         // and move a bit up
-        posExt.alt_m() += pMdl->EXT_CAMERA_VERT_OFS + extOffs.y;
+        posExt.alt_m() +=                       extOffs.y;
 
         // convert to local
         posExt.WorldToLocal();
@@ -3565,11 +3568,21 @@ int LTAircraft::CameraCB (XPLMCameraPosition_t* outCameraPosition,
     outCameraPosition->x =        (float)posExt.X();
     outCameraPosition->y =        (float)posExt.Y();
     outCameraPosition->z =        (float)posExt.Z();
-    outCameraPosition->heading  = (float)posExt.heading() + extOffs.heading;
-    outCameraPosition->pitch =                              extOffs.pitch;
-    outCameraPosition->roll =                               extOffs.roll;
-    outCameraPosition->zoom =                               extOffs.zoom;
     
+    // For the camera orientation we distinguish VR from non-VR handling
+    if (dataRefs.IsVREnabled()) {
+        // VR: We decide nothing, the user's head decides everything
+        outCameraPosition->heading = dataRefs.GetViewHeadHeading();
+        outCameraPosition->pitch   = dataRefs.GetViewHeadPitch();
+        outCameraPosition->roll    = dataRefs.GetViewHeadRoll();
+    } else {
+        // non-VR
+        outCameraPosition->heading = (float)posExt.heading() + extOffs.heading;
+        outCameraPosition->pitch   =                           extOffs.pitch;
+        outCameraPosition->roll    =                           extOffs.roll;
+    }
+    outCameraPosition->zoom =                               extOffs.zoom;
+
     // Reset the counter that counts flight loop calls w/o camera control.
     // The "loosing control" part above works great if X-Plane itself takes over camera control,
     // but reportedly not if a 3rd party plugin takes over, so we count ourselves.

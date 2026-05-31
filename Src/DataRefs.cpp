@@ -357,6 +357,9 @@ const char* DATA_REFS_XP[] = {
     "sim/operation/prefs/replay_mode",          //    int    y    enum    Are we in replay mode?
     "sim/graphics/view/view_is_external",
     "sim/graphics/view/view_type",
+    "sim/graphics/view/pilots_head_psi",        // float    y    degrees    Position of pilot's head heading
+    "sim/graphics/view/pilots_head_the",        // float    y    degrees    Position of pilot's head pitch
+    "sim/graphics/view/pilots_head_phi",        // float    y    degrees    Position of the pilot's head roll
     "sim/graphics/view/using_modern_driver",    // boolean: Vulkan/Metal in use? (since XP11.50)
 
     "sim/multiplayer/camera/tcas_idx",          // Shared data refs filled by LiveTraffic with aircraft under camera

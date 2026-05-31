@@ -229,6 +229,9 @@ enum dataRefsXP {
     DR_REPLAY_MODE,                     ///< sim/operation/prefs/replay_mode    int    y    enum    Are we in replay mode?
     DR_VIEW_EXTERNAL,
     DR_VIEW_TYPE,
+    DR_VIEW_HEAD_HEADING,               ///< sim/graphics/view/pilots_head_psi    float    y    degrees    Position of pilot's head heading
+    DR_VIEW_HEAD_PITCH,                 ///< sim/graphics/view/pilots_head_the    float    y    degrees    Position of pilot's head pitch
+    DR_VIEW_HEAD_ROLL,                  ///< sim/graphics/view/pilots_head_phi    float    y    degrees    Position of the pilot's head roll
     DR_MODERN_DRIVER,                   // sim/graphics/view/using_modern_driver: boolean: Vulkan/Metal in use?
 
     DR_CAMERA_TCAS_IDX,                 ///< Shared data ref created by us: If LiveTraffic's camera is on, then on which aircraft? Here: TCAS index
@@ -888,6 +891,9 @@ public:
     float GetMiscNetwTime() const;
     inline bool  IsViewExternal() const         { return XPLMGetDatai(adrXP[DR_VIEW_EXTERNAL]) != 0; }
     inline XPViewTypes GetViewType () const     { return (XPViewTypes)XPLMGetDatai(adrXP[DR_VIEW_TYPE]); }
+    float GetViewHeadHeading () const           { return XPLMGetDataf(adrXP[DR_VIEW_HEAD_HEADING]); }
+    float GetViewHeadPitch () const             { return XPLMGetDataf(adrXP[DR_VIEW_HEAD_PITCH]); }
+    float GetViewHeadRoll () const              { return XPLMGetDataf(adrXP[DR_VIEW_HEAD_ROLL]); }
     inline bool UsingModernDriver () const      { return bUsingModernDriver; }
     inline bool  IsVREnabled() const            { return lastVREnabled; }
     bool IsUsingSystemTime() const              { return lastUsingSystemTime; }
