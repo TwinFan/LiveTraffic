@@ -661,8 +661,8 @@ std::string Sha256_digest (const std::string& s)
     SHA256_CTX ctx;
     std::string buf(SHA256_BLOCK_SIZE, 0);
     sha256_init(&ctx);
-    sha256_update(&ctx, (BYTE*)s.data(), s.size());
-    sha256_final(&ctx, (BYTE*)buf.data());
+    sha256_update(&ctx, (uint8_t*)s.data(), s.size());
+    sha256_final(&ctx, (uint8_t*)buf.data());
     return buf;
 }
 
