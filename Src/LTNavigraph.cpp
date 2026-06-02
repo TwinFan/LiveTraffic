@@ -625,6 +625,8 @@ void NvgrFR24Connection::AuthMain ()
         // Need to send the initial request to initiate the flow?
         if (authState == NVGR_AUTH_FETCHING) {
             // TODO: Implement
+            std::string verifier, challenge;
+            PKCEVerifierChallenge(verifier, challenge);
             // Next expected step: wait
             AuthSetState (NVGR_AUTH_FETCHING, NVGR_AUTH_WAITING);
         }

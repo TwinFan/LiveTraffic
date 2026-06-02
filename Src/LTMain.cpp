@@ -24,6 +24,8 @@
 
 #include "LiveTraffic.h"
 
+#include "sha256.h"             // for sha256
+
 #if IBM
 #include <shellapi.h>           // for ShellExecuteA
 #include <shlobj.h>             // For SHGetKnownFolderPath
@@ -612,6 +614,56 @@ std::string EncodeBase64 (const std::string& _clear)
     std::string ret (buf);
     delete [] buf;
     return ret;
+}
+
+/// Base64url encoding
+/// @see https://developers.navigraph.com/docs/authentication/pkce
+/// @see https://datatracker.ietf.org/doc/html/rfc4648#section-5
+std::string EncodeBase64url (const std::string& _clear)
+{
+    // It starts just normal
+    std::string ret = EncodeBase64(_clear);
+    // Then we replace all `+` with `-` and `/` with `_`
+    std::for_each(ret.begin(), ret.end(),
+                  [](char& c){
+                    if (c == '+') c = '-';
+                    if (c == '/') c = '_';
+    });
+    // Finally, we remove the trailing '='
+    while (!ret.empty() && ret.back() == '=')
+        ret.pop_back();
+    return ret;
+}
+
+/// Create pair of PKCE Verifier/Challenge
+/// @see https://developers.navigraph.com/docs/authentication/pkce
+void PKCEVerifierChallenge (std::string& outVerifier, std::string& outChallenge)
+{
+    // Random 32 Bytes
+    constexpr size_t PKCE_RND_LEN = 32;         // how many random bytes
+    std::string sRnd(PKCE_RND_LEN, 0);
+    std::for_each(sRnd.begin(), sRnd.end(),     // fill with random numbers
+                  [](char& c){c = char(std::rand());});
+    
+    // Verifier = Base64url of those random bytes
+    outVerifier = EncodeBase64url(sRnd);
+    
+    // sha256 digest it
+    const std::string digest = Sha256_digest(outVerifier);
+    
+    // Challenge = Base64url of the digest
+    outChallenge = EncodeBase64url(digest);
+}
+
+/// Sha256 hash, returns 32 bytes (not actually a human readable string)
+std::string Sha256_digest (const std::string& s)
+{
+    SHA256_CTX ctx;
+    std::string buf(SHA256_BLOCK_SIZE, 0);
+    sha256_init(&ctx);
+    sha256_update(&ctx, (BYTE*)s.data(), s.size());
+    sha256_final(&ctx, (BYTE*)buf.data());
+    return buf;
 }
 
 /// Base64 decoding

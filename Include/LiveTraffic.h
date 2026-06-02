@@ -310,8 +310,14 @@ void push_back_unique(ContainerT& list, typename ContainerT::const_reference key
 
 /// Base64 encoding
 std::string EncodeBase64 (const std::string& _clear);
+/// Base64url encoding
+std::string EncodeBase64url (const std::string& _clear);
 /// Base64 decoding
 std::string DecodeBase64 (const std::string& _encoded);
+/// Create pair of PKCE Verifier/Challenge 
+void PKCEVerifierChallenge (std::string& outVerifier, std::string& outChallenge);
+/// Sha256 hash, returns 32 bytes (not actually a human readable string)
+std::string Sha256_digest (const std::string& s);
 /// XOR a string s with another one t, potentially repeating the application of t if t is shorter than s
 std::string str_xor (const std::string& s, const char* t);
 /// Obfuscate a secret string for storing in the settings file

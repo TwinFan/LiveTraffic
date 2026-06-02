@@ -196,6 +196,7 @@ endif()
 # Set include directories used by our code and dependencies.
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Include")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/base64")
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/SHA256")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/OpenGL")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/parson")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/XPMP2/inc")
@@ -241,6 +242,7 @@ set(Header_Files
     Include/TextIO.h
     Include/ThreadCrashHdl.h
     Lib/base64/base64.h
+    Lib/SHA256/sha256.h
     Lib/parson/parson.h
     Lib/LTAPI/LTAPI.h
     Lib/ImGui/imconfig.h
@@ -292,6 +294,7 @@ set(Source_Files
     Src/TextIO.cpp
     Src/ThreadCrashHdl.cpp
     Lib/base64/base64.c
+    Lib/SHA256/sha256.c
     Lib/parson/parson.c
     Lib/ImGui/imgui_draw.cpp
     Lib/ImGui/imgui_widgets.cpp
@@ -361,6 +364,7 @@ target_precompile_headers(LiveTraffic PUBLIC Include/LiveTraffic.h)
 # Exclude all the non-core-LiveTraffic modules from the pch
 set_source_files_properties(
     Lib/base64/base64.c
+    Lib/SHA256/sha256.c
     Lib/parson/parson.c
     Lib/ImGui/imgui_draw.cpp
     Lib/ImGui/imgui_widgets.cpp
