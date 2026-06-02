@@ -721,10 +721,20 @@ void LTSettingsUI::buildInterface()
                         dataRefs.SetChannelEnabled(DR_CHANNEL_OPEN_SKY_AC_MASTERDATA, true);
                     }
                     
+                    // Reset the UI status some time after completion, so we can start over?
+                    if (tNvgrCompleted.time_since_epoch().count() > 0 &&
+                        std::chrono::steady_clock::now() > tNvgrCompleted + std::chrono::seconds(30))
+                    {
+                        NvgrFR24Connection::AuthInit();
+                        bNvgrOpenVerifyUI = false;
+                        tNvgrCompleted = std::chrono::time_point<std::chrono::steady_clock>();
+                    }
+                    
                     // The button that runs the Device Authorization
                     if (ImGui::FilteredLabel("Authorization", sFilter)) {
                         // Pre-calculate the button size, so different versions of the button always take up the same space
-                        static ImVec2 sizeAuthBtn = ImGui::CalcTextSize(ICON_FA_POWER_OFF " Re-Authorize LiveTraffic again");
+                        static ImVec2 sizeAuthBtn (ImGui::CalcTextSize(ICON_FA_POWER_OFF " Re-Authorize LiveTraffic again").x * 1.5f,
+                                                   0.0f);  // Let button decide height
                         // The Auth Process is driven by NvgrFR24Connection, we're just the UI
                         const NvgrFR24Connection::DevAuthUI ui = NvgrFR24Connection::AuthGetUI();
                         switch (ui) {
@@ -733,8 +743,10 @@ void LTSettingsUI::buildInterface()
                                 break;
 
                             // We need a button to start the process
-                            case NvgrFR24Connection::NVGR_AUTH_UI_AUTH:
                             case NvgrFR24Connection::NVGR_AUTH_UI_REAUTH:
+                                ImGui::TextWrapped("LiveTraffic is successfully authorized.");
+                                [[fallthrough]];
+                            case NvgrFR24Connection::NVGR_AUTH_UI_AUTH:
                                 if (ImGui::ButtonTooltip(ui == NvgrFR24Connection::NVGR_AUTH_UI_AUTH ? ICON_FA_POWER_OFF " Authorize LiveTraffic" : ICON_FA_POWER_OFF " Re-Authorize LiveTraffic again",
                                                          "Asks you to authorize LiveTraffic to use your Navigraph account to query live traffic data",
                                                          IM_COL32(1,1,1,0), IM_COL32(1,1,1,0), sizeAuthBtn))
@@ -750,22 +762,36 @@ void LTSettingsUI::buildInterface()
                                 
                             // We have a verification URI...make the user go there!
                             case NvgrFR24Connection::NVGR_AUTH_UI_VERIFY_URI:
-                                // TODO: Open the URI automatically...but once only
                                 if (ImGui::ButtonTooltip(ICON_FA_EXTERNAL_LINK_SQUARE_ALT " Go approve LiveTraffic access"))
                                 {
                                     LTOpenURL(NvgrFR24Connection::AuthGetVerifyURI());
                                 }
-                                ImGui::TextUnformatted("Click above button to open an approval page at Navigraph's, log in with your account, and approve LiveTraffic to use your account to access live traffic data.");
+                                ImGui::TextWrapped("Click above button to open an approval page at Navigraph's, log in with your account, and approve LiveTraffic to use your account to access live traffic data.");
+                                // Once, and certainly once only, we open the URI automatically
+                                if (!bNvgrOpenVerifyUI) {
+                                    bNvgrOpenVerifyUI = true;
+                                    LTOpenURL(NvgrFR24Connection::AuthGetVerifyURI());
+                                }
                                 break;
                                 
                             // All done!
                             case NvgrFR24Connection::NVGR_AUTH_UI_DONE:
-                                ImGui::TextUnformatted("Done:");
+                                switch (NvgrFR24Connection::AuthGetState()) {
+                                    // Success! Let's right away also activate the channel, user will want to use it
+                                    case NvgrFR24Connection::NVGR_AUTH_SUCCESS:
+                                        ImGui::TextWrapped("LiveTraffic is successfully authorized.");
+                                        dataRefs.SetChannelEnabled(DR_CHANNEL_NVGR_FR24, true);
+                                        dataRefs.SetChannelEnabled(DR_CHANNEL_OPEN_SKY_AC_MASTERDATA, true);
+                                        break;
+                                    default:
+                                        ImGui::TextWrapped("Authorization failed, see status below:");
+                                }
+                                // Remember when we finished, so we can reset some time later
+                                if (tNvgrCompleted.time_since_epoch().count() == 0)
+                                    tNvgrCompleted = std::chrono::steady_clock::now();
                                 break;
                         }
-                    
-                        // is either "Authorize" or "Re-Authorize"
-                        const bool bFirstTime = !dataRefs.HaveNvgrRefreshToken();
+                        ImGui::TableNextCell();
                     }
                     
                 }

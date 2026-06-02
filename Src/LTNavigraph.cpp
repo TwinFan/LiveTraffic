@@ -506,11 +506,16 @@ std::chrono::time_point<std::chrono::steady_clock> NvgrFR24Connection::tTokenExp
 
 void NvgrFR24Connection::AuthInit ()
 {
+    // If process is still underway, cancel it
+    AuthCancelProcess();
+    
+    // Reset the status to the very beginning
     std::lock_guard<std::recursive_mutex> lk(gAuthMtx);
-    // We may allow the Auth Process
+    eAuthState = NVGR_AUTH_NONE;
     eAuthUI = !IsBuiltIn()                      ?   NVGR_AUTH_UI_NOTHING :
               dataRefs.HaveNvgrRefreshToken()   ?   NVGR_AUTH_UI_REAUTH :
                                                     NVGR_AUTH_UI_AUTH;
+    sAuthVerifyURI.clear();
 }
 
 // Triggers the process (if not NVGR_AUTH_FETCHING/WAITING)
