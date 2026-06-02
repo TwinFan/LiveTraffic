@@ -61,6 +61,8 @@ LTFlightDataChannel(DR_CHANNEL_NVGR_FR24, OPSKY_NAME)
 void NvgrFR24Connection::ResetStatus ()
 {
     sErrMsg.clear();
+    tokenAccess.clear();
+    tTokenExpiration = std::chrono::time_point<std::chrono::steady_clock>();
     eState = NVGR_STATE_NONE;
 }
 
@@ -103,11 +105,13 @@ void NvgrFR24Connection::Main ()
                         DecErrCnt();
                 
                 // Next Wakeup:
-                // TODO: Fetch new tokens periodically
                 // If we were fetching the access token only, then we continue immediately (don't add to tNextWakeup)...
                 if (eState == NVGR_STATE_GETTING_TOKEN)
                     // ...fetching planes
                     eState = NVGR_STATE_GET_PLANES;
+                // Should we refresh the access token? Let's do that immediately
+                else if (std::chrono::steady_clock::now() >= tTokenExpiration)
+                    eState = NVGR_STATE_GETTING_TOKEN;
                 else
                     // Next wakeup is "refresh interval" from _now_,
                     // however a minimum of 20s as imposed by Navigraph
@@ -149,8 +153,8 @@ bool NvgrFR24Connection::InitCurl ()
         return false;
     
     // Do we have a token that is about to expire and needs a refresh?
-    if (!std::isnan(tTokenExpiration) &&
-        dataRefs.GetMiscNetwTime() >= tTokenExpiration)
+    if (tTokenExpiration.time_since_epoch().count() > 0 &&
+        tTokenExpiration <= std::chrono::steady_clock::now())
     {
         ResetStatus();
     }
@@ -159,8 +163,6 @@ bool NvgrFR24Connection::InitCurl ()
     // Initially, decide if we go for token or unauthenticated:
     if (eState == NVGR_STATE_NONE) {
         CurlCleanupSlist(pHdrToken);                    // clear token information
-        tTokenExpiration = NAN;
-        
         eState = NVGR_STATE_GETTING_TOKEN;              // need fresh token
     }
     
@@ -302,7 +304,8 @@ bool NvgrFR24Connection::ProcessFetchedData ()
         // If we get a timeout we use that, otherwise a default
         long nTimeout = jog_l(pObj, NVGR_TOKEN_EXPIRES);
         if (!nTimeout) nTimeout = NVGR_AUTH_EXP_DEFAULT;
-        tTokenExpiration = dataRefs.GetMiscNetwTime() + float(nTimeout - 2 * dataRefs.GetFdRefreshIntvl());
+        nTimeout -= 2 * dataRefs.GetFdRefreshIntvl();
+        tTokenExpiration = std::chrono::steady_clock::now() + std::chrono::seconds(nTimeout);
         
         // prepend the token with the header string and create the actual header list
         snprintf(buf, sizeof(buf), NVGR_AUTH_HEADER,
@@ -444,13 +447,35 @@ std::string NvgrFR24Connection::GetStatusText () const
     if (!IsBuiltIn())
         return "No support for Navigraph built into this binary";
     
-    std::string s =
-        eState == NVGR_STATE_GETTING_TOKEN ? "Getting access token..." : LTChannel::GetStatusText();
+    std::string s;
+    
+    // Authorization Process underway?
+    DevAuthState authState = AuthGetState();
+    if (authState > NVGR_AUTH_NONE) {
+        switch (authState) {
+            case NVGR_AUTH_NONE:        break;
+            case NVGR_AUTH_FETCHING:    s += "Fetching Device Authorization..."; break;
+            case NVGR_AUTH_WAITING:     s += "Waiting for you to authorize LiveTraffic, see link/browser"; break;
+            case NVGR_AUTH_ERROR:
+                s += "Error during Device Authorization: ";
+                s += sErrMsg;
+                break;
+            case NVGR_AUTH_TIMEOUT:     s += "Device Authorization timed out!"; break;
+            case NVGR_AUTH_SUCCESS:     s += "Device Authorization successful"; break;
+            case NVGR_AUTH_CANCEL:      s += "Device Authorization being cancelled..."; break;
+        }
+        return s;
+    }
+    
+    // Normal traffic data processing
+    if (eState == NVGR_STATE_GETTING_TOKEN)
+        s = "Getting access token...";
+    else
+        s = LTChannel::GetStatusText();
     if (!sErrMsg.empty()) {
         s += " | ";
         s += sErrMsg;
     }
-
     return s;
 }
 
@@ -459,4 +484,178 @@ bool NvgrFR24Connection::IsBuiltIn()
 {
     static bool bBuiltIn = (gsNvgrClientId != "INOP") && (gsNvgrClientSecret != "INOP");
     return bBuiltIn;
+}
+
+//
+// MARK: Device Authorization
+//
+
+/// Synchronization mutex between main and auth thread, e.g. writing to the static vars
+static std::recursive_mutex gAuthMtx;
+static std::mutex gAuthCVMtx;
+static std::condition_variable gAuthCV;
+std::thread NvgrFR24Connection::thrAuth;            // the authroization communication thread
+
+// Current state of Device Authorization
+NvgrFR24Connection::DevAuthState NvgrFR24Connection::eAuthState = NvgrFR24Connection::NVGR_AUTH_NONE;
+NvgrFR24Connection::DevAuthUI NvgrFR24Connection::eAuthUI = NvgrFR24Connection::NVGR_AUTH_UI_NOTHING;
+std::string NvgrFR24Connection::sAuthVerifyURI;     // Verification URI, to be passed on to the user
+std::string NvgrFR24Connection::tokenAccess;        // the temporary access token
+std::chrono::time_point<std::chrono::steady_clock> NvgrFR24Connection::tTokenExpiration;
+
+
+void NvgrFR24Connection::AuthInit ()
+{
+    std::lock_guard<std::recursive_mutex> lk(gAuthMtx);
+    // We may allow the Auth Process
+    eAuthUI = !IsBuiltIn()                      ?   NVGR_AUTH_UI_NOTHING :
+              dataRefs.HaveNvgrRefreshToken()   ?   NVGR_AUTH_UI_REAUTH :
+                                                    NVGR_AUTH_UI_AUTH;
+}
+
+// Triggers the process (if not NVGR_AUTH_FETCHING/WAITING)
+bool NvgrFR24Connection::AuthStartProcess ()
+{
+    std::lock_guard<std::recursive_mutex> lk(gAuthMtx);
+    // Can only start a new process if we aren't waiting for results just now
+    if ((NVGR_AUTH_FETCHING <= AuthGetState() && AuthGetState() <= NVGR_AUTH_WAITING) &&
+        thrAuth.joinable())
+        return false;
+    
+    // Reset data, then start the thread
+    eAuthState = NVGR_AUTH_FETCHING;
+    sAuthVerifyURI.clear();
+    thrAuth = std::thread(AuthMain);
+    return true;
+}
+
+// If process is underway, cancel it and wait for it to end
+void NvgrFR24Connection::AuthCancelProcess ()
+{
+    if (thrAuth.joinable()) {
+        LOG_MSG(logMSG, "Trying to shut down Navigraph Device Auth thread...");
+        std::unique_lock<std::recursive_mutex> lk(gAuthMtx);
+        eAuthState = NVGR_AUTH_CANCEL;
+        lk.unlock();
+        thrAuth.join();
+        LOG_MSG(logMSG, "Navigraph Device Auth thread shut down.");
+    }
+}
+
+// Get state of auth process
+NvgrFR24Connection::DevAuthState NvgrFR24Connection::AuthGetState ()
+{
+    std::lock_guard<std::recursive_mutex> lk(gAuthMtx);
+    return eAuthState;
+}
+
+// What to show the user just now?
+NvgrFR24Connection::DevAuthUI NvgrFR24Connection::AuthGetUI ()
+{
+    std::lock_guard<std::recursive_mutex> lk(gAuthMtx);
+    return eAuthUI;
+}
+
+// Return the verification URI, if the authorization process received and needs one
+std::string NvgrFR24Connection::AuthGetVerifyURI ()
+{
+    std::string s;
+    std::lock_guard<std::recursive_mutex> lk(gAuthMtx);
+    if (AuthGetState() == NVGR_AUTH_WAITING)    // shall only have a Verification URI if we are waiting for the user to authorize it
+        s = sAuthVerifyURI;
+    return s;
+}
+
+// Sets the new state, lock-conrolled, and save: only overwrite eOld with eNew
+bool NvgrFR24Connection::AuthSetState (DevAuthState eOld, DevAuthState eNew)
+{
+    std::lock_guard<std::recursive_mutex> lk(gAuthMtx);
+    // Not the expected old state? Don't override...some other thread probably was faster
+    if (eAuthState != eOld) {
+        LOG_MSG(logWARN, "AuthStatus is not %d as expected, but %d, hence could not change status to %d",
+                eOld, eAuthState, eNew);
+        return false;
+    }
+    // Only change if there is a change
+    if (eAuthState != eNew) {
+        eAuthState = eNew;
+        LOG_MSG(logDEBUG, "AuthStatus changed from %d to %d", eOld, eNew);
+        switch (eAuthState) {
+            case NVGR_AUTH_NONE:                // Nothing's going on right now, so offer a button to start the process
+                eAuthUI = !IsBuiltIn()                      ?   NVGR_AUTH_UI_NOTHING :
+                          dataRefs.HaveNvgrRefreshToken()   ?   NVGR_AUTH_UI_REAUTH :
+                                                                NVGR_AUTH_UI_AUTH;
+                break;
+            case NVGR_AUTH_FETCHING:            // We are waiting for a server reply, just wait
+            case NVGR_AUTH_CANCEL:              // We are waiting for the background process to shut down, just wait
+                eAuthUI = NVGR_AUTH_UI_WAIT;
+                break;
+            case NVGR_AUTH_WAITING:             // We are waiting for the user to authorize, so have the user go authroize!
+                eAuthUI = NVGR_AUTH_UI_VERIFY_URI;
+                break;
+            case NVGR_AUTH_ERROR:               // Any kind of final result: We're done.
+            case NVGR_AUTH_TIMEOUT:
+            case NVGR_AUTH_SUCCESS:
+                eAuthUI = NVGR_AUTH_UI_DONE;
+                break;
+        }
+    }
+    return true;
+}
+
+
+// Thread main function running the auth process
+void NvgrFR24Connection::AuthMain ()
+{
+    // This is a communication thread's main function, set thread's name and C locale
+    ThreadSettings TS ("LT_NvgrAuth", LC_ALL_MASK);
+    LOG_MSG(logDEBUG, "LT_NvgrAuth thread started");
+
+    // Main loop
+    size_t tInterval = 5;                                   // how often to query auth status?
+    while (true) {
+        // State Machine
+        DevAuthState authState = AuthGetState();            // lock-controlled
+
+        // Need to send the initial request to initiate the flow?
+        if (authState == NVGR_AUTH_FETCHING) {
+            // TODO: Implement
+            // Next expected step: wait
+            AuthSetState (NVGR_AUTH_FETCHING, NVGR_AUTH_WAITING);
+        }
+        
+        // Need to periodically fetch the status?
+        else if (authState == NVGR_AUTH_WAITING) {
+            // TODO: Implement
+            DevAuthState nextState = NVGR_AUTH_WAITING;
+            AuthSetState(NVGR_AUTH_WAITING, nextState);
+        }
+        
+        // Re-Fetch state now after above processing
+        authState = AuthGetState();                         // lock-controlled
+        if (authState > NVGR_AUTH_WAITING)                  // leave the loop?
+            break;
+        
+        // Wait for a while before going back in loop
+        {
+            std::unique_lock<std::mutex> lk(gAuthCVMtx);
+            gAuthCV.wait_for(lk, std::chrono::seconds(tInterval));
+        }
+    }
+    
+    LOG_MSG(logDEBUG, "LT_NvgrAuth ended");
+}
+
+
+// Enabled this module
+bool NavigraphStart ()
+{
+    NvgrFR24Connection::AuthInit();
+    return true;
+}
+
+/// Stop this module, makes sure the auth thread shuts down
+void NavigraphStop ()
+{
+    NvgrFR24Connection::AuthCancelProcess();
 }

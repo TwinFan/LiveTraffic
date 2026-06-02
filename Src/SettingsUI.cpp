@@ -721,6 +721,53 @@ void LTSettingsUI::buildInterface()
                         dataRefs.SetChannelEnabled(DR_CHANNEL_OPEN_SKY_AC_MASTERDATA, true);
                     }
                     
+                    // The button that runs the Device Authorization
+                    if (ImGui::FilteredLabel("Authorization", sFilter)) {
+                        // Pre-calculate the button size, so different versions of the button always take up the same space
+                        static ImVec2 sizeAuthBtn = ImGui::CalcTextSize(ICON_FA_POWER_OFF " Re-Authorize LiveTraffic again");
+                        // The Auth Process is driven by NvgrFR24Connection, we're just the UI
+                        const NvgrFR24Connection::DevAuthUI ui = NvgrFR24Connection::AuthGetUI();
+                        switch (ui) {
+                            // Well...show nothing is easy
+                            case NvgrFR24Connection::NVGR_AUTH_UI_NOTHING:
+                                break;
+
+                            // We need a button to start the process
+                            case NvgrFR24Connection::NVGR_AUTH_UI_AUTH:
+                            case NvgrFR24Connection::NVGR_AUTH_UI_REAUTH:
+                                if (ImGui::ButtonTooltip(ui == NvgrFR24Connection::NVGR_AUTH_UI_AUTH ? ICON_FA_POWER_OFF " Authorize LiveTraffic" : ICON_FA_POWER_OFF " Re-Authorize LiveTraffic again",
+                                                         "Asks you to authorize LiveTraffic to use your Navigraph account to query live traffic data",
+                                                         IM_COL32(1,1,1,0), IM_COL32(1,1,1,0), sizeAuthBtn))
+                                {
+                                    NvgrFR24Connection::AuthStartProcess();
+                                }
+                                break;
+                                
+                            // Just wait a second...server's busy
+                            case NvgrFR24Connection::NVGR_AUTH_UI_WAIT:
+                                ImGui::ButtonEx(ICON_FA_SPINNER " ...wait a second...", sizeAuthBtn, ImGuiButtonFlags_Disabled);
+                                break;
+                                
+                            // We have a verification URI...make the user go there!
+                            case NvgrFR24Connection::NVGR_AUTH_UI_VERIFY_URI:
+                                // TODO: Open the URI automatically...but once only
+                                if (ImGui::ButtonTooltip(ICON_FA_EXTERNAL_LINK_SQUARE_ALT " Go approve LiveTraffic access"))
+                                {
+                                    LTOpenURL(NvgrFR24Connection::AuthGetVerifyURI());
+                                }
+                                ImGui::TextUnformatted("Click above button to open an approval page at Navigraph's, log in with your account, and approve LiveTraffic to use your account to access live traffic data.");
+                                break;
+                                
+                            // All done!
+                            case NvgrFR24Connection::NVGR_AUTH_UI_DONE:
+                                ImGui::TextUnformatted("Done:");
+                                break;
+                        }
+                    
+                        // is either "Authorize" or "Re-Authorize"
+                        const bool bFirstTime = !dataRefs.HaveNvgrRefreshToken();
+                    }
+                    
                 }
                 
                 // Navigraph's connection status details

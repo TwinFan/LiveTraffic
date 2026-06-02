@@ -531,6 +531,9 @@ PLUGIN_API int  XPluginEnable(void)
         // Enable showing aircraft
         if (!LTMainEnable()) return 0;
         
+        // Enable Navigraph (for the device auth flow)
+        NavigraphStart();
+        
         // Initialize sound and sound device
         dataRefs.SetSound();
 
@@ -600,6 +603,9 @@ PLUGIN_API void XPluginDisable(void) {
 
         // Stop reading apt.dat
         LTAptDisable();
+        
+        // Stop Navigraph (device auth flow)
+        NavigraphStop();
         
         // Reset weather, back in XP's control
         WeatherReset();

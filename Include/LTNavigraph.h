@@ -75,7 +75,6 @@ protected:
     } eState = NVGR_STATE_NONE;
     struct curl_slist* pHdrForm = nullptr;      ///< HTTP Header (needed during fetching a token)
     struct curl_slist* pHdrToken = nullptr;     ///< HTTP Header containing the bearer token
-    float tTokenExpiration = NAN;               ///< when will the token expire?
     std::string sErrMsg;                        ///< last error message, empty if OK
 public:
     NvgrFR24Connection ();
@@ -88,7 +87,7 @@ public:
 //    bool DoDataSmoothing (double& gndRange, double& airbRange) const override
 //    { gndRange = NVGR_SMOOTH_GROUND; airbRange = NVGR_SMOOTH_AIRBORNE; return true; }
     
-    static bool IsBuiltIn();                     ///< Is Navigraph support built in, i.e. do we have a proper client secret/id?
+    static bool IsBuiltIn();                    ///< Is Navigraph support built in, i.e. do we have a proper client secret/id?
     
 protected:
     void Main () override;          ///< virtual thread main function
@@ -96,7 +95,55 @@ protected:
     bool InitCurl () override;
     /// Tries to interpret pBuf as JSON and looks for "error" or similar
     std::string TryExtractErrorMsg (const JSON_Object* pMain);
+    
+    // Device Authorization Process
+public:
+    /// Status of the device authentication process
+    enum DevAuthState {
+        NVGR_AUTH_NONE = 0,                     ///< No device authorization underway
+        NVGR_AUTH_FETCHING,                     ///< Fetching codes from the authorization servers
+        NVGR_AUTH_WAITING,                      ///< Waiting for authorization / polling the auth server
+        NVGR_AUTH_ERROR,                        ///< Received an error, something needs to change -> GetStatusTxt
+        NVGR_AUTH_TIMEOUT,                      ///< Authorization timed out...user needs to try again
+        NVGR_AUTH_SUCCESS,                      ///< Successfully authorized, received token
+        NVGR_AUTH_CANCEL,                       ///< indicates to the thread to stop immediately
+    };
+    /// What to show to the user just now?
+    enum DevAuthUI {
+        NVGR_AUTH_UI_NOTHING = 0,               ///< Don't show anything, maybe because not built in
+        NVGR_AUTH_UI_AUTH,                      ///< Show the Authorize button (no Refresh Token yet)
+        NVGR_AUTH_UI_REAUTH,                    ///< Show the Re-Authroize button (have a Refresh Token, but can always re-authorize)
+        NVGR_AUTH_UI_WAIT,                      ///< Waiting for a server response
+        NVGR_AUTH_UI_VERIFY_URI,                ///< Show the verificatio URI, asking the user to perform the authorization
+        NVGR_AUTH_UI_DONE,                      ///< Process is done, for result see AuthState
+    };
+protected:
+    static DevAuthState eAuthState;             ///< Current state of Device Authorization
+    static DevAuthUI eAuthUI;                   ///< What to show to the user?
+    static std::string sAuthVerifyURI;          ///< Verification URI, to be passed on to the user
+    static std::thread thrAuth;                 ///< the authroization communication thread
+    static std::string tokenAccess;             ///< the temporary access token
+    ///< when will the token expire? (XP network time)
+    static std::chrono::time_point<std::chrono::steady_clock> tTokenExpiration;
+
+public:
+    static void AuthInit();                     ///< Some initialization at startup time
+    static bool AuthStartProcess ();            ///< Triggers the process (if not NVGR_AUTH_FETCHING/WAITING)
+    static void AuthCancelProcess ();           ///< If process is underway, cancel it and wait for it to end
+
+    static DevAuthState AuthGetState ();        ///< Get state of auth process
+    static DevAuthUI AuthGetUI ();              ///< What to show the user just now?
+    static std::string AuthGetVerifyURI ();     ///< Return the verification URI, if the authorization process received and needs one
+protected:
+    ///< Sets the new state, lock-conrolled, and save: only overwrite eOld with eNew
+    static bool AuthSetState (DevAuthState eOld, DevAuthState eNew);
+    static void AuthMain ();                    ///< Thread main function running the auth process
 };
 
+/// Enabled this module
+bool NavigraphStart ();
+
+/// Stop this module, makes sure the auth thread shuts down
+void NavigraphStop ();
 
 #endif /* LTNavigrpaph_h */
