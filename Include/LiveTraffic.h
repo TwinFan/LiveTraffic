@@ -222,8 +222,14 @@ bool FileRecLookup (std::ifstream& f, size_t& n,
 void LTOpenURL  (const std::string& url, const std::string& addon = "");
 void LTOpenHelp (const std::string& path);
 
-// MARK: Remote File Download
+// MARK: Simplified CURL communication
 
+/// Send a request, return the response, throws a LTError exception if anything goes wrong
+void URLGet (const std::string& inUrl,
+             std::initializer_list<std::string> inHdr,
+             const std::string& inBody,             // GET if empty, POST if filled
+             std::string& outResp,
+             long &outHttpRes);
 /// Download the given file, `false` if HTTP 404 not found, exceptions otherwise
 bool RemoteFileDownload (const std::string& url, const std::string& path);
 

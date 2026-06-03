@@ -42,6 +42,7 @@
 #define NVGR_AUTH_DEV_CODE      "device_code"
 #define NVGR_AUTH_VERIFY_URI    "verification_uri_complete"
 #define NVGR_AUTH_INTERVAL      "interval"
+constexpr size_t NVGR_AUTH_INTERVAL_DEFAULT = 5;
 // Poll Token
 #define NVGR_TOKEN_URL          "https://identity.api.navigraph.com/connect/token"
 #define NVGR_TOKEN_POLL_BODY    "grant_type=urn:ietf:params:oauth:grant-type:device_code&device_code=%s&code_verifier=%s&client_id=%s&client_secret=%s&scope=openid traffic:real:read offline_access"
@@ -75,7 +76,6 @@ protected:
     } eState = NVGR_STATE_NONE;
     struct curl_slist* pHdrForm = nullptr;      ///< HTTP Header (needed during fetching a token)
     struct curl_slist* pHdrToken = nullptr;     ///< HTTP Header containing the bearer token
-    std::string sErrMsg;                        ///< last error message, empty if OK
 public:
     NvgrFR24Connection ();
     void ResetStatus ();                        ///< used to force fetching a new token, e.g. after change of credentials
@@ -120,6 +120,7 @@ public:
 protected:
     static DevAuthState eAuthState;             ///< Current state of Device Authorization
     static DevAuthUI eAuthUI;                   ///< What to show to the user?
+    static std::string sErrMsg;                 ///< last error message, empty if OK
     static std::string sAuthVerifyURI;          ///< Verification URI, to be passed on to the user
     static std::thread thrAuth;                 ///< the authroization communication thread
     static std::string tokenAccess;             ///< the temporary access token

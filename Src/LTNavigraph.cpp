@@ -499,6 +499,7 @@ std::thread NvgrFR24Connection::thrAuth;            // the authroization communi
 // Current state of Device Authorization
 NvgrFR24Connection::DevAuthState NvgrFR24Connection::eAuthState = NvgrFR24Connection::NVGR_AUTH_NONE;
 NvgrFR24Connection::DevAuthUI NvgrFR24Connection::eAuthUI = NvgrFR24Connection::NVGR_AUTH_UI_NOTHING;
+std::string NvgrFR24Connection::sErrMsg;            // last error message, empty if OK
 std::string NvgrFR24Connection::sAuthVerifyURI;     // Verification URI, to be passed on to the user
 std::string NvgrFR24Connection::tokenAccess;        // the temporary access token
 std::chrono::time_point<std::chrono::steady_clock> NvgrFR24Connection::tTokenExpiration;
@@ -527,7 +528,7 @@ bool NvgrFR24Connection::AuthStartProcess ()
         thrAuth.joinable())
         return false;
     
-    // Reset data, then start the thread
+    // Start the thread
     eAuthState = NVGR_AUTH_FETCHING;
     sAuthVerifyURI.clear();
     thrAuth = std::thread(AuthMain);
@@ -612,23 +613,57 @@ bool NvgrFR24Connection::AuthSetState (DevAuthState eOld, DevAuthState eNew)
 // Thread main function running the auth process
 void NvgrFR24Connection::AuthMain ()
 {
+    char szBody[512];                                       // Request body
+    std::string PKCEverifier, PKCEchallenge;                // PKCE verifier & challenge
+    std::string resp;                                       // Network response
+    long httpResp;                                          // HTTP response code
+    std::chrono::time_point<std::chrono::steady_clock> tTokenExpiration;
+
     // This is a communication thread's main function, set thread's name and C locale
     ThreadSettings TS ("LT_NvgrAuth", LC_ALL_MASK);
     LOG_MSG(logDEBUG, "LT_NvgrAuth thread started");
+    sErrMsg.clear();
 
     // Main loop
-    size_t tInterval = 5;                                   // how often to query auth status?
+    size_t tInterval = NVGR_AUTH_INTERVAL_DEFAULT;          // how often to query auth status?
     while (true) {
         // State Machine
         DevAuthState authState = AuthGetState();            // lock-controlled
 
         // Need to send the initial request to initiate the flow?
         if (authState == NVGR_AUTH_FETCHING) {
-            // TODO: Implement
-            std::string verifier, challenge;
-            PKCEVerifierChallenge(verifier, challenge);
-            // Next expected step: wait
-            AuthSetState (NVGR_AUTH_FETCHING, NVGR_AUTH_WAITING);
+            try {
+                // Get a PKCE Verifier and challenge
+                PKCEVerifierChallenge(PKCEverifier, PKCEchallenge);
+                // Put together the POST body
+                snprintf(szBody, sizeof(szBody), NVGR_AUTH_BODY,
+                         gsNvgrClientId.c_str(),
+                         gsNvgrClientSecret.c_str(),
+                         PKCEchallenge.c_str());
+                // Query Navigraph server, wait for the response
+                URLGet(NVGR_AUTH_URL,
+                       { "Content-Type: application/x-www-form-urlencoded" },
+                       szBody, resp, httpResp);
+                // Read the response as JSON and fetch what we need
+                JSONRootPtr pRoot (resp.c_str());
+                if (!pRoot) { THROW_ERROR(logERR,ERR_JSON_PARSE); }
+                JSON_Object* pObj = json_object(pRoot.get());
+                if (!pObj) { THROW_ERROR(logERR,ERR_JSON_MAIN_OBJECT); }
+                // Verification URI
+                std::lock_guard<std::recursive_mutex> lk(gAuthMtx);
+                sAuthVerifyURI = jog_s(pObj, "verification_uri_complete");
+                if (sAuthVerifyURI.empty()) { THROW_ERROR(logERR, "Device Authorization response is missing the 'verification_uri_complete' field"); }
+                // Polling interval
+                tInterval = (size_t)jog_l(pObj, "interval");
+                if (!tInterval) tInterval = NVGR_AUTH_INTERVAL_DEFAULT;
+                
+                // Next expected step: wait
+                AuthSetState (NVGR_AUTH_FETCHING, NVGR_AUTH_WAITING);
+            }
+            catch (const std::exception& e) {
+                sErrMsg = e.what();
+                AuthSetState (NVGR_AUTH_FETCHING, NVGR_AUTH_ERROR);
+            }
         }
         
         // Need to periodically fetch the status?

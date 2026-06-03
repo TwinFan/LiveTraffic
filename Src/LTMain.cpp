@@ -338,8 +338,92 @@ void LTOpenHelp (const std::string& path)
 }
 
 //
-// MARK: Remote File Download
+// MARK: Simplified CURL communication
 //
+
+// CURL Write callback, just adds the received characters to the buffer
+size_t URLGet_CB (char *ptr, size_t size, size_t nmemb, void *userdata)
+{
+    std::string &buf = *(std::string*)userdata;
+    buf.append(ptr, size * nmemb);
+    return size * nmemb;
+}
+
+/// Send a request, return the response, throws a LTError exception if anything goes wrong
+void URLGet (const std::string& inUrl,
+             std::initializer_list<std::string> inHdr,
+             const std::string& inBody,             // GET if empty, POST if filled
+             std::string& outResp,
+             long &outHttpRes)
+{
+    char curl_errtxt[CURL_ERROR_SIZE] = {0};
+    
+    outResp.clear();
+    outHttpRes = 0;
+    
+    // initialize the CURL handle in a smart pointer that makes sure it's cleaned up
+    std::unique_ptr<CURL,decltype(&curl_easy_cleanup)> pCurl (curl_easy_init(), &curl_easy_cleanup);
+    if (!pCurl) throw std::runtime_error(ERR_CURL_EASY_INIT);
+    
+    // prepare the handle with the right options
+    curl_easy_setopt(pCurl.get(), CURLOPT_NOSIGNAL, 1);
+    curl_easy_setopt(pCurl.get(), CURLOPT_TIMEOUT, dataRefs.GetNetwTimeoutMax());
+    curl_easy_setopt(pCurl.get(), CURLOPT_ERRORBUFFER, curl_errtxt);
+    curl_easy_setopt(pCurl.get(), CURLOPT_WRITEFUNCTION, URLGet_CB);    // use our callback to add to resp
+    curl_easy_setopt(pCurl.get(), CURLOPT_WRITEDATA, &outResp);
+    curl_easy_setopt(pCurl.get(), CURLOPT_USERAGENT, HTTP_USER_AGENT);
+    curl_easy_setopt(pCurl.get(), CURLOPT_URL, inUrl.c_str());
+    
+    // POST a body?
+    if (!inBody.empty()) {
+        curl_easy_setopt(pCurl.get(), CURLOPT_POST, 1L);
+        curl_easy_setopt(pCurl.get(), CURLOPT_POSTFIELDS, inBody.c_str());
+        curl_easy_setopt(pCurl.get(), CURLOPT_POSTFIELDSIZE, (long)inBody.size());
+    }
+    
+    // initialize a headers list and add headers to the request
+    struct curl_slist* pHdr = nullptr;
+    if (inHdr.size() > 0) {
+        for (const std::string& h: inHdr)
+            pHdr = curl_slist_append(pHdr, h.c_str());
+        curl_easy_setopt(pCurl.get(), CURLOPT_HTTPHEADER, pHdr);
+    }
+    
+    // perform the HTTP get request
+    CURLcode cc = curl_easy_perform(pCurl.get());
+    if ( cc != CURLE_OK )
+    {
+        // problem with querying revocation list?
+        if (LTOnlineChannel::IsRevocationError(curl_errtxt)) {
+            // try not to query revoke list
+            curl_easy_setopt(pCurl.get(), CURLOPT_SSL_OPTIONS, CURLSSLOPT_NO_REVOKE);
+            LOG_MSG(logWARN, ERR_CURL_DISABLE_REV_QU, inUrl.c_str());
+            // and just give it another try
+            cc = curl_easy_perform(pCurl.get());
+        }
+    }
+    
+    // free the header structure
+    if (pHdr) {
+        curl_slist_free_all(pHdr);
+        pHdr = nullptr;
+    }
+    
+    // if (still) error, then bail
+    if (cc != CURLE_OK) {
+        THROW_ERROR(logERR, "Could not perform request for '%s': CURL %d - %s",
+                    inUrl.c_str(), cc, curl_errtxt);
+    }
+    
+    // CURL was OK, now check HTTP response code
+    curl_easy_getinfo(pCurl.get(), CURLINFO_RESPONSE_CODE, &outHttpRes);
+    
+    // all OK?
+    if (outHttpRes != HTTP_OK) {
+        THROW_ERROR(logERR, "Could not perform request for '%s': HTTP %d",
+                    inUrl.c_str(), (int)outHttpRes);
+    }
+}
 
 // Download the given file, `false` if HTTP 404 not found, exceptions otherwise
 bool RemoteFileDownload (const std::string& url, const std::string& path)
