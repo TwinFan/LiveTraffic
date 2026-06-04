@@ -56,14 +56,19 @@ LTFlightDataChannel(DR_CHANNEL_NVGR_FR24, OPSKY_NAME)
     urlPopup = OPSKY_CHECK_POPUP;
 }
 
+NvgrFR24Connection::~NvgrFR24Connection ()
+{
+    CurlCleanupSlist(pHdrForm);
+    CurlCleanupSlist(pHdrToken);
+}
 
 // used to force fetching a new token, e.g. after change of credentials
 void NvgrFR24Connection::ResetStatus ()
 {
     sErrMsg.clear();
-    tokenAccess.clear();
-    tTokenExpiration = std::chrono::time_point<std::chrono::steady_clock>();
-    eState = NVGR_STATE_NONE;
+    CurlCleanupSlist(pHdrToken);
+    tAccessExpiration = std::chrono::time_point<std::chrono::steady_clock>();
+    eState = NVGR_STATE_GETTING_TOKEN;
 }
 
 
@@ -110,7 +115,7 @@ void NvgrFR24Connection::Main ()
                     // ...fetching planes
                     eState = NVGR_STATE_GET_PLANES;
                 // Should we refresh the access token? Let's do that immediately
-                else if (std::chrono::steady_clock::now() >= tTokenExpiration)
+                else if (std::chrono::steady_clock::now() >= tAccessExpiration)
                     eState = NVGR_STATE_GETTING_TOKEN;
                 else
                     // Next wakeup is "refresh interval" from _now_,
@@ -153,17 +158,10 @@ bool NvgrFR24Connection::InitCurl ()
         return false;
     
     // Do we have a token that is about to expire and needs a refresh?
-    if (tTokenExpiration.time_since_epoch().count() > 0 &&
-        tTokenExpiration <= std::chrono::steady_clock::now())
+    if (tAccessExpiration.time_since_epoch().count() > 0 &&
+        std::chrono::steady_clock::now() >= tAccessExpiration)
     {
         ResetStatus();
-    }
-    
-    // The request we are about to send depends on our state
-    // Initially, decide if we go for token or unauthenticated:
-    if (eState == NVGR_STATE_NONE) {
-        CurlCleanupSlist(pHdrToken);                    // clear token information
-        eState = NVGR_STATE_GETTING_TOKEN;              // need fresh token
     }
     
     // if fetching token then we need to set the content type
@@ -223,10 +221,17 @@ std::string NvgrFR24Connection::TryExtractErrorMsg (const JSON_Object* pMain)
 {
     if (!pMain) return "";
     
-    std::string s = jog_s(pMain, "error");
+    std::string s = jog_s(pMain, NVGR_ERROR);           // try official 'error' first
+    if (s.empty()) s = jog_s(pMain, NVGR_ERROR_MSG);    // else try 'message'
     return s;
 }
 
+std::string NvgrFR24Connection::TryExtractErrorMsg (const std::string& resp)
+{
+    // try reading a reason from the response
+    JSONRootPtr pRoot (resp.c_str());
+    return TryExtractErrorMsg(pRoot ? json_object(pRoot.get()) : nullptr);
+}
 
 // update shared flight data structures with received flight data
 bool NvgrFR24Connection::ProcessFetchedData ()
@@ -305,7 +310,7 @@ bool NvgrFR24Connection::ProcessFetchedData ()
         long nTimeout = jog_l(pObj, NVGR_TOKEN_EXPIRES);
         if (!nTimeout) nTimeout = NVGR_AUTH_EXP_DEFAULT;
         nTimeout -= 2 * dataRefs.GetFdRefreshIntvl();
-        tTokenExpiration = std::chrono::steady_clock::now() + std::chrono::seconds(nTimeout);
+        tAccessExpiration = std::chrono::steady_clock::now() + std::chrono::seconds(nTimeout);
         
         // prepend the token with the header string and create the actual header list
         snprintf(buf, sizeof(buf), NVGR_AUTH_HEADER,
@@ -501,8 +506,8 @@ NvgrFR24Connection::DevAuthState NvgrFR24Connection::eAuthState = NvgrFR24Connec
 NvgrFR24Connection::DevAuthUI NvgrFR24Connection::eAuthUI = NvgrFR24Connection::NVGR_AUTH_UI_NOTHING;
 std::string NvgrFR24Connection::sErrMsg;            // last error message, empty if OK
 std::string NvgrFR24Connection::sAuthVerifyURI;     // Verification URI, to be passed on to the user
-std::string NvgrFR24Connection::tokenAccess;        // the temporary access token
-std::chrono::time_point<std::chrono::steady_clock> NvgrFR24Connection::tTokenExpiration;
+struct curl_slist* NvgrFR24Connection::pHdrToken = nullptr;   // HTTP Header containing the bearer token
+std::chrono::time_point<std::chrono::steady_clock> NvgrFR24Connection::tAccessExpiration;
 
 
 void NvgrFR24Connection::AuthInit ()
@@ -539,12 +544,12 @@ bool NvgrFR24Connection::AuthStartProcess ()
 void NvgrFR24Connection::AuthCancelProcess ()
 {
     if (thrAuth.joinable()) {
-        LOG_MSG(logMSG, "Trying to shut down Navigraph Device Auth thread...");
+        LOG_MSG(logDEBUG, "Trying to shut down Navigraph Device Auth thread...");
         std::unique_lock<std::recursive_mutex> lk(gAuthMtx);
         eAuthState = NVGR_AUTH_CANCEL;
         lk.unlock();
         thrAuth.join();
-        LOG_MSG(logMSG, "Navigraph Device Auth thread shut down.");
+        LOG_MSG(logDEBUG, "Navigraph Device Auth thread shut down.");
     }
 }
 
@@ -613,19 +618,19 @@ bool NvgrFR24Connection::AuthSetState (DevAuthState eOld, DevAuthState eNew)
 // Thread main function running the auth process
 void NvgrFR24Connection::AuthMain ()
 {
-    char szBody[512];                                       // Request body
-    std::string PKCEverifier, PKCEchallenge;                // PKCE verifier & challenge
-    std::string resp;                                       // Network response
-    long httpResp;                                          // HTTP response code
-    std::chrono::time_point<std::chrono::steady_clock> tTokenExpiration;
-
     // This is a communication thread's main function, set thread's name and C locale
     ThreadSettings TS ("LT_NvgrAuth", LC_ALL_MASK);
     LOG_MSG(logDEBUG, "LT_NvgrAuth thread started");
     sErrMsg.clear();
+    
+    char szBody[512];                                       // Request body
+    std::string PKCEverifier, PKCEchallenge;                // PKCE verifier & challenge
+    std::string sDeviceCode;                                // Device code received from Navigraph
+    std::string resp;                                       // Network response
+    long httpResp;                                          // HTTP response code
+    size_t tInterval = NVGR_AUTH_INTERVAL_DEFAULT;          // how often to query auth status?
 
     // Main loop
-    size_t tInterval = NVGR_AUTH_INTERVAL_DEFAULT;          // how often to query auth status?
     while (true) {
         // State Machine
         DevAuthState authState = AuthGetState();            // lock-controlled
@@ -643,34 +648,105 @@ void NvgrFR24Connection::AuthMain ()
                 // Query Navigraph server, wait for the response
                 URLGet(NVGR_AUTH_URL,
                        { "Content-Type: application/x-www-form-urlencoded" },
-                       szBody, resp, httpResp);
+                       szBody, {}, resp, httpResp);
+                
                 // Read the response as JSON and fetch what we need
                 JSONRootPtr pRoot (resp.c_str());
                 if (!pRoot) { THROW_ERROR(logERR,ERR_JSON_PARSE); }
                 JSON_Object* pObj = json_object(pRoot.get());
                 if (!pObj) { THROW_ERROR(logERR,ERR_JSON_MAIN_OBJECT); }
+                // Device Code
+                sDeviceCode = jog_s(pObj, NVGR_AUTH_DEV_CODE);
+                if (sDeviceCode.empty()) { THROW_ERROR(logERR, "Device Authorization response is missing the '" NVGR_AUTH_DEV_CODE "' field"); }
                 // Verification URI
                 std::lock_guard<std::recursive_mutex> lk(gAuthMtx);
-                sAuthVerifyURI = jog_s(pObj, "verification_uri_complete");
-                if (sAuthVerifyURI.empty()) { THROW_ERROR(logERR, "Device Authorization response is missing the 'verification_uri_complete' field"); }
+                sAuthVerifyURI = jog_s(pObj, NVGR_AUTH_VERIFY_URI);
+                if (sAuthVerifyURI.empty()) { THROW_ERROR(logERR, "Device Authorization response is missing the '" NVGR_AUTH_VERIFY_URI "' field"); }
                 // Polling interval
-                tInterval = (size_t)jog_l(pObj, "interval");
+                tInterval = (size_t)jog_l(pObj, NVGR_AUTH_INTERVAL);
                 if (!tInterval) tInterval = NVGR_AUTH_INTERVAL_DEFAULT;
                 
                 // Next expected step: wait
                 AuthSetState (NVGR_AUTH_FETCHING, NVGR_AUTH_WAITING);
             }
             catch (const std::exception& e) {
-                sErrMsg = e.what();
+                sErrMsg = TryExtractErrorMsg(resp);
+                if (sErrMsg.empty()) sErrMsg = e.what();
                 AuthSetState (NVGR_AUTH_FETCHING, NVGR_AUTH_ERROR);
             }
         }
         
         // Need to periodically fetch the status?
         else if (authState == NVGR_AUTH_WAITING) {
-            // TODO: Implement
-            DevAuthState nextState = NVGR_AUTH_WAITING;
-            AuthSetState(NVGR_AUTH_WAITING, nextState);
+            try {
+                // Put together the POST body
+                snprintf(szBody, sizeof(szBody), NVGR_TOKEN_POLL_BODY,
+                         sDeviceCode.c_str(),
+                         PKCEverifier.c_str(),
+                         gsNvgrClientId.c_str(),
+                         gsNvgrClientSecret.c_str());
+                DevAuthState nextState = NVGR_AUTH_WAITING;
+                AuthSetState(NVGR_AUTH_WAITING, nextState);
+                // Query Navigraph server, wait for the response
+                URLGet(NVGR_TOKEN_URL,
+                       { "Content-Type: application/x-www-form-urlencoded" },
+                       szBody,
+                       { HTTP_BAD_REQUEST },        // all "errors", including expected "authorization_pending" come back as 400, which is a tad inconvenient, so we need to handle 400 all by ourselves
+                       resp, httpResp);
+                
+                // Interpret the response as JSON (even a 400 response delivers a JSON)
+                JSONRootPtr pRoot (resp.c_str());
+                if (!pRoot) { THROW_ERROR(logERR,ERR_JSON_PARSE); }
+                JSON_Object* pObj = json_object(pRoot.get());
+                if (!pObj) { THROW_ERROR(logERR,ERR_JSON_MAIN_OBJECT); }
+                
+                // HTTP_BAD_REQUEST -> handle the expected stuff, throw the unexpected
+                if (httpResp == HTTP_BAD_REQUEST) {
+                    std::string sError = jog_s(pObj, NVGR_ERROR);
+                    if (sError.empty()) sError = jog_s(pObj, NVGR_ERROR_MSG);       // unlikely...but better safe than sorry: we also try 'message' if 'error' was empty; at least good for final error reporting
+                    if (sError == "authorization_pending") { /* do nothing...just keep polling */ }
+                    else if (sError == "slow_down") { tInterval += NVGR_AUTH_INTERVAL_DEFAULT; }
+                    else if (sError == "access_denied") {
+                        dataRefs.SetNvrgRefrshToken("");            // clear any potentially saved refresh token
+                        AuthSetState (NVGR_AUTH_WAITING, NVGR_AUTH_ERROR);
+                        sErrMsg = "Access has been denied.";
+                    }
+                    else if (sError == "expired_token") { AuthSetState (NVGR_AUTH_WAITING, NVGR_AUTH_TIMEOUT); }
+                    else {
+                        THROW_ERROR(logERR, "Unexpected error while polling authorization: %s", sError.c_str());
+                    }
+                }
+                // HTTP_OK
+                else {
+                    // temporary access token and type
+                    const std::string accessToken = jog_s(pObj, NVGR_TOKEN_ACCESS);
+                    if (accessToken.empty()) { THROW_ERROR(logERR, "Device Authorization response is missing the '" NVGR_TOKEN_ACCESS "' field"); }
+                    const std::string accessType = jog_s(pObj, NVGR_TOKEN_TYPE);
+                    if (accessType.empty()) { THROW_ERROR(logERR, "Device Authorization response is missing the '" NVGR_TOKEN_TYPE "' field"); }
+                    // access token expiration
+                    long tExpiresIn = jog_l(pObj, NVGR_TOKEN_EXPIRES);
+                    if (!tExpiresIn) tExpiresIn = NVGR_AUTH_EXP_DEFAULT;
+                    tAccessExpiration = std::chrono::steady_clock::now() + std::chrono::seconds(tExpiresIn);
+                    // refresh token (this one's permanent and we store it in the settings)
+                    const std::string refreshToken = jog_s(pObj, NVGR_TOKEN_REFRESH);
+                    if (refreshToken.empty()) { THROW_ERROR(logERR, "Device Authorization response is missing the '" NVGR_TOKEN_REFRESH "' field"); }
+                    dataRefs.SetNvrgRefrshToken(refreshToken);
+                    // Store the access token in a CURL header
+                    snprintf(szBody, sizeof(szBody), NVGR_AUTH_HEADER,
+                             accessType.c_str(), accessToken.c_str());
+                    std::lock_guard<std::recursive_mutex> lk(gAuthMtx);
+                    CurlCleanupSlist(pHdrToken);
+                    curl_slist_append(pHdrToken, szBody);
+                    
+                    // We're done!
+                    AuthSetState (NVGR_AUTH_WAITING, NVGR_AUTH_SUCCESS);
+                }
+            }
+            catch (const std::exception& e) {
+                // all extraction has been done in the code above already
+                sErrMsg = e.what();
+                AuthSetState (NVGR_AUTH_WAITING, NVGR_AUTH_ERROR);
+            }
         }
         
         // Re-Fetch state now after above processing

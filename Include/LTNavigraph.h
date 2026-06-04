@@ -51,6 +51,8 @@ constexpr size_t NVGR_AUTH_INTERVAL_DEFAULT = 5;
 #define NVGR_TOKEN_EXPIRES      "expires_in"
 #define NVGR_TOKEN_TYPE         "token_type"
 #define NVGR_TOKEN_REFRESH      "refresh_token"
+#define NVGR_ERROR              "error"
+#define NVGR_ERROR_MSG          "message"                   // While 'error' is official, I've also seen 'message' being returned, e.g. for a wrong client_secret
 // Token Refresh
 #define NVGR_TOKEN_REFRESH_BODY "grant_type=refresh_token&client_id=%s&client_secret=%s&refresh_token=%s"
 
@@ -75,9 +77,9 @@ protected:
         NVGR_STATE_GET_PLANES,                  ///< normal operations: fetch planes
     } eState = NVGR_STATE_NONE;
     struct curl_slist* pHdrForm = nullptr;      ///< HTTP Header (needed during fetching a token)
-    struct curl_slist* pHdrToken = nullptr;     ///< HTTP Header containing the bearer token
 public:
-    NvgrFR24Connection ();
+    NvgrFR24Connection ();                      ///< Constructur
+    ~NvgrFR24Connection ();                     ///< Destructor removes resources
     void ResetStatus ();                        ///< used to force fetching a new token, e.g. after change of credentials
     std::string GetURL (const positionTy& pos) override;
     void ComputeBody (const positionTy& pos) override;      ///< only needed for token request, will then form token request body
@@ -94,8 +96,9 @@ protected:
 
     bool InitCurl () override;
     /// Tries to interpret pBuf as JSON and looks for "error" or similar
-    std::string TryExtractErrorMsg (const JSON_Object* pMain);
-    
+    static std::string TryExtractErrorMsg (const JSON_Object* pMain);
+    static std::string TryExtractErrorMsg (const std::string& resp);
+
     // Device Authorization Process
 public:
     /// Status of the device authentication process
@@ -123,9 +126,9 @@ protected:
     static std::string sErrMsg;                 ///< last error message, empty if OK
     static std::string sAuthVerifyURI;          ///< Verification URI, to be passed on to the user
     static std::thread thrAuth;                 ///< the authroization communication thread
-    static std::string tokenAccess;             ///< the temporary access token
-    ///< when will the token expire? (XP network time)
-    static std::chrono::time_point<std::chrono::steady_clock> tTokenExpiration;
+    static struct curl_slist* pHdrToken;        ///< HTTP Header containing the bearer token
+    ///< when will the token expire?
+    static std::chrono::time_point<std::chrono::steady_clock> tAccessExpiration;
 
 public:
     static void AuthInit();                     ///< Some initialization at startup time

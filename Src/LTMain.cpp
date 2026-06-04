@@ -352,7 +352,8 @@ size_t URLGet_CB (char *ptr, size_t size, size_t nmemb, void *userdata)
 /// Send a request, return the response, throws a LTError exception if anything goes wrong
 void URLGet (const std::string& inUrl,
              std::initializer_list<std::string> inHdr,
-             const std::string& inBody,             // GET if empty, POST if filled
+             const std::string& inBody,                 // GET if empty, POST if filled
+             std::initializer_list<long> inHttpCodeOK,  // which HTTP codes are deemed OK beyond HTTP_OK, others throw exception
              std::string& outResp,
              long &outHttpRes)
 {
@@ -419,10 +420,15 @@ void URLGet (const std::string& inUrl,
     curl_easy_getinfo(pCurl.get(), CURLINFO_RESPONSE_CODE, &outHttpRes);
     
     // all OK?
-    if (outHttpRes != HTTP_OK) {
-        THROW_ERROR(logERR, "Could not perform request for '%s': HTTP %d",
-                    inUrl.c_str(), (int)outHttpRes);
-    }
+    
+    if (outHttpRes == HTTP_OK ||
+        std::any_of(inHttpCodeOK.begin(), inHttpCodeOK.end(),
+                    [outHttpRes](long l){ return l == outHttpRes; }))
+        return;
+
+    // else throw exception
+    THROW_ERROR(logERR, "Could not perform request for '%s': HTTP %d",
+                inUrl.c_str(), (int)outHttpRes);
 }
 
 // Download the given file, `false` if HTTP 404 not found, exceptions otherwise

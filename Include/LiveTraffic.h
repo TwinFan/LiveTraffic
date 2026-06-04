@@ -227,7 +227,8 @@ void LTOpenHelp (const std::string& path);
 /// Send a request, return the response, throws a LTError exception if anything goes wrong
 void URLGet (const std::string& inUrl,
              std::initializer_list<std::string> inHdr,
-             const std::string& inBody,             // GET if empty, POST if filled
+             const std::string& inBody,                 // GET if empty, POST if filled
+             std::initializer_list<long> inHttpCodeOK,  // which HTTP codes are deemed OK beyond HTTP_OK, others throw exception
              std::string& outResp,
              long &outHttpRes);
 /// Download the given file, `false` if HTTP 404 not found, exceptions otherwise
