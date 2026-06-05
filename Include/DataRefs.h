@@ -1064,7 +1064,7 @@ public:
 
     bool HaveNvgrRefreshToken () const { return !sNvgrRefreshToken.empty(); }
     const std::string& GetNvgrRefreshToken () const { return sNvgrRefreshToken; }
-    void SetNvrgRefrshToken (const std::string& s) { sNvgrRefreshToken = s; }
+    void SetNvgrRefrshToken (const std::string& sNewToken);     ///< Store token and immediately save settings to disk
     
     const std::string& GetADSBExAPIKey () const { return sADSBExAPIKey; }
     void SetADSBExAPIKey (const std::string& apiKey) { sADSBExAPIKey = apiKey; }

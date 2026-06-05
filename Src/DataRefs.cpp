@@ -2306,7 +2306,7 @@ bool DataRefs::LoadConfigFile()
             else if (sDataRef == CFG_OPENSKY_SECRET)
                 SetOpenSkySecret(Cleartext(sVal));
             else if (sDataRef == CFG_NVGR_REFRESH_TOKEN)
-                SetNvrgRefrshToken(Cleartext(sVal));
+                SetNvgrRefrshToken(Cleartext(sVal));
             else if (sDataRef == CFG_ADSBEX_API_KEY) {
                 // With v4.2 ADSBEx switches to a new service, so we need a new API key
                 if (conv != CFG_V420)
@@ -2625,6 +2625,15 @@ int DataRefs::CntChannelEnabled () const
                            std::end(bChannel),
                            1);
 }
+
+
+// Store token and immediately save settings to disk
+void DataRefs::SetNvgrRefrshToken (const std::string& sNewToken)
+{
+    sNvgrRefreshToken = sNewToken;
+    SaveConfigFile();
+}
+
 
 //
 // MARK: Internet UTC Time

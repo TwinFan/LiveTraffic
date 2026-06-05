@@ -48,12 +48,12 @@ static const std::string gsNvgrClientSecret(NVGR_CLIENT_SECRET);
 
 // Constructor
 NvgrFR24Connection::NvgrFR24Connection () :
-LTFlightDataChannel(DR_CHANNEL_NVGR_FR24, OPSKY_NAME)
+LTFlightDataChannel(DR_CHANNEL_NVGR_FR24, NVGR_NAME)
 {
     // purely informational
-    urlName  = OPSKY_CHECK_NAME;
-    urlLink  = OPSKY_CHECK_URL;
-    urlPopup = OPSKY_CHECK_POPUP;
+    urlName  = NVGR_CHECK_NAME;
+    urlLink  = NVGR_CHECK_URL;
+    urlPopup = NVGR_CHECK_POPUP;
 }
 
 NvgrFR24Connection::~NvgrFR24Connection ()
@@ -95,8 +95,8 @@ void NvgrFR24Connection::Main ()
     while ( shallRun() ) {
         // LiveTraffic Top Level Exception Handling
         try {
-            // basis for determining when to be called next
-            tNextWakeup = std::chrono::steady_clock::now();
+            // when to wake up next?
+            std::chrono::time_point<std::chrono::steady_clock> tNext;
             
             // where are we right now?
             const positionTy pos (dataRefs.GetViewPos());
@@ -109,22 +109,14 @@ void NvgrFR24Connection::Main ()
                         // as a chance to appear OK in the long run
                         DecErrCnt();
                 
-                // Next Wakeup:
-                // If we were fetching the access token only, then we continue immediately (don't add to tNextWakeup)...
-                if (eState == NVGR_STATE_GETTING_TOKEN)
-                    // ...fetching planes
-                    eState = NVGR_STATE_GET_PLANES;
-                // Should we refresh the access token? Let's do that immediately
-                else if (std::chrono::steady_clock::now() >= tAccessExpiration)
-                    eState = NVGR_STATE_GETTING_TOKEN;
-                else
-                    // Next wakeup is "refresh interval" from _now_,
-                    // however a minimum of 20s as imposed by Navigraph
-                    tNextWakeup += std::chrono::seconds(std::max(dataRefs.GetFdRefreshIntvl(), NVGR_MIN_REFRESH_INTVL));
+                // If next request is a refresh token request, we can do it immediately,
+                // if is is a traffic request we must wait until valid
+                if (eState == NVGR_STATE_GET_PLANES)
+                    tNext = tNextWakeup;
             }
             else {
                 // Camera position is yet invalid, retry in a second
-                tNextWakeup += std::chrono::seconds(1);
+                tNext = std::chrono::steady_clock::now() + std::chrono::seconds(1);
             }
             
             // sleep until scheduled wakeup or if woken up for termination
@@ -256,10 +248,11 @@ bool NvgrFR24Connection::ProcessFetchedData ()
         case HTTP_UNAUTHORIZED:     // No valid access token
             if (eState == NVGR_STATE_GETTING_TOKEN) {
                 sErrMsg = "Authorization failed: " + errMsg;
-                SHOW_MSG(logERR, "%s: Authorization failed: %s",
+                SHOW_MSG(logERR, "%s: Authorization failed: %s. You will need to re-authenticate Navigraph in Settings.",
                          pszChName, errMsg.c_str());
                 SetValid(false,false);
                 SetEnable(false);       // also disable to directly allow user/pwd change...and won't work on retry anyway
+                dataRefs.SetNvgrRefrshToken("");
                 return false;
             }
             else {
@@ -291,6 +284,13 @@ bool NvgrFR24Connection::ProcessFetchedData ()
         if (!pRoot) { LOG_MSG(logERR,ERR_JSON_PARSE); IncErrCnt(); return false; }
         if (!pObj) { LOG_MSG(logERR,ERR_JSON_MAIN_OBJECT); IncErrCnt(); return false; }
         
+        // Save the refresh token
+        const std::string sRefresh = jog_s(pObj, NVGR_TOKEN_REFRESH);
+        dataRefs.SetNvgrRefrshToken(sRefresh);          // we save whatever we get
+        if (sRefresh.empty())  {                        // but if we didn't get anything we've got a problem
+            SHOW_MSG(logERR, "Did not receive a new Refresh Token in last Navigraph authorization response! You will need to re-authenticate in Setting.");
+        }
+            
         // Find the access token and type, that's required
         const std::string sToken = jog_s(pObj, NVGR_TOKEN_ACCESS);
         const std::string sType  = jog_s(pObj, NVGR_TOKEN_TYPE);
@@ -301,22 +301,21 @@ bool NvgrFR24Connection::ProcessFetchedData ()
             return false;
         }
         
-        // If we get a refresh token, too, we save that in the settings
-        const std::string sRefresh = jog_s(pObj, NVGR_TOKEN_REFRESH);
-        if (!sRefresh.empty())
-            dataRefs.SetNvrgRefrshToken(sRefresh);
-        
-        // If we get a timeout we use that, otherwise a default
+        // If we get a timeout value we use that, otherwise a default
         long nTimeout = jog_l(pObj, NVGR_TOKEN_EXPIRES);
         if (!nTimeout) nTimeout = NVGR_AUTH_EXP_DEFAULT;
-        nTimeout -= 2 * dataRefs.GetFdRefreshIntvl();
+        nTimeout -= 2 * dataRefs.GetFdRefreshIntvl();           // reduce a little so we make sure we get a new token before it expires
         tAccessExpiration = std::chrono::steady_clock::now() + std::chrono::seconds(nTimeout);
         
-        // prepend the token with the header string and create the actual header list
+        // prepare the token with the header string and create the actual header list
         snprintf(buf, sizeof(buf), NVGR_AUTH_HEADER,
                  sType.c_str(), sToken.c_str());
         CurlCleanupSlist(pHdrToken);
         pHdrToken = curl_slist_append(nullptr, buf);
+        LOG_MSG(logDEBUG, "Successfully refreshed the tokens.");
+        
+        // Now that we have an access token we can request traffic data
+        eState = NVGR_STATE_GET_PLANES;
 
         return true;
     }
@@ -441,6 +440,12 @@ bool NvgrFR24Connection::ProcessFetchedData ()
         }
     }
     */
+        
+    // Next wakeup (for traffic data) is "refresh interval" from _now_,
+    // however a minimum of 20s as imposed by Navigraph
+    tNextWakeup = std::chrono::steady_clock::now() +
+    std::chrono::seconds(std::max(dataRefs.GetFdRefreshIntvl(), NVGR_MIN_REFRESH_INTVL));
+
     // success
     return true;
 }
@@ -707,7 +712,7 @@ void NvgrFR24Connection::AuthMain ()
                     if (sError == "authorization_pending") { /* do nothing...just keep polling */ }
                     else if (sError == "slow_down") { tInterval += NVGR_AUTH_INTERVAL_DEFAULT; }
                     else if (sError == "access_denied") {
-                        dataRefs.SetNvrgRefrshToken("");            // clear any potentially saved refresh token
+                        dataRefs.SetNvgrRefrshToken("");            // clear any potentially saved refresh token
                         AuthSetState (NVGR_AUTH_WAITING, NVGR_AUTH_ERROR);
                         sErrMsg = "Access has been denied.";
                     }
@@ -726,11 +731,12 @@ void NvgrFR24Connection::AuthMain ()
                     // access token expiration
                     long tExpiresIn = jog_l(pObj, NVGR_TOKEN_EXPIRES);
                     if (!tExpiresIn) tExpiresIn = NVGR_AUTH_EXP_DEFAULT;
+                    tExpiresIn -= 2 * dataRefs.GetFdRefreshIntvl();           // reduce a little so we make sure we get a new token before it expires
                     tAccessExpiration = std::chrono::steady_clock::now() + std::chrono::seconds(tExpiresIn);
-                    // refresh token (this one's permanent and we store it in the settings)
+                    // refresh token (this one's long-lived and we store it in the settings)
                     const std::string refreshToken = jog_s(pObj, NVGR_TOKEN_REFRESH);
                     if (refreshToken.empty()) { THROW_ERROR(logERR, "Device Authorization response is missing the '" NVGR_TOKEN_REFRESH "' field"); }
-                    dataRefs.SetNvrgRefrshToken(refreshToken);
+                    dataRefs.SetNvgrRefrshToken(refreshToken);
                     // Store the access token in a CURL header
                     snprintf(szBody, sizeof(szBody), NVGR_AUTH_HEADER,
                              accessType.c_str(), accessToken.c_str());

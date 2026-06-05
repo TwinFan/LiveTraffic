@@ -30,6 +30,7 @@
 #include "LTChannel.h"
 
 // MARK: Navigraph Constants
+#define NVGR_NAME               "Navigraph/FR24"
 #define NVGR_CHECK_NAME         "Flightradar24 Tracker"
 #define NVGR_CHECK_URL          "https://www.flightradar24.com/%.3f,%.3f"
 #define NVGR_CHECK_POPUP        "Check Flightradar's coverage"
@@ -59,7 +60,6 @@ constexpr size_t NVGR_AUTH_INTERVAL_DEFAULT = 5;
 #define NVGR_AUTH_HEADER        "Authorization: %s %s"     // add token_type, access_token
 constexpr long NVGR_AUTH_EXP_DEFAULT = 3600;       ///< default expiration in case we don't find expiration field
 
-#define NVGR_NAME               "Navigraph/Flightradar24"
 #define NVGR_TRAFFIC_URL        "https://api.navigraph.com/v1/real-traffic/positions/nearby?lat=%.3f&lon=%.3f&radiusKm=%d"
 #define NVGR_SLUG_FMT           "https://www.flightradar24.com/%06lx"
 
