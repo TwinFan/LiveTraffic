@@ -67,7 +67,7 @@ protected:
     
     // Channel: Navigraph
     bool bNvgrOpenVerifyUI = false; ///< Have we once opened the verify URI automatically?
-    std::chrono::time_point<std::chrono::steady_clock> tNvgrCompleted;  ///< When did the processing complete? (To reset the status after some time)
+    std::chrono::time_point<std::chrono::steady_clock> tNvgrReset;  ///< When to reset Nvgr Auth status?
     
     // Channel: FSCharter
     std::string sFSCUser;           ///< FSC user

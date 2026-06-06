@@ -722,12 +722,12 @@ void LTSettingsUI::buildInterface()
                     }
                     
                     // Reset the UI status some time after completion, so we can start over?
-                    if (tNvgrCompleted.time_since_epoch().count() > 0 &&
-                        std::chrono::steady_clock::now() > tNvgrCompleted + std::chrono::seconds(30))
+                    if (tNvgrReset.time_since_epoch().count() > 0 &&
+                        std::chrono::steady_clock::now() >=  tNvgrReset)
                     {
                         NvgrFR24Connection::AuthInit();
                         bNvgrOpenVerifyUI = false;
-                        tNvgrCompleted = std::chrono::time_point<std::chrono::steady_clock>();
+                        tNvgrReset = std::chrono::time_point<std::chrono::steady_clock>();
                     }
                     
                     // The button that runs the Device Authorization
@@ -744,7 +744,10 @@ void LTSettingsUI::buildInterface()
 
                             // We need a button to start the process
                             case NvgrFR24Connection::NVGR_AUTH_UI_REAUTH:
-                                ImGui::TextWrapped("LiveTraffic is successfully authorized.");
+                            case NvgrFR24Connection::NVGR_AUTH_UI_REAUTH_NEED_UNLIMITED:
+                                ImGui::TextWrapped(ui == NvgrFR24Connection::NVGR_AUTH_UI_REAUTH_NEED_UNLIMITED ?
+                                                   "LiveTraffic is authorized, but you need a Navigraph Unlimited subscription to receive traffic data!" :
+                                                   "LiveTraffic is successfully authorized.");
                                 [[fallthrough]];
                             case NvgrFR24Connection::NVGR_AUTH_UI_AUTH:
                                 if (ImGui::ButtonTooltip(ui == NvgrFR24Connection::NVGR_AUTH_UI_AUTH ? ICON_FA_POWER_OFF " Authorize LiveTraffic" : ICON_FA_POWER_OFF " Re-Authorize LiveTraffic again",
@@ -762,17 +765,35 @@ void LTSettingsUI::buildInterface()
                                 
                             // We have a verification URI...make the user go there!
                             case NvgrFR24Connection::NVGR_AUTH_UI_VERIFY_URI:
-                                if (ImGui::ButtonTooltip(ICON_FA_EXTERNAL_LINK_SQUARE_ALT " Go approve LiveTraffic access"))
-                                {
+                            {
+                                // Button to open the Verification URI
+                                if (ImGui::ButtonTooltip(ICON_FA_EXTERNAL_LINK_SQUARE_ALT " Go approve LiveTraffic access",
+                                                         "Opens the Navigraph authorization page (again)",
+                                                         IM_COL32(1,1,1,0), IM_COL32(1,1,1,0), sizeAuthBtn))
                                     LTOpenURL(NvgrFR24Connection::AuthGetVerifyURI());
+                                
+                                // Button to cancel the processing
+                                bool bGoingToCancel = false;
+                                ImGui::SameLine();
+                                if (ImGui::ButtonTooltip(ICON_FA_WINDOW_CLOSE " Cancel Authorization",
+                                                         "Stop the current authorization process."))
+                                {
+                                    // This performs a reset (which includes a Cancel) with the next UI cycle,
+                                    // which has the advantage of finishing this UI paint cycle before briefly blocking
+                                    tNvgrReset = std::chrono::steady_clock::now();
+                                    bGoingToCancel = true;
                                 }
-                                ImGui::TextWrapped("Click above button to open an approval page at Navigraph's, log in with your account, and approve LiveTraffic to use your account to access live traffic data.");
+                                
+                                ImGui::TextWrapped(bGoingToCancel ? "Cancelling..." :
+                                                   "Click above button to open an approval page at Navigraph's, log in with your account, and approve LiveTraffic to use your account to access live traffic data.");
+                                
                                 // Once, and certainly once only, we open the URI automatically
                                 if (!bNvgrOpenVerifyUI) {
                                     bNvgrOpenVerifyUI = true;
                                     LTOpenURL(NvgrFR24Connection::AuthGetVerifyURI());
                                 }
                                 break;
+                            }
                                 
                             // All done!
                             case NvgrFR24Connection::NVGR_AUTH_UI_DONE:
@@ -786,9 +807,9 @@ void LTSettingsUI::buildInterface()
                                     default:
                                         ImGui::TextWrapped("Authorization failed, see status below:");
                                 }
-                                // Remember when we finished, so we can reset some time later
-                                if (tNvgrCompleted.time_since_epoch().count() == 0)
-                                    tNvgrCompleted = std::chrono::steady_clock::now();
+                                // Set a Reset time for 30s after now
+                                if (tNvgrReset.time_since_epoch().count() == 0)
+                                    tNvgrReset = std::chrono::steady_clock::now() + std::chrono::seconds(30);
                                 break;
                         }
                         ImGui::TableNextCell();

@@ -230,12 +230,16 @@ std::string NvgrFR24Connection::TryExtractErrorMsg (const std::string& resp)
 // update shared flight data structures with received flight data
 bool NvgrFR24Connection::ProcessFetchedData ()
 {
-    char buf[256];
+    char buf[1024];
     
     // Try to interpret response as JSON, might contain error information
     JSONRootPtr pRoot (netData);
     JSON_Object* pObj = pRoot ? json_object(pRoot.get()) : nullptr;
     std::string errMsg = TryExtractErrorMsg(pObj);
+    
+    // Extend known errors with some hints
+    if (errMsg == "invalid_grant")      errMsg += " (Device no longer authorized)";
+    else if (errMsg == "Invalid token" && bLastTrafficInvToken) errMsg += " (No Unlimited subscription?)";
     
     // Only proceed in case HTTP response was OK
     switch (httpResponse)
@@ -255,7 +259,7 @@ bool NvgrFR24Connection::ProcessFetchedData ()
                 SHOW_MSG(logERR, "%s: Authorization failed: %s. You will need to re-authenticate Navigraph in Settings.",
                          pszChName, errMsg.c_str());
                 SetValid(false,false);
-                SetEnable(false);       // also disable to directly allow user/pwd change...and won't work on retry anyway
+                SetEnable(false);
                 dataRefs.SetNvgrRefrshToken("");
                 AuthInit();
                 return false;
@@ -264,14 +268,24 @@ bool NvgrFR24Connection::ProcessFetchedData ()
                 sErrMsg = "Authorization failed or timed out, trying to get a new access token...";
                 LOG_MSG(logERR, "%s: Bad or timed-out access token: %s",
                         pszChName, errMsg.c_str());
-                ResetStatus();                  // let's try with a new one
-                bLastTrafficInvToken = true;    // but this one failed
+                ResetStatus();                  // let's try once with a new access token
+                bLastTrafficInvToken = true;    // but this attempt failed, we only try once again
                 IncErrCnt();
                 return false;
             }
+            
+        case HTTP_FORBIDDEN:
+            sErrMsg = "Access denied: " + errMsg;
+            SHOW_MSG(logERR, "%s: %s. Make sure you have Navigraph Unlimited subscription.",
+                     pszChName, errMsg.c_str());
+            SetValid(false,false);
+            SetEnable(false);
+            eAuthUI = NVGR_AUTH_UI_REAUTH_NEED_UNLIMITED;   // tell the user it needs the Unlimited tier
+            return false;
 
         // anything else is serious and treated as some problem
         default:
+            sErrMsg = "Unknown error: " + errMsg;
             IncErrCnt();
             return false;
     }
@@ -546,6 +560,9 @@ bool NvgrFR24Connection::AuthStartProcess ()
         thrAuth.joinable())
         return false;
     
+    // Make sure thread isn't running any longer
+    AuthCancelProcess();
+    
     // Start the thread
     eAuthState = NVGR_AUTH_FETCHING;
     sAuthVerifyURI.clear();
@@ -636,7 +653,7 @@ void NvgrFR24Connection::AuthMain ()
     LOG_MSG(logDEBUG, "LT_NvgrAuth thread started");
     sErrMsg.clear();
     
-    char szBody[512];                                       // Request body
+    char szBody[1024];                                      // Request body
     std::string PKCEverifier, PKCEchallenge;                // PKCE verifier & challenge
     std::string sDeviceCode;                                // Device code received from Navigraph
     std::string resp;                                       // Network response

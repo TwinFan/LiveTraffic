@@ -116,6 +116,7 @@ public:
     enum DevAuthUI {
         NVGR_AUTH_UI_NOTHING = 0,               ///< Don't show anything, maybe because not built in
         NVGR_AUTH_UI_AUTH,                      ///< Show the Authorize button (no Refresh Token yet)
+        NVGR_AUTH_UI_REAUTH_NEED_UNLIMITED,     ///< Show the Authroize button and a note that the current account may be missing the Unlimited tier subscription
         NVGR_AUTH_UI_REAUTH,                    ///< Show the Re-Authroize button (have a Refresh Token, but can always re-authorize)
         NVGR_AUTH_UI_WAIT,                      ///< Waiting for a server response
         NVGR_AUTH_UI_VERIFY_URI,                ///< Show the verificatio URI, asking the user to perform the authorization
