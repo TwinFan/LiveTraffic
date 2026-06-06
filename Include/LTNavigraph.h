@@ -76,6 +76,7 @@ protected:
         NVGR_STATE_GETTING_TOKEN,               ///< requesting current token
         NVGR_STATE_GET_PLANES,                  ///< normal operations: fetch planes
     } eState = NVGR_STATE_NONE;
+    bool bLastTrafficInvToken = false;          ///< Had an "invalid token" during last traffic request?
     struct curl_slist* pHdrForm = nullptr;      ///< HTTP Header (needed during fetching a token)
 public:
     NvgrFR24Connection ();                      ///< Constructur

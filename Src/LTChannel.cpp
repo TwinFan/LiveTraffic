@@ -277,8 +277,9 @@ std::string LTChannel::GetStatusText () const
     char buf[50];
 
     // invalid (after errors)? Just disabled/off?
+    if (!dataRefs.AreAircraftDisplayed())   return "Main Switch off";
     if (!IsValid())                         return "Invalid";
-    if (!IsEnabled())                       return "Off";
+    if (!IsEnabled())                       return "Disabled";
     // Active, but currently running into errors?
     if (errCnt > 0) {
         snprintf (buf, sizeof(buf), "Active, but ERROR Count = %d", errCnt);

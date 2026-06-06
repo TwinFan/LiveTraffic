@@ -80,6 +80,7 @@ void NvgrFR24Connection::Main ()
     
     // Reset state
     ResetStatus();
+    bLastTrafficInvToken = false;
     
     // Can't run if we don't have Client Secret/ID
     if (!IsBuiltIn()) {
@@ -139,6 +140,7 @@ void NvgrFR24Connection::Main ()
     // Cleanup
     CurlCleanupSlist(pHdrForm);
     CurlCleanupSlist(pHdrToken);
+    eState = NVGR_STATE_NONE;
 }
 
 
@@ -246,20 +248,24 @@ bool NvgrFR24Connection::ProcessFetchedData ()
         // Unauthorized? Also wrong token, or wrong credentials when trying to get the token
         case HTTP_BAD_REQUEST:
         case HTTP_UNAUTHORIZED:     // No valid access token
-            if (eState == NVGR_STATE_GETTING_TOKEN) {
+            if (eState == NVGR_STATE_GETTING_TOKEN ||           // was an attempt to get a token?
+                bLastTrafficInvToken)                           // or was the 2nd consecutive attempt to use an access token?
+            {
                 sErrMsg = "Authorization failed: " + errMsg;
                 SHOW_MSG(logERR, "%s: Authorization failed: %s. You will need to re-authenticate Navigraph in Settings.",
                          pszChName, errMsg.c_str());
                 SetValid(false,false);
                 SetEnable(false);       // also disable to directly allow user/pwd change...and won't work on retry anyway
                 dataRefs.SetNvgrRefrshToken("");
+                AuthInit();
                 return false;
             }
             else {
                 sErrMsg = "Authorization failed or timed out, trying to get a new access token...";
                 LOG_MSG(logERR, "%s: Bad or timed-out access token: %s",
                         pszChName, errMsg.c_str());
-                ResetStatus();          // let's try with a new one
+                ResetStatus();                  // let's try with a new one
+                bLastTrafficInvToken = true;    // but this one failed
                 IncErrCnt();
                 return false;
             }
@@ -288,6 +294,7 @@ bool NvgrFR24Connection::ProcessFetchedData ()
         const std::string sRefresh = jog_s(pObj, NVGR_TOKEN_REFRESH);
         dataRefs.SetNvgrRefrshToken(sRefresh);          // we save whatever we get
         if (sRefresh.empty())  {                        // but if we didn't get anything we've got a problem
+            AuthInit();
             SHOW_MSG(logERR, "Did not receive a new Refresh Token in last Navigraph authorization response! You will need to re-authenticate in Setting.");
         }
             
@@ -321,6 +328,7 @@ bool NvgrFR24Connection::ProcessFetchedData ()
     }
     
     // --- Planes ---
+    bLastTrafficInvToken = false;                   // The access token seemed OK
     // TODO: Implement
     // any a/c filter defined for debugging purposes?
     std::string acFilter ( dataRefs.GetDebugAcFilter() );
