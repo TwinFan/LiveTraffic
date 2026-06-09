@@ -753,7 +753,7 @@ void LTOnlineChannel::DebugLogRaw(const char *data, long httpCode, size_t dataLe
     
     bool bHex = false;
     if (dataLen > 0) {                      // if length is given, then there's a chance it is non-printable data
-        for (size_t i = 0; !bHex && i < std::min(dataLen, 100UL); ++i)
+        for (size_t i = 0; !bHex && i < std::min<size_t>(dataLen, 100); ++i)
             if (!std::isprint(data[i]))     // if anything non-printable, then do hex dump
                 bHex = true;
     }
