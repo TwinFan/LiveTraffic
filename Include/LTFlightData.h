@@ -249,7 +249,7 @@ public:
         
         inline const char* c_str() const    { return key.c_str(); }
         inline bool empty() const           { return key.empty(); }
-        inline operator bool() const        { return !num && !key.empty(); }
+        inline operator bool() const        { return num > 0 && !key.empty(); }
         void clear()                        { *this = FDKeyTy(); }
         
         /// return the type of key (as string)

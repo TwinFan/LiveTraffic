@@ -231,6 +231,7 @@ set(Header_Files
     Include/LTForeFlight.h
     Include/LTFSCharter.h
     Include/LTImgWindow.h
+    Include/LTMsgPack.h
     Include/LTNavigraph.h
     Include/LTOpenGlider.h
     Include/LTOpenSky.h
@@ -282,6 +283,7 @@ set(Source_Files
     Src/LTFSCharter.cpp
     Src/LTImgWindow.cpp
     Src/LTMain.cpp
+    Src/LTMsgPack.cpp
     Src/LTNavigraph.cpp
     Src/LTOpenGlider.cpp
     Src/LTOpenSky.cpp

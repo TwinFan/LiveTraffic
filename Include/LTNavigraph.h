@@ -65,6 +65,61 @@ constexpr long NVGR_AUTH_EXP_DEFAULT = 3600;       ///< default expiration in ca
 
 constexpr int NVGR_MIN_REFRESH_INTVL = 20;              ///< Navigraph imposes a minimum refresh interval of 20s
 
+// Message Definition
+#define NVGR_AC_ID              "aircraftId"
+#define NVGR_TIMESTAMP          "timestamp"
+#define NVGR_AC_TYPE            "type"
+#define NVGR_REG                "registration"
+#define NVGR_ORIGIN             "origin"
+#define NVGR_DEST               "destination"
+#define NVGR_FLIGHT_NO          "flight"
+#define NVGR_SQUAWK             "squawk"
+#define NVGR_LAT                "latitude"
+#define NVGR_LON                "longitude"
+#define NVGR_TRACK              "track"
+#define NVGR_ALT                "altitude"
+#define NVGR_SPD                "speed"
+#define NVGR_GND                "onGround"
+#define NVGR_VSI                "vSpeed"
+#define NVGR_CALL               "callsign"
+#define NVGR_PAINTED_AS         "paintedAs"
+#define NVGR_OP_AS              "operatingAs"
+
+//
+// MARK: Navigraph Traffic Data
+//
+
+/// Data received from Navigraph by way of MessagePack structure
+struct NvgrTrafficData
+{
+public:
+    // Static data
+    LTFlightData::FDKeyTy key;  ///< aircraft id, hex transponder code
+    std::string acTypeIcao;     ///< aircraft type designator
+    std::string reg;            ///< registration, tail number
+    std::string orig, dest;     ///< flight origin, destination
+    std::string flight;         ///< flight number
+    std::string call;           ///< Call sign
+    std::string paintedAs;      ///< painted as (better choice for livery matching)
+    std::string opAs;           ///< operating as (2nd choice for livery matching)
+    
+    // Dynamic data
+    positionTy  pos;            ///< position, includes timestamp and heading
+    XPMPPlaneRadar_t  radar;    ///< includes the squawk code
+    double      spd = NAN;      ///< speed
+    double      vsi = NAN;      ///< vertical speed
+
+public:
+    /// Reads information from the provided Message Pack, assumes the `pos` points at the beginning of the map
+    NvgrTrafficData (MsgPack& msg);
+    /// Is data OK enough to proceed?
+    operator bool () const { return key && pos.isNormal(true); }
+    /// Fills a static data structure
+    operator LTFlightData::FDStaticData () const;
+    /// Fills a dynamic data structure
+    operator LTFlightData::FDDynamicData () const;
+};
+
 //
 // MARK: Navigraph
 //

@@ -135,6 +135,7 @@ extern DataRefs dataRefs;
 #include "InfoListWnd.h"
 #include "LTApt.h"
 #include "LTWeather.h"
+#include "LTMsgPack.h"
 
 // LiveTraffic channels
 #include "../Lib/XPMP2/src/Network.h"

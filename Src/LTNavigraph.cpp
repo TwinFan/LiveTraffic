@@ -32,7 +32,7 @@
 #include "LiveTraffic.h"
 
 //
-// MARK: Navigraph
+// MARK: Client ID/Secret
 //
 
 // We need a client id/secret coming in from the build command line, or we just don't do Navigraph
@@ -45,6 +45,100 @@ static const std::string gsNvgrClientSecret(NVGR_CLIENT_SECRET);
 
 #undef NVGR_CLIENT_ID
 #undef NVGR_CLIENT_SECRET
+
+//
+// MARK: Navigraph Traffic Data
+//
+
+/// Reads information from the provided Message Pack, assumes the `pos` points at the beginning of the map
+NvgrTrafficData::NvgrTrafficData (MsgPack& msg)
+{
+    // Each plane should be a key/value map
+    size_t numPairs = msg.GetMapSize();
+    for (size_t i = 0; i < numPairs; ++i)
+    {
+        std::string field;
+        
+        try {
+            // Read the key
+            field += '+';                       // that's just for error reporting: if "key" in the exception has a trailing '+' then we know the exception happened in the following line, while trying to read the _next_ key.
+            field = msg.GetString();
+            
+            if (field == NVGR_AC_ID)            key.SetKey(LTFlightData::KEY_ICAO, msg.GetString());
+            else if (field == NVGR_TIMESTAMP)   pos.ts()        = msg.GetDouble() / 1000.0;
+            else if (field == NVGR_AC_TYPE)     acTypeIcao      = msg.GetString();
+            else if (field == NVGR_REG)         reg             = msg.GetString();
+            else if (field == NVGR_ORIGIN)      orig            = msg.GetString();
+            else if (field == NVGR_DEST)        dest            = msg.GetString();
+            else if (field == NVGR_FLIGHT_NO)   flight          = msg.GetString();
+            else if (field == NVGR_SQUAWK)      radar.code      = std::stol(msg.GetString());
+            else if (field == NVGR_LAT)         pos.lat()       = msg.GetDouble();
+            else if (field == NVGR_LON)         pos.lon()       = msg.GetDouble();
+            else if (field == NVGR_TRACK)       pos.heading()   = msg.GetDouble();  // not correct, but a good guess
+            else if (field == NVGR_ALT) {       // barometric altitude given in feet
+                const double baroAlt_m = msg.GetDouble() * M_per_FT;
+                if (pos.f.onGrnd != GND_ON)     // only set/overwrite if not already clear that we are on the ground
+                    pos.alt_m() = BaroAltToGeoAlt_m(baroAlt_m, dataRefs.GetPressureHPA());
+            }
+            else if (field == NVGR_SPD)         spd             = msg.GetDouble();
+            else if (field == NVGR_GND) {       // ground flag
+                if(msg.GetBool()) {
+                    pos.f.onGrnd = GND_ON;
+                    pos.alt_m() = NAN;          // clear any altitude, will be re-determined based on terrain
+                } else {
+                    pos.f.onGrnd = GND_OFF;
+                }
+            }
+            else if (field == NVGR_VSI)         vsi             = msg.GetDouble();
+            else if (field == NVGR_CALL)        call            = msg.GetString();
+            else if (field == NVGR_PAINTED_AS)  paintedAs       = msg.GetString();
+            else if (field == NVGR_OP_AS)       opAs            = msg.GetString();
+            else
+                msg.Skip();                     // just skip over unnecessary/unknown fields
+        }
+        catch (const std::exception& e) {       // inform the field we were trying to read
+            LOG_MSG(logERR, "Could not decode and process MessagePack for a/c '%s', %zu. field '%s': %s",
+                    key.c_str(), i, field.c_str(), e.what());
+            throw;                              // forward exception to caller
+        }
+    }
+}
+
+/// Fills a static data structure
+NvgrTrafficData::operator LTFlightData::FDStaticData () const
+{
+    char s[100];
+    LTFlightData::FDStaticData stat;
+    stat.reg        = reg;
+    stat.acTypeIcao = acTypeIcao;
+    stat.call       = call;
+    stat.setOrigDest(orig, dest);
+    stat.flight     = flight;
+    snprintf(s, sizeof(s), NVGR_SLUG_FMT, key.num);
+    stat.slug = s;
+    stat.op         = opAs;
+    stat.opIcao     = paintedAs.empty() ? opAs : paintedAs;
+    return stat;
+}
+
+/// Fills a dynamic data structure
+NvgrTrafficData::operator LTFlightData::FDDynamicData () const
+{
+    LTFlightData::FDDynamicData dyn;
+    dyn.radar       = radar;
+    dyn.gnd         = pos.IsOnGnd();
+    dyn.heading     = pos.heading();
+    dyn.spd         = spd;
+    dyn.vsi         = vsi;
+    dyn.ts          = pos.ts();
+    return dyn;
+}
+
+
+
+//
+// MARK: Navigraph
+//
 
 // Constructor
 NvgrFR24Connection::NvgrFR24Connection () :
@@ -282,6 +376,11 @@ bool NvgrFR24Connection::ProcessFetchedData ()
             SetEnable(false);
             eAuthUI = NVGR_AUTH_UI_REAUTH_NEED_UNLIMITED;   // tell the user it needs the Unlimited tier
             return false;
+            
+        case HTTP_TOO_MANY_REQU:
+            LOG_MSG(logWARN, "Too many requests, skipping a beat");
+            tNextWakeup = std::chrono::steady_clock::now() + std::chrono::seconds(NVGR_MIN_REFRESH_INTVL);
+            return false;
 
         // anything else is serious and treated as some problem
         default:
@@ -343,7 +442,11 @@ bool NvgrFR24Connection::ProcessFetchedData ()
     
     // --- Planes ---
     bLastTrafficInvToken = false;                   // The access token seemed OK
-    // TODO: Implement
+    
+    // Next wakeup only in 20s or even later
+    tNextWakeup = std::chrono::steady_clock::now() +
+                  std::chrono::seconds(std::max(NVGR_MIN_REFRESH_INTVL, dataRefs.GetFdRefreshIntvl()));
+    
     // any a/c filter defined for debugging purposes?
     std::string acFilter ( dataRefs.GetDebugAcFilter() );
     
@@ -352,124 +455,65 @@ bool NvgrFR24Connection::ProcessFetchedData ()
 
     // We need to calculate distance to current camera later on
     const positionTy viewPos = dataRefs.GetViewPos();
-/*
-    // fetch the aircraft array
-    JSON_Array* pJAcList = json_object_get_array(pObj, OPSKY_AIRCRAFT_ARR);
-    if (!pJAcList) {
-        // a/c array not found: can just mean it is 'null' as in
-        // the empty result set: {"time":1541978120,"states":null}
-        JSON_Value* pJSONVal = json_object_get_value(pObj, OPSKY_AIRCRAFT_ARR);
-        if (!pJSONVal || json_type(pJSONVal) != JSONNull) {
-            // well...it is something else, so it is malformed, bail out
-            LOG_MSG(logERR,ERR_JSON_ACLIST,OPSKY_AIRCRAFT_ARR);
-            IncErrCnt();
-            return false;
-        }
-    }
-    // iterate all aircraft in the received flight data (can be 0)
-    else for ( size_t i=0; i < json_array_get_count(pJAcList); i++ )
-    {
-        // get the aircraft (which is just an array of values)
-        JSON_Array* pJAc = json_array_get_array(pJAcList,i);
-        if (!pJAc) {
-            LOG_MSG(logERR,ERR_JSON_AC,i+1,OPSKY_AIRCRAFT_ARR);
-            if (IncErrCnt())
-                continue;
-            else
-                return false;
-        }
-        
-        // the key: transponder Icao code
-        LTFlightData::FDKeyTy fdKey (LTFlightData::KEY_ICAO,
-                                     jag_s(pJAc, OPSKY_TRANSP_ICAO));
-        
-        // not matching a/c filter? -> skip it
-        if ((!acFilter.empty() && (fdKey != acFilter)) )
+    
+    // Try interpreting the MessagePack
+    size_t n = 0;                               // index into plane array
+    MsgPack msg(reinterpret_cast<const uint8_t*>(netData), netDataPos);
+    try {
+        // Should be an array of planes
+        const size_t numPlanes = msg.GetArraySize();
+        for (n = 0; n < numPlanes; ++n)
         {
-            continue;
+            // Read each tracking info into a structure first,
+            // so we don't depend on the order of fields in the Message Pack
+            NvgrTrafficData nvgrData (msg);
+            if (nvgrData) {
+                // ignore if not matching debug a/c filter
+                if (!acFilter.empty() && (nvgrData.key != acFilter))
+                    continue;
+                // ignore if too old a position
+                if (nvgrData.pos.ts() <= tsCutOff)
+                    continue;
+                
+                // from here on access to fdMap guarded by a mutex
+                // until FD object is inserted and updated
+                std::unique_lock<std::mutex> mapFdLock (mapFdMutex);
+                // get the fd object from the map, key is the transpIcao
+                // this fetches an existing or, if not existing, creates a new one
+                LTFlightData& fd = mapFd[nvgrData.key];
+                // also get the data access lock once and for all
+                // so following fetch/update calls only make quick recursive calls
+                std::lock_guard<std::recursive_mutex> fdLock (fd.dataAccessMutex);
+                // now that we have the detail lock we can release the global one
+                mapFdLock.unlock();
+                
+                // completely new? fill key fields
+                if ( fd.empty() )
+                    fd.SetKey(nvgrData.key);
+                
+                // Add static data
+                fd.UpdateData(nvgrData, nvgrData.pos.dist(viewPos));
+
+                // Add dynamic data
+                LTFlightData::FDDynamicData dyn = nvgrData;
+                dyn.pChannel = this;
+                fd.AddDynData(dyn, 0, 0, &nvgrData.pos);
+                
+            } else {
+                LOG_MSG(logWARN, "Skipped one incomplete tracking data record for '%s'",
+                        nvgrData.key.c_str());
+            }
         }
         
-        // position time
-        const double posTime = jag_n(pJAc, OPSKY_POS_TIME);
-        if (posTime <= tsCutOff)
-            continue;
-        
-        try {
-            // from here on access to fdMap guarded by a mutex
-            // until FD object is inserted and updated
-            std::unique_lock<std::mutex> mapFdLock (mapFdMutex);
-            
-            // get the fd object from the map, key is the transpIcao
-            // this fetches an existing or, if not existing, creates a new one
-            LTFlightData& fd = mapFd[fdKey];
-            
-            // also get the data access lock once and for all
-            // so following fetch/update calls only make quick recursive calls
-            std::lock_guard<std::recursive_mutex> fdLock (fd.dataAccessMutex);
-            // now that we have the detail lock we can release the global one
-            mapFdLock.unlock();
-
-            // completely new? fill key fields
-            if ( fd.empty() )
-                fd.SetKey(fdKey);
-            
-            // fill static data
-            LTFlightData::FDStaticData stat;
-            stat.country =    jag_s(pJAc, OPSKY_COUNTRY);
-            stat.call    =    jag_s(pJAc, OPSKY_CALL);
-            while (!stat.call.empty() && stat.call.back() == ' ')      // trim trailing spaces
-                stat.call.pop_back();
-            if (!fdKey.empty()) {
-                snprintf(buf, sizeof(buf), OPSKY_SLUG_FMT, fdKey.num);
-                stat.slug = buf;
-            }
-            
-            // dynamic data
-            {   // unconditional...block is only for limiting local variables
-                LTFlightData::FDDynamicData dyn;
-                
-                // non-positional dynamic data
-                dyn.radar.code =  (long)jag_sn(pJAc, OPSKY_RADAR_CODE);
-                dyn.gnd =               jag_b(pJAc, OPSKY_GND);
-                dyn.heading =           jag_n_nan(pJAc, OPSKY_HEADING);
-                dyn.spd =               jag_n(pJAc, OPSKY_SPD);
-                dyn.vsi =               jag_n(pJAc, OPSKY_VSI);
-                dyn.ts =                posTime;
-                dyn.pChannel =          this;
-                
-                // position
-                const double baroAlt_m = jag_n_nan(pJAc, OPSKY_BARO_ALT);
-                const double geoAlt_m = BaroAltToGeoAlt_m(baroAlt_m, dataRefs.GetPressureHPA());
-                positionTy pos (jag_n_nan(pJAc, OPSKY_LAT),
-                                jag_n_nan(pJAc, OPSKY_LON),
-                                geoAlt_m,
-                                posTime,
-                                dyn.heading);
-                pos.f.onGrnd = dyn.gnd ? GND_ON : GND_OFF;
-                
-                // Update static data
-                fd.UpdateData(std::move(stat), pos.dist(viewPos));
-
-                // position is rather important, we check for validity
-                // (we do allow alt=NAN if on ground as this is what OpenSky returns)
-                if ( pos.isNormal(true) )
-                    fd.AddDynData(dyn, 0, 0, &pos);
-                else
-                    LOG_MSG(logDEBUG,ERR_POS_UNNORMAL,fdKey.c_str(),pos.dbgTxt().c_str());
-            }
-        } catch(const std::system_error& e) {
-            LOG_MSG(logERR, ERR_LOCK_ERROR, "mapFd", e.what());
-        }
+        // all good and processed
+        return true;
     }
-    */
-        
-    // Next wakeup (for traffic data) is "refresh interval" from _now_,
-    // however a minimum of 20s as imposed by Navigraph
-    tNextWakeup = std::chrono::steady_clock::now() +
-    std::chrono::seconds(std::max(dataRefs.GetFdRefreshIntvl(), NVGR_MIN_REFRESH_INTVL));
-
-    // success
-    return true;
+    catch (const std::exception& e) {
+        LOG_MSG(logERR, "Could not decode and process MessagePack for %zu. plane: %s",
+                n, e.what());
+        IncErrCnt();
+        return false;
+    }
 }
 
 

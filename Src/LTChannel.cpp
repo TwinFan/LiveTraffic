@@ -681,7 +681,7 @@ size_t LTOnlineChannel::ReceiveData(const char *ptr, size_t size, size_t nmemb, 
 }
 
 // debug: log raw network data to a log file
-void LTOnlineChannel::DebugLogRaw(const char *data, long httpCode, bool bHeader)
+void LTOnlineChannel::DebugLogRaw(const char *data, long httpCode, size_t dataLen, bool bHeader)
 {
     // no logging? return (after closing the file if open)
     if (!dataRefs.GetDebugLogRawFD()) {
@@ -717,28 +717,7 @@ void LTOnlineChannel::DebugLogRaw(const char *data, long httpCode, bool bHeader)
         SHOW_MSG(logWARN, DBG_RAW_FD_START, PATH_DEBUG_RAW_FD);
     }
     
-    // Receives modifiable copy of the data
-    std::string dupData (data);
-    
-    // Overwrite client_secret
-    // {"grant_type": "password","client_id": 1,"client_secret": "7HTOw2421WBZxrGCksPvez2BG6Yl918uUHAcEWRg","username":
-    std::string::size_type pos = dupData.find("\"client_secret\":");
-    if (pos != std::string::npos && dupData.size() >= pos + 60)
-        dupData.replace(pos+18, 40, "...");
-    
-    // limit output in case a password or token is found
-    pos = dupData.find("\"password\":");
-    if (pos != std::string::npos) {
-        // just truncate after the password tag so the actual password is gone
-        dupData.erase(pos + 12);
-        dupData += "...(truncated)...";
-    }
-    
-    pos = dupData.find("\"access_token\":");
-    if (pos != std::string::npos) {
-        dupData.erase(pos + 26);
-        dupData += "...(truncated)...";
-    }
+    // *** Header ***
     
     // timestamp (numerical and human readable)
     const double now = GetSysTime();
@@ -748,7 +727,7 @@ void LTOnlineChannel::DebugLogRaw(const char *data, long httpCode, bool bHeader)
         // Empty line before a (new) SENDING request
         if (httpCode == HTTP_FLAG_SENDING)
             outRaw << "\n";
-
+        
         // Actual header
         outRaw
         << std::fixed << now << ' ' << ts2string(now,2)
@@ -757,7 +736,7 @@ void LTOnlineChannel::DebugLogRaw(const char *data, long httpCode, bool bHeader)
         << " - "
         // Channel's name
         << ChName();
-
+        
         if (httpCode == HTTP_FLAG_SENDING)
             outRaw << " SENDING:\n";
         else if (httpCode == HTTP_FLAG_UDP)
@@ -769,12 +748,69 @@ void LTOnlineChannel::DebugLogRaw(const char *data, long httpCode, bool bHeader)
         else
             outRaw << " RECEIVED HTTP " << httpCode << ":\n";
     }
-    // Output the actual text
-    outRaw
-    // the actual given data, stripped from general personal data
-    << str_replPers(dupData)
+    
+    // *** ASCII or Hex Output?
+    
+    bool bHex = false;
+    if (dataLen > 0) {                      // if length is given, then there's a chance it is non-printable data
+        for (size_t i = 0; !bHex && i < std::min(dataLen, 100UL); ++i)
+            if (!std::isprint(data[i]))     // if anything non-printable, then do hex dump
+                bHex = true;
+    }
+    
+    // *** Hex Dump ***
+    
+    if (bHex) {
+        const uint8_t* pIn = reinterpret_cast<const uint8_t*>(data);
+        
+        // Configure the string stream for hex format
+        outRaw << std::hex << std::setfill('0');
+        // Output each byte
+        for (size_t i = 0; i < dataLen; ++i) {
+            const unsigned uOut = pIn[i];
+            outRaw << std::setw(2) << uOut << " ";      // 2 digit output
+            // new line after 32 chars
+            if ((i + 1) % 32 == 0 && (i + 1) < dataLen) {
+                outRaw << "\n";
+            }
+        }
+    }
+    
+    // *** Human-Readable ***
+    
+    else {
+        // Receives modifiable copy of the data
+        std::string dupData (data);
+        
+        // Overwrite client_secret
+        // {"grant_type": "password","client_id": 1,"client_secret": "7HTOw2421WBZxrGCksPvez2BG6Yl918uUHAcEWRg","username":
+        std::string::size_type pos = dupData.find("client_secret");
+        if (pos != std::string::npos && dupData.size() >= pos + 60)
+            dupData.replace(pos+18, 40, "...");
+        
+        // limit output in case a password or token is found
+        pos = dupData.find("password");
+        if (pos != std::string::npos) {
+            // just truncate after the password tag so the actual password is gone
+            dupData.erase(pos + 12);
+            dupData += "...(truncated)...";
+        }
+        
+        pos = dupData.find("access_token");
+        if (pos != std::string::npos) {
+            dupData.erase(pos + 26);
+            dupData += "...(truncated)...";
+        }
+        
+        
+        // Output the actual text
+        outRaw
+        // the actual given data, stripped from general personal data
+        << str_replPers(dupData);
+    }
+    
     // newlines + flush
-    << std::endl;
+    outRaw << std::endl;
 }
 
 // URL-encode a string
@@ -829,7 +865,7 @@ bool LTOnlineChannel::FetchAllData (const positionTy& pos)
     netData[0] = 0;
     DebugLogRaw(url.c_str(), HTTP_FLAG_SENDING);
     if (!requBody.empty())
-        DebugLogRaw(requBody.c_str(), HTTP_FLAG_SENDING, false);
+        DebugLogRaw(requBody.c_str(), HTTP_FLAG_SENDING, requBody.size(), false);
     
     // perform the request and take its time
     std::chrono::time_point<std::chrono::steady_clock> tStart = std::chrono::steady_clock::now();
@@ -885,7 +921,7 @@ bool LTOnlineChannel::FetchAllData (const positionTy& pos)
     }
     
     // if requested log raw data received
-    DebugLogRaw(netData, httpResponse);
+    DebugLogRaw(netData, httpResponse, netDataPos);
     
     // success
     return true;
