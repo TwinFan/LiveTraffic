@@ -179,10 +179,12 @@ inline float RpmToDegree (float rpm, double s)
 //
 MovingParam::MovingParam(double _dur,
                          double _max, double _min,
-                         bool _wrap_around) :
+                         bool _wrap_around,
+                         bool _smootherstep) :
 defMin(_min), defMax(_max), defDist(_max - _min),
 defDuration(_dur),
 bWrapAround(_wrap_around),
+bSmootherstep(_smootherstep),
 valFrom(NAN), valTo(NAN), valDist(NAN),
 timeFrom(NAN), timeTo(NAN),
 bIncrease(true),
@@ -333,8 +335,11 @@ double MovingParam::get()
         // we are actually moving. How much have we moved based on time?
         const double timeDist = timeTo - timeFrom;
         const double timePassed = currCycle.simTime - timeFrom;
+        double f = timePassed/timeDist;
+        if (bSmootherstep)
+            f = smootherstep(f);
         // val = (timePassed/timeDist) * valDist + valFrom;
-        val = fma(timePassed/timeDist, valDist, valFrom);
+        val = fma(f, valDist, valFrom);
         
         // normalize in case of wrap-around
         if ( bWrapAround ) {
@@ -1275,11 +1280,11 @@ phase(FPH_UNKNOWN),
 rotateTs(NAN),
 vsi(0.0),
 bArtificalPos(false),
-heading(pMdl->TAXI_TURN_TIME, 360, 0, true),
-corrAngle(pMdl->FLIGHT_TURN_TIME / 2.0, 90, -90, false),
+heading(pMdl->TAXI_TURN_TIME, 360, 0, true, true),
+corrAngle(pMdl->FLIGHT_TURN_TIME / 2.0, 90, -90, false, true),
 gear(pMdl->GEAR_DURATION),
 flaps(pMdl->FLAPS_DURATION),
-pitch((pMdl->PITCH_MAX-pMdl->PITCH_MIN)/pMdl->PITCH_RATE, pMdl->PITCH_MAX, pMdl->PITCH_MIN),
+pitch((pMdl->PITCH_MAX-pMdl->PITCH_MIN)/pMdl->PITCH_RATE, pMdl->PITCH_MAX, pMdl->PITCH_MIN, false, true),
 reversers(MDL_REVERSERS_TIME),
 spoilers(MDL_SPOILERS_TIME),
 tireRpm(MDL_TIRE_SLOW_TIME, MDL_TIRE_MAX_RPM),
@@ -1938,10 +1943,16 @@ bool LTAircraft::CalcPPos()
         heading.SetVal(ppos.heading());
     }
     // No Bezier curve currently active:
-    else if (from.IsOnGnd() && to.IsOnGnd()) {
-        // ------------------------------------------------------------------
-        // Ground rendering — centripetal Catmull-Rom spline.
-        //
+    // ------------------------------------------------------------------
+    // Use centripetal Catmull-Rom spline.
+    //
+    // Spline is used in case of
+    // reasonable large distances (not jitter)
+    // TODO: Use Spline more generically, which requires having 3 positions in posList
+    else if (from.IsOnGnd() && to.IsOnGnd() &&
+             vec.dist >= GND_SPLINE_MIN_CHORD_M &&
+             vec.speed_kn() <= GND_SPLINE_MAX_KT)
+    {
         // While both endpoints of the current leg are on the ground we
         // interpolate position and heading along a smooth curve fit through
         // four control points: P0 = the previous `from` (preserved in
@@ -1983,232 +1994,150 @@ bool LTAircraft::CalcPPos()
         // heading at the segment endpoints.
         // ------------------------------------------------------------------
 
-        // Compute the chord length from→to in the local meters frame
-        // first. If it is below GND_SPLINE_MIN_CHORD_M we are looking
-        // at a "no useful motion" leg — parked aircraft jitter or a
-        // near-stationary creep dominated by feed noise — and the
-        // spline tangent through near-coincident control points would
-        // produce a noise-driven heading that overrides the (already
-        // correctly frozen) slot heading. Skip the spline in that
-        // regime: linear position interp + preserve from.heading().
-        const double dyMtr = Lat2Dist(to.lat() - from.lat());
-        const double dxMtr = Lon2Dist(to.lon() - from.lon(), from.lat());
-        const double chordMtr = std::hypot(dxMtr, dyMtr);
+        // Choose control points. P0 comes from posPrev (cached at
+        // the previous segment-switch). P3 comes from posNext
+        // (cached at THIS segment's switch — see posNext docstring
+        // in LTAircraft.h for why we MUST NOT read posDeque[2] live
+        // here). When either snapshot is unavailable (insufficient
+        // deque depth at switch time) we duplicate the adjacent
+        // endpoint, which produces a zero entry/exit tangent and
+        // degenerates the spline to a quadratic-like segment at
+        // the boundary — safe, no overshoot.
+        const bool haveP0 = posPrev.isNormal();
+        const bool haveP3 = posNext.isNormal();
+        const positionTy& P0 = (haveP0 ? posPrev : from);
+        const positionTy& P3 = (haveP3 ? posNext : to);
 
-        // Leg-average ground speed (chord / duration). Used purely to
-        // pick the interpolation method below — see GND_SPLINE_MAX_KT.
-        // `duration` is guaranteed positive by the LOG_ASSERT_FD above.
-        const double legSpeedKt = (chordMtr / duration) * KT_per_M_per_S;
+        // Control-point smoothing — LOOK-AHEAD ENDPOINT (P2) ONLY.
+        //
+        // A centripetal Catmull-Rom spline interpolates: the curve
+        // passes exactly through P1 and P2, so a noisy feed sample at
+        // either endpoint becomes a noisy rendered position. We turn
+        // it into an approximating spline by pre-smoothing P2 with a
+        // 3-tap binomial kernel against its neighbours:
+        //   P2' = w·from + (1−2w)·to + w·P3   (w = GND_SPLINE_SMOOTH_WEIGHT)
+        //
+        // P1 is deliberately NOT smoothed. The position-switch loop
+        // above does `posList.front() = ppos` (line ~1631) to make a
+        // new leg continue seamlessly from wherever the renderer
+        // currently is — a mechanism that only works if the renderer
+        // returns posDeque[0] (== `from`) EXACTLY at the start of the
+        // leg. The unmodified Catmull-Rom evaluator does exactly that
+        // (it interpolates P1 at u=0). If we smoothed P1 the evaluator
+        // would instead return P1' ≠ from at u=0, so every segment
+        // switch the rendered position would snap from `ppos` to P1' —
+        // the visible ~6 s forward/backward jump.
+        //
+        // Smoothing only P2 still removes the jitter completely:
+        // every feed sample is reached as the *smoothed* P2' endpoint
+        // of its leg, and is then carried into the next leg as `from`
+        // via the ppos overwrite. So the rendered path threads the
+        // smoothed points {P2'_k} — the raw noisy samples are never
+        // visited — while u=0 still yields `from` exactly, keeping the
+        // segment joins seamless.
+        //
+        // P2 is only smoothed when posNext is a *real* slot; when it
+        // fell back to a duplicated `to` the kernel would just bias
+        // the endpoint toward the segment interior, so we keep `to`
+        // raw in that case. See GND_SPLINE_SMOOTH_WEIGHT in
+        // Constants.h for the corner-cutting trade-off.
+        const double w = GND_SPLINE_SMOOTH_WEIGHT;
+        positionTy P2s = to;                // copy ts/flags/alt/heading
+        if (haveP3 && w > 0.0) {
+            P2s.lat() = w * from.lat() + (1.0 - 2.0 * w) * to.lat() + w * P3.lat();
+            P2s.lon() = w * from.lon() + (1.0 - 2.0 * w) * to.lon() + w * P3.lon();
+        }
 
-        if (chordMtr < GND_SPLINE_MIN_CHORD_M) {
-            // Stationary / sub-noise motion — pure linear interp and
-            // pass the slot heading through. CalcHeading has frozen
-            // from.heading() to lastGoodHeading_ in this regime, so
-            // both `from.heading()` and `to.heading()` should agree
-            // and equal the parked heading. We blend them defensively
-            // via shortest-path so a stray 1° slot mismatch does not
-            // unwrap into a 359° backward swing.
-            ppos.lat()    = from.lat() + Dist2Lat(dyMtr * f);
-            ppos.lon()    = from.lon() + Dist2Lon(dxMtr * f, from.lat());
-            ppos.alt_m()  = from.alt_m() * (1 - f) + to.alt_m() * f;
-            ppos.pitch()  = from.pitch() * (1 - f) + to.pitch() * f;
+        // Arc-length reparameterisation. The spline's native u is
+        // centripetal-knot space, NOT arc length, so feeding `f`
+        // directly to the evaluator would make the rendered position
+        // accelerate and decelerate within the segment (the user-
+        // observed "slow down / speed back up" pulsation). Instead
+        // we (re)build the arc-length LUT on the first frame of the
+        // segment and look up the u that corresponds to having
+        // traversed `f * totalArc` along the curve. Result: the
+        // rendered position advances at constant arc-length-per-
+        // time across the leg, with the visible speed equal to
+        // totalArc / duration. The LUT is built from the SAME
+        // control points (raw `from`, smoothed P2s) used for eval.
+        if (!splineLut.valid)
+            splineLut.Build(P0, from, P2s, P3);
+        const double uArc = splineLut.UFromArcFraction(f);
+
+        const CatmullRomResult cr =
+            CatmullRomEvalCentripetal(P0, from, P2s, P3, uArc);
+
+        // Convert spline result (local meters from P1) back to
+        // geographic coordinates. P1 is the raw `from` (NOT smoothed,
+        // see above), so the local-frame origin is from.lat/lon.
+        ppos.lat() = from.lat() + Dist2Lat(cr.yMtr);
+        ppos.lon() = from.lon() + Dist2Lon(cr.xMtr, from.lat());
+
+        // Heading.
+        //
+        // Normally the spline tangent is the heading: the rendered
+        // nose points along the rendered direction of motion, which
+        // is what eliminates the "sideways through a turn" symptom.
+        //
+        // EXCEPTION: if EITHER end of the leg carries `bHeadFixed`,
+        // an upstream stage has deliberately set a heading that must
+        // NOT be overridden — currently that means a pushback leg,
+        // where CalcHeading set the slot heading to the held nose
+        // direction so the nose stays pointed away from the
+        // (backward) direction of travel. The spline tangent here
+        // points along that backward motion, so using it would
+        // render the aircraft tail-first the wrong way. Instead we
+        // interpolate the slot headings across the leg (shortest-
+        // path), preserving the intended nose direction while still
+        // drawing the smooth spline *position*.
+        //
+        // Why both ends, not just `from`: at the PB_NONE→PB_ACTIVE
+        // transition the previous leg's `to` (now `from` here) came
+        // from the parked era and has bHeadFixed=false. Pinning
+        // bHeadFixed retroactively onto the predecessor slot is not
+        // always possible — when posDeque has been drained during a
+        // long stationary period, CalcHeading uses pAc->GetToPos()
+        // as a virtual predecessor and that slot is not writable
+        // from CalcHeading. Honouring `to.f.bHeadFixed` here covers
+        // that case from the destination side: as long as the slot
+        // we are transitioning *into* has its heading fixed (PB
+        // override), interpolate instead of tangent.
+        if (from.f.bHeadFixed || to.f.bHeadFixed) {
             const double h0 = from.heading();
             const double hd = HeadingDiff(h0, to.heading());
             ppos.heading() = HeadingNormalize(h0 + hd * f);
             heading.SetVal(ppos.heading());
-        }
-        else if (legSpeedKt > GND_SPLINE_MAX_KT) {
-            // High-speed straight-line runway motion — takeoff roll or
-            // landing rollout. The spline exists to handle TURNS, which
-            // do not happen at this speed; here it would only add
-            // fragility (outlier amplification, arc-length-LUT vs
-            // acceleration-profile interaction, leg-to-leg curve-shape
-            // changes on sparse irregular feed data). Plain linear
-            // interpolation renders the straight centreline track
-            // exactly and returns `from` precisely at f=0, keeping the
-            // segment-switch continuity seamless. See GND_SPLINE_MAX_KT
-            // in Constants.h for the full rationale.
-            ppos.lat()    = from.lat() + Dist2Lat(dyMtr * f);
-            ppos.lon()    = from.lon() + Dist2Lon(dxMtr * f, from.lat());
-            ppos.alt_m()  = from.alt_m() * (1 - f) + to.alt_m() * f;
-            ppos.pitch()  = from.pitch() * (1 - f) + to.pitch() * f;
-
-            // Heading from the chord bearing — the direct line of
-            // travel between the two feed positions, which on a runway
-            // IS the aircraft heading. Far-apart high-speed samples
-            // make this rock-solid: ~3 m of feed noise on a 200 m+
-            // chord is well under 1° of heading error. atan2(east,
-            // north) gives the compass-convention bearing, matching
-            // the convention used everywhere else in this file.
-            double hdg = std::atan2(dxMtr, dyMtr) * 180.0 / PI;
-            if (hdg < 0.0)
-                hdg += 360.0;
-            ppos.heading() = hdg;
-            heading.SetVal(hdg);
-        }
-        else {
-            // Choose control points. P0 comes from posPrev (cached at
-            // the previous segment-switch). P3 comes from posNext
-            // (cached at THIS segment's switch — see posNext docstring
-            // in LTAircraft.h for why we MUST NOT read posDeque[2] live
-            // here). When either snapshot is unavailable (insufficient
-            // deque depth at switch time) we duplicate the adjacent
-            // endpoint, which produces a zero entry/exit tangent and
-            // degenerates the spline to a quadratic-like segment at
-            // the boundary — safe, no overshoot.
-            const bool haveP0 = !std::isnan(posPrev.lat());
-            const bool haveP3 = !std::isnan(posNext.lat());
-            const positionTy& P0 = (haveP0 ? posPrev : from);
-            const positionTy& P3 = (haveP3 ? posNext : to);
-
-            // Control-point smoothing — LOOK-AHEAD ENDPOINT (P2) ONLY.
-            //
-            // A centripetal Catmull-Rom spline interpolates: the curve
-            // passes exactly through P1 and P2, so a noisy feed sample at
-            // either endpoint becomes a noisy rendered position. We turn
-            // it into an approximating spline by pre-smoothing P2 with a
-            // 3-tap binomial kernel against its neighbours:
-            //   P2' = w·from + (1−2w)·to + w·P3   (w = GND_SPLINE_SMOOTH_WEIGHT)
-            //
-            // P1 is deliberately NOT smoothed. The position-switch loop
-            // above does `posList.front() = ppos` (line ~1631) to make a
-            // new leg continue seamlessly from wherever the renderer
-            // currently is — a mechanism that only works if the renderer
-            // returns posDeque[0] (== `from`) EXACTLY at the start of the
-            // leg. The unmodified Catmull-Rom evaluator does exactly that
-            // (it interpolates P1 at u=0). If we smoothed P1 the evaluator
-            // would instead return P1' ≠ from at u=0, so every segment
-            // switch the rendered position would snap from `ppos` to P1' —
-            // the visible ~6 s forward/backward jump.
-            //
-            // Smoothing only P2 still removes the jitter completely:
-            // every feed sample is reached as the *smoothed* P2' endpoint
-            // of its leg, and is then carried into the next leg as `from`
-            // via the ppos overwrite. So the rendered path threads the
-            // smoothed points {P2'_k} — the raw noisy samples are never
-            // visited — while u=0 still yields `from` exactly, keeping the
-            // segment joins seamless.
-            //
-            // P2 is only smoothed when posNext is a *real* slot; when it
-            // fell back to a duplicated `to` the kernel would just bias
-            // the endpoint toward the segment interior, so we keep `to`
-            // raw in that case. See GND_SPLINE_SMOOTH_WEIGHT in
-            // Constants.h for the corner-cutting trade-off.
-            const double w = GND_SPLINE_SMOOTH_WEIGHT;
-            positionTy P2s = to;                // copy ts/flags/alt/heading
-            if (haveP3 && w > 0.0) {
-                P2s.lat() = w * from.lat() + (1.0 - 2.0 * w) * to.lat() + w * P3.lat();
-                P2s.lon() = w * from.lon() + (1.0 - 2.0 * w) * to.lon() + w * P3.lon();
-            }
-
-            // Arc-length reparameterisation. The spline's native u is
-            // centripetal-knot space, NOT arc length, so feeding `f`
-            // directly to the evaluator would make the rendered position
-            // accelerate and decelerate within the segment (the user-
-            // observed "slow down / speed back up" pulsation). Instead
-            // we (re)build the arc-length LUT on the first frame of the
-            // segment and look up the u that corresponds to having
-            // traversed `f * totalArc` along the curve. Result: the
-            // rendered position advances at constant arc-length-per-
-            // time across the leg, with the visible speed equal to
-            // totalArc / duration. The LUT is built from the SAME
-            // control points (raw `from`, smoothed P2s) used for eval.
-            if (!splineLut.valid)
-                splineLut.Build(P0, from, P2s, P3);
-            const double uArc = splineLut.UFromArcFraction(f);
-
-            const CatmullRomResult cr =
-                CatmullRomEvalCentripetal(P0, from, P2s, P3, uArc);
-
-            // Convert spline result (local meters from P1) back to
-            // geographic coordinates. P1 is the raw `from` (NOT smoothed,
-            // see above), so the local-frame origin is from.lat/lon.
-            ppos.lat() = from.lat() + Dist2Lat(cr.yMtr);
-            ppos.lon() = from.lon() + Dist2Lon(cr.xMtr, from.lat());
-
-            // Altitude and pitch on the linear path — these are not
-            // part of the horizontal-plane spline. On the ground
-            // altitude will be clamped to terrainAlt_m below anyway;
-            // pitch is forced to GND_PITCH_DEG by the same block.
-            ppos.alt_m() = from.alt_m() * (1 - f) + to.alt_m() * f;
-            ppos.pitch() = from.pitch() * (1 - f) + to.pitch() * f;
-
-            // Heading.
-            //
-            // Normally the spline tangent is the heading: the rendered
-            // nose points along the rendered direction of motion, which
-            // is what eliminates the "sideways through a turn" symptom.
-            //
-            // EXCEPTION: if EITHER end of the leg carries `bHeadFixed`,
-            // an upstream stage has deliberately set a heading that must
-            // NOT be overridden — currently that means a pushback leg,
-            // where CalcHeading set the slot heading to the held nose
-            // direction so the nose stays pointed away from the
-            // (backward) direction of travel. The spline tangent here
-            // points along that backward motion, so using it would
-            // render the aircraft tail-first the wrong way. Instead we
-            // interpolate the slot headings across the leg (shortest-
-            // path), preserving the intended nose direction while still
-            // drawing the smooth spline *position*.
-            //
-            // Why both ends, not just `from`: at the PB_NONE→PB_ACTIVE
-            // transition the previous leg's `to` (now `from` here) came
-            // from the parked era and has bHeadFixed=false. Pinning
-            // bHeadFixed retroactively onto the predecessor slot is not
-            // always possible — when posDeque has been drained during a
-            // long stationary period, CalcHeading uses pAc->GetToPos()
-            // as a virtual predecessor and that slot is not writable
-            // from CalcHeading. Honouring `to.f.bHeadFixed` here covers
-            // that case from the destination side: as long as the slot
-            // we are transitioning *into* has its heading fixed (PB
-            // override), interpolate instead of tangent.
-            if (from.f.bHeadFixed || to.f.bHeadFixed) {
-                const double h0 = from.heading();
-                const double hd = HeadingDiff(h0, to.heading());
-                ppos.heading() = HeadingNormalize(h0 + hd * f);
-                heading.SetVal(ppos.heading());
-            } else {
-                // Sync the MovingParam so any downstream code that reads
-                // `heading.get()` sees the spline-derived value as the
-                // current state.
-                ppos.heading() = cr.headingDeg;
-                heading.SetVal(cr.headingDeg);
-            }
+        } else {
+            // Sync the MovingParam so any downstream code that reads
+            // `heading.get()` sees the spline-derived value as the
+            // current state.
+            ppos.heading() = cr.headingDeg;
+            heading.SetVal(cr.headingDeg);
         }
     }
+    // No bezier, no spline...just linear interpolation,
+    // heading comes from the moving parameter define during pos switch
     else {
-        // Air or air↔ground transition.
-        //
-        // lat/lon/pitch use the same linear interpolation as before —
-        // the user-visible feature for those is positional, not slope
-        // smoothness, and the existing ground-rendering Catmull-Rom
-        // already handles the curve quality where it matters (taxi,
-        // rollout, slow turns).
-        //
-        // Altitude, however, goes through `LookupAltAtTs(simTime)` so
-        // the rendered climb/descend profile is a C¹-continuous
-        // Hermite/Catmull-Rom spline across all of `posList`. The
-        // previous `from.alt_m() * (1-f) + to.alt_m() * f` was only
-        // C⁰ across leg boundaries (slope was a step at every slot
-        // transition), and the visible symptom was a sequence of
-        // "kinks" in the rendered VSI whenever the active leg changed
-        // — most clearly during the 10 s liftoff blend, where the
-        // aircraft might cross several leg boundaries.
-        //
-        // Using the spline always (not only inside the blend) keeps
-        // the blend's seam at t = T seamless: the blend formula
-        // ends with ppos.alt_m() = LookupAltAtTs(simTime), and the
-        // post-blend rendering uses the very same value.
+        // Now we apply the factor so that with time we move from 'from' to 'to'.
+        // Note that this calculation also works if we passed 'to' already
+        // (due to no newer 'to' available): we just keep going the same way.
+        // This is effectively a scaled vector sum, broken down into its components:
         ppos.lat()   = from.lat()   * (1 - f) + to.lat() * f;
         ppos.lon()   = from.lon()   * (1 - f) + to.lon() * f;
-        if (std::isnan(ppos.alt_m() = LookupAltAtTs(currCycle.simTime)))
-            ppos.alt_m() = from.alt_m() * (1 - f) + to.alt_m() * f;
-        ppos.pitch() = from.pitch() * (1 - f) + to.pitch() * f;
         // we handle roll later separately
 
         // Get heading from moving param
         ppos.heading() = heading.get();
     }
+    
+    // Altitude and pitch by Smootherstep — these are not
+    // part of the horizontal-plane spline. On the ground
+    // altitude will be clamped to terrainAlt_m below anyway;
+    // pitch is forced to GND_PITCH_DEG by the same block.
+    // TODO: Altitude should generally go through a Hermite Spline, not Smootherstep, as the latter always starts and ends horizontally
+    const double sf = smootherstep(f);
+    ppos.alt_m()  = from.alt_m() * (1 - sf) + to.alt_m() * sf;
+    ppos.pitch()  = from.pitch() * (1 - sf) + to.pitch() * sf;
 
     // ----------------------------------------------------------------------
     // Per-frame heading rate limit (ground only).
@@ -2380,8 +2309,6 @@ bool LTAircraft::CalcPPos()
         //     as it takes for bOnGrnd to flip false. Visible as: nose
         //     pitches up, briefly flips level on the runway, then
         //     pitches up again once airborne. Reported on AAL2449.
-        // Roll is forced flat in all phases — ground aircraft never
-        // bank, so no exception is needed there.
         if (phase != FPH_ROTATE &&
             phase != FPH_LIFT_OFF &&
             phase != FPH_FLARE  &&
@@ -2389,92 +2316,12 @@ bool LTAircraft::CalcPPos()
             phase != FPH_ROLL_OUT)
         {
             ppos.pitch() = GND_PITCH_DEG;
-            ppos.roll()  = GND_ROLL_DEG;
-        } else {
-            // Even in the dynamic-pitch phases, roll should still be
-            // forced flat — there is no scenario where a wheeled
-            // aircraft banks during rotation/flare/touchdown/roll-out.
-            ppos.roll() = GND_ROLL_DEG;
         }
     } else {
         // not on the ground
         // just lifted off? then recalc vsi
         if (phase == FPH_LIFT_OFF && dequal(vsi, 0)) {
             vsi = ppos.vsi_ft(to);
-        }
-
-        // ------------------------------------------------------------------
-        // Smooth altitude blend during the first LIFTOFF_BLEND_TIME_S
-        // seconds after the on-ground → airborne transition.
-        //
-        // CalcFlightModel records `liftoffBlendStartTs` on the frame that
-        // bOnGrnd flips from true to false. Up until that moment the
-        // altitude was clamped to `terrainAlt_m` by the `if (bOnGrnd)`
-        // branch above; on the very next frame the clamp goes away and
-        // ppos.alt_m takes on its raw linearly-interpolated value
-        // between the last on-ground slot (at terrain level) and the
-        // next airborne slot (which may be 100-500 ft above the runway,
-        // depending on how far apart the feed samples are in time).
-        // Without intervention the aircraft visibly teleports up to
-        // that interpolated altitude in a single frame — the "jumps
-        // into the air on rotation" symptom.
-        //
-        // We lerp from the frozen terrain altitude at liftoff
-        // (`liftoffStartAlt_m`) to the live spline-smoothed raw
-        // altitude (already computed into `ppos.alt_m()` via
-        // `LookupAltAtTs(simTime)` in the air-branch above) using
-        // Ken Perlin's quintic smootherstep:
-        //
-        //     blend(t) = 6t⁵ − 15t⁴ + 10t³
-        //
-        // Smootherstep is C²-continuous at both endpoints (value AND
-        // slope AND curvature are zero at t=0 and at t=1 with respect
-        // to the blend's shape), so neither the runway departure nor
-        // the post-blend handover introduces a kink from the blend
-        // function itself.
-        //
-        // Because the live `ppos.alt_m()` going in is now also a
-        // smooth Hermite/Catmull-Rom spline across `posList` (rather
-        // than the per-leg-linear interp it used to be), the only
-        // remaining source of "kinks" — slope discontinuities at
-        // deque slot boundaries — is gone. The combined visual is
-        // a single smooth runway-to-climbout arc.
-        //
-        // At t = T (sinceLiftoff = LIFTOFF_BLEND_TIME_S), blend = 1
-        // and ppos.alt_m() = LookupAltAtTs(simTime). The very next
-        // frame (sinceLiftoff > T) bails out of the blend and the
-        // air-branch above continues to write the same Hermite
-        // value, so the seam is mathematically exact.
-        // ------------------------------------------------------------------
-        if (!std::isnan(liftoffBlendStartTs) &&
-            !std::isnan(liftoffStartAlt_m))
-        {
-            const double sinceLiftoff =
-                currCycle.simTime - liftoffBlendStartTs;
-            if (sinceLiftoff < LIFTOFF_BLEND_TIME_S)
-            {
-                const double t = sinceLiftoff / LIFTOFF_BLEND_TIME_S;
-                const double blend =
-                    t * t * t * (t * (t * 6.0 - 15.0) + 10.0);
-                // Clamp the (LookupAltAtTs − liftoffStartAlt) delta to
-                // be non-negative. If the regression momentarily dips
-                // below the frozen liftoff terrain (which can happen
-                // when past-ground samples briefly out-weight the
-                // future airborne samples during the early blend
-                // window), the blend output must not render the
-                // aircraft below the runway. Combined with the
-                // `bOnGrnd` lock above this guarantees the aircraft
-                // stays at or above terrain throughout the blend.
-                const double diff = std::max(0.0,
-                    ppos.alt_m() - liftoffStartAlt_m);
-                ppos.alt_m() = liftoffStartAlt_m + diff * blend;
-            } else {
-                // Blend complete — release the frozen start altitude
-                // and continue rendering with the spline-smoothed
-                // raw alt that the air-branch above already produces.
-                liftoffBlendStartTs = NAN;
-                liftoffStartAlt_m   = NAN;
-            }
         }
     }
     
@@ -2504,37 +2351,13 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
     //        (avoids intermidate lift offs just because the runway has holes)
     if (ppos.IsOnGnd() && to.IsOnGnd()) {
         bOnGrnd = true;
+    } else if (phase == FPH_LIFT_OFF) {
+        // Committed to taking off
+        bOnGrnd = false;
     } else {
         // else: we could also be airborne,
         // so assume 'on the ground' if 'very' close to it, otherwise airborne
         bOnGrnd = PHeight <= MDL_CLOSE_TO_GND;
-        // Liftoff-blend ground lock.
-        //
-        // Once the blend has started, the flight model has *committed*
-        // to the aircraft being airborne; the visible aircraft is being
-        // ramped up from terrain along the blend curve. If a transient
-        // dip in the smoothed altitude (returned by `LookupAltAtTs`)
-        // briefly takes the value back below `MDL_CLOSE_TO_GND` above
-        // terrain, the `else` branch below would clamp `ppos.alt` to
-        // terrain ("slam to ground"), the phase would regress to
-        // `FPH_TO_ROLL`/`FPH_TAXI`, and the next time the regression
-        // value rises again the lift-off transition fires anew —
-        // `liftoffBlendStartTs` resets and the blend restarts from
-        // scratch. Visibly: aircraft climbs to ~Nft, slams to the
-        // runway, continues T/O roll, rotates again, climbs again.
-        // That sequence was exactly what users reported on KLM99L /
-        // IBE07TV and similar departures with sparse early-climb data.
-        //
-        // The dip is mostly an artefact of the smoothing window
-        // rebalancing as past slots' Gaussian weights decay or the
-        // next future slot's slope contribution shifts — physically
-        // the aircraft has not landed. We therefore lock `bOnGrnd`
-        // to false for the duration of the active blend.
-        if (bOnGrnd && !std::isnan(liftoffBlendStartTs) &&
-            currCycle.simTime - liftoffBlendStartTs < LIFTOFF_BLEND_TIME_S)
-        {
-            bOnGrnd = false;
-        }
         ppos.f.onGrnd = bOnGrnd ? GND_ON : GND_OFF;
     }
     
@@ -2596,46 +2419,9 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
         phase = FPH_ROTATE;
     }
 
-    // Diagnostic: log every bOnGrnd transition during the climb-out.
-    // Single line per transition, per aircraft — low volume in the log
-    // but enough to reconstruct any takeoff sequence and rule out (or
-    // catch) repeat lift-off/slam-to-ground events.
-    if (dataRefs.ShallLogDiagnostics() &&
-        bOnGrndPrev != bOnGrnd && bFPhPrev != FPH_UNKNOWN) {
-        const bool blendActive =
-            !std::isnan(liftoffBlendStartTs) &&
-            (currCycle.simTime - liftoffBlendStartTs) < LIFTOFF_BLEND_TIME_S;
-        LOG_MSG(logDEBUG,
-                "ALT_DIAG %s simT=%.1f bOnGrnd %d->%d ppos.alt=%.1fft "
-                "PHeight=%.1fft terrain=%.1fft blendActive=%d sinceLO=%.2fs phase=%s",
-                key().c_str(), currCycle.simTime,
-                int(bOnGrndPrev), int(bOnGrnd),
-                ppos.alt_ft(), PHeight, GetTerrainAlt_ft(),
-                int(blendActive),
-                std::isnan(liftoffBlendStartTs)
-                    ? -1.0
-                    : currCycle.simTime - liftoffBlendStartTs,
-                FlightPhase2String(phase).c_str());
-    }
-
     // last frame: on ground, this frame: not on ground -> we just lifted off
     if ( bOnGrndPrev && !bOnGrnd && bFPhPrev != FPH_UNKNOWN ) {
         phase = FPH_LIFT_OFF;
-        // Record the wall-clock sim time so CalcPPos can blend the
-        // altitude smoothly upward from terrain over the next
-        // LIFTOFF_BLEND_TIME_S seconds. Without this, the rendered
-        // altitude would jump from terrain level (clamped while on
-        // ground) to the raw interpolated airborne value on this very
-        // frame — the aircraft visually teleports upward. See the
-        // blend application near `if (bOnGrnd) ... else { ... }` in
-        // CalcPPos and the rationale in Constants.h.
-        liftoffBlendStartTs = currCycle.simTime;
-        // Freeze the start altitude (terrain at this moment). Using a
-        // frozen value rather than reading `terrainAlt_m` every frame
-        // means the blend curve does not bob as the YProbe samples
-        // slightly different terrain elevations while the aircraft
-        // moves horizontally during the 10 s blend.
-        liftoffStartAlt_m   = terrainAlt_m;
     }
     
     // climbing but not even reached gear-up altitude
@@ -2769,7 +2555,8 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
             // `pMdl->PITCH_MAX` — so steep climbs can still reach the
             // full 15°, just not while the gear is still on the runway.
             pitch.moveTo(pMdl->PITCH_ROTATE);
-            gearDeflection.min();               // and start easing up on the wheels
+            gearDeflection.defDuration = pitch.defDuration;
+            gearDeflection.min();               // and start easing up on the wheels in about the same timeframe
         }
     }
     
@@ -2778,6 +2565,7 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
         // Tires are rotating but shall stop in max 5s
         if (gear.isDown())
             tireRpm.min();                              // "move" to 0
+        gearDeflection.defDuration = MDL_GEAR_DEFL_TIME;
         gearDeflection.min();
         CalcCorrAngle();                        // might need to correct for cross wind
     }
@@ -2832,6 +2620,7 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
     
     // touch-down
     if (ENTERED(FPH_TOUCH_DOWN)) {
+        gearDeflection.defDuration = MDL_GEAR_DEFL_TIME;
         gearDeflection.max();           // start main gear deflection
         spoilers.max();                 // start deploying spoilers
         ppos.f.onGrnd = GND_ON;
@@ -2999,188 +2788,6 @@ void LTAircraft::CalcCorrAngle ()
         corrAngle.moveTo(0.0);
     }
 }
-
-// Smooth altitude (m, MSL) at an arbitrary timestamp, fitted as a
-// Gaussian-weighted local linear regression. The samples come from a
-// per-aircraft archive (`pastAltSamples_`) that mirrors every slot
-// we have ever seen in `fd.posDeque`, augmented with the future
-// slots currently in `fd.posDeque`. The archive does NOT pop when
-// `fd.posDeque` does, so popped slots remain in the regression
-// (with their Gaussian weight smoothly decaying toward zero as
-// `targetTs` advances past them). This is the *only* shape of input
-// that produces visually smooth output — see the rationale on
-// `pastAltSamples_` in the header for the full diagnosis.
-double LTAircraft::LookupAltAtTs (double targetTs) const
-{
-    // Take the flight-data lock for the duration of the regression.
-    // dataAccessMutex is recursive, so if a caller already holds it
-    // the inner lock is a no-op. The fit is a single linear pass
-    // over the archive, so the critical section is short.
-    
-    
-    // Inside XP's flight loop we must not block.
-    // So we TRY to get the lock, but don't wait if not
-    if (fd.dataAccessMutex.try_lock()) {
-        const dequePositionTy& fullDeque = fd.GetPosDeque();
-        
-        // Append any slots we have not yet archived. Both `pastAltSamples_`
-        // and `fullDeque` are individually sorted by ts; the boundary
-        // condition is that everything in `pastAltSamples_` came from
-        // earlier observations of `fullDeque` and is therefore older than
-        // or equal to the deque's current contents. We append every slot
-        // whose ts is strictly greater than the last archived ts.
-        for (const auto& p : fullDeque) {
-            if (pastAltSamples_.empty() ||
-                p.ts() > pastAltSamples_.back().ts())
-            {
-                pastAltSamples_.push_back(p);
-            }
-        }
-        
-        // Unlock as soon as we no longer need fullDeque
-        fd.dataAccessMutex.unlock();
-    }
-    // Prune samples well outside the Gaussian tail. We keep ±30 s
-    // around `targetTs`: with σ = 5 s the weight at ±30 s = ±6 σ is
-    // exp(-18) ≈ 1.5e-8, indistinguishable from zero for double-
-    // precision arithmetic, so pruned samples could not measurably
-    // affect the regression output.
-    constexpr double PRUNE_HORIZON_S = 30.0;
-    while (!pastAltSamples_.empty() &&
-           pastAltSamples_.front().ts() < targetTs - PRUNE_HORIZON_S)
-    {
-        pastAltSamples_.pop_front();
-    }
-    // Also prune samples in the *future* beyond the same horizon —
-    // they are buffered for later rendering and should not affect
-    // the regression at the current `targetTs`. (In normal operation
-    // `fullDeque`'s future extent is much smaller than 30 s, so this
-    // is mostly a safety net.)
-    while (!pastAltSamples_.empty() &&
-           pastAltSamples_.back().ts() > targetTs + PRUNE_HORIZON_S)
-    {
-        pastAltSamples_.pop_back();
-    }
-
-    if (pastAltSamples_.empty()) {
-        // Nothing to regress against, will be replaced by caller
-        return NAN;
-    }
-    if (pastAltSamples_.size() == 1)
-        return pastAltSamples_.front().alt_m();
-
-    // -----------------------------------------------------------------
-    // Smoothing strategy: Gaussian-weighted local linear regression.
-    //
-    // Why an *approximating* fit rather than an *interpolating* spline:
-    // ADS-B reports altitude in 25 ft quantization steps, and feed
-    // slots arrive at irregular cadence (1–5 s between samples).
-    // The per-segment slope is therefore *jagged by construction* —
-    // a single steady climb at 2500 fpm shows up as alternating
-    // 2000-fpm and 3400-fpm legs whenever the quantization boundary
-    // straddles a sample interval. An interpolating spline (PCHIP or
-    // otherwise) must pass through every data point, so the
-    // quantization-induced slope variation is faithfully reproduced
-    // as visible "kinks" in the rendered climb every 4–6 s. That was
-    // the user's "100 ft up every few seconds" symptom.
-    //
-    // Local linear regression instead fits a *trend line* through the
-    // window of nearby samples and renders the aircraft along that
-    // trend. The 25 ft quantization noise is averaged out; the
-    // rendered altitude moves at the *mean* climb rate of the window
-    // rather than the instantaneous (quantized) per-leg slope.
-    //
-    // Weights are Gaussian in (targetTs − ts), σ = 3 s:
-    //   - As targetTs advances and slots fall outside ±2σ, their
-    //     weight drops smoothly toward zero — no discontinuity when
-    //     a slot leaves the effective window. This is the key
-    //     reason for the Gaussian weighting: a hard-edged window
-    //     would introduce a step every time a sample left it.
-    //   - σ = 3 s sets the smoothing scale: a few seconds wide enough
-    //     to span typical sample intervals and average out
-    //     quantization noise, but narrow enough that the rendered
-    //     altitude tracks genuine climb-rate changes with under-1 s
-    //     lag (e.g. when transitioning from initial climb to cruise
-    //     climb at the gear-up altitude).
-    //
-    // Gaussian-weighted local linear regression in (ts, alt) over the
-    // archived sample list. The fitted line evaluated at `targetTs` is
-    // the rendered altitude.
-    //
-    // Why the archive (`pastAltSamples_`) and not `fullDeque` directly:
-    //   `fullDeque` keeps at most ONE past slot at a time (the loop in
-    //   LTFlightData::CalcNextPos pops slots as soon as `posDeque[1]`
-    //   slides into the past). That single past sample has near-unit
-    //   Gaussian weight at `targetTs`. The frame it pops, the weight-
-    //   ed mean recomputes WITHOUT it in a single step, and for a
-    //   climbing aircraft (where the just-popped slot was the lowest-
-    //   altitude one) the mean visibly jumps UP — that is exactly the
-    //   "instant 100 ft up" symptom the user reported despite the
-    //   smoothing. The archive does not pop, so the same sample
-    //   remains in the regression with its Gaussian weight smoothly
-    //   decaying to zero over many frames as `targetTs` advances past
-    //   it. No more discrete jumps at the deque-pop boundary.
-    //
-    // Why σ = 5 s: ADS-B altitude quantization (25 ft) plus typical
-    // 1–5 s slot cadence means individual per-leg slopes can fluctuate
-    // wildly even on a steady climb. σ = 5 s spans ~10–15 effective
-    // samples in the ±2σ band — enough to average out the per-leg
-    // jitter — while keeping the lag relative to real altitude
-    // changes under ~1 s (visible climb-rate transitions still come
-    // through promptly).
-    //
-    // Why we work in *relative* time (t − targetTs) rather than raw
-    // epoch seconds: timestamps are ~1.78e9, so t·t is ~3.16e19. The
-    // textbook variance formula Σw·t² − sumW·tMean² then subtracts
-    // two numbers of order 3e19 to get a result of order 10², and a
-    // 64-bit double has only ~16 significant digits — most of the
-    // result is lost to catastrophic cancellation. Working in
-    // (t − targetTs), all values stay in the ±30 s range, the
-    // cancellation goes away, and the slope/intercept are computed
-    // accurately. After the shift the query point lives at t_rel=0,
-    // so the regression's prediction at `targetTs` is simply
-    //   aMean − slope · tMean_rel.
-    constexpr double SMOOTH_SIGMA_S = 5.0;
-    const double invTwoSigmaSq = 1.0 / (2.0 * SMOOTH_SIGMA_S * SMOOTH_SIGMA_S);
-
-    double sumW   = 0.0;
-    double sumWT  = 0.0;   // Σ w · (t − targetTs)
-    double sumWA  = 0.0;
-    double sumWTT = 0.0;   // Σ w · (t − targetTs)²
-    double sumWTA = 0.0;   // Σ w · (t − targetTs) · a
-    for (const auto& p : pastAltSamples_) {
-        const double t_rel = p.ts() - targetTs;
-        const double a     = p.alt_m();
-        const double w     = std::exp(-t_rel * t_rel * invTwoSigmaSq);
-        sumW   += w;
-        sumWT  += w * t_rel;
-        sumWA  += w * a;
-        sumWTT += w * t_rel * t_rel;
-        sumWTA += w * t_rel * a;
-    }
-    // Degenerate case: zero combined weight (all samples extremely
-    // far from targetTs even after pruning). Fall back to the nearest
-    // archived sample's altitude.
-    if (sumW <= 0.0) {
-        const positionTy* pBest = &pastAltSamples_.front();
-        double dtBest = std::abs(pBest->ts() - targetTs);
-        for (const auto& p : pastAltSamples_) {
-            const double dt = std::abs(p.ts() - targetTs);
-            if (dt < dtBest) { dtBest = dt; pBest = &p; }
-        }
-        return pBest->alt_m();
-    }
-
-    const double tMean_rel = sumWT / sumW;
-    const double aMean     = sumWA / sumW;
-    const double varT  = sumWTT - sumW * tMean_rel * tMean_rel;
-    const double slope = (varT > 0.0)
-        ? ((sumWTA - sumW * tMean_rel * aMean) / varT)
-        : 0.0;
-    // Predict at t_rel = 0 (= targetTs).
-    return aMean - slope * tMean_rel;
-}
-
 
 // determines terrain altitude via XPLM's Y Probe
 bool LTAircraft::YProbe ()

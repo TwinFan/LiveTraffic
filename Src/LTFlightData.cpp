@@ -954,6 +954,52 @@ bool LTFlightData::CalcNextPos ( double simTime )
         
         // *** Maintenance of positions queue ***
         
+        // Remove position that do more bad than help.
+        // 1. In the air, while flying straight, remove too close positions.
+        //    This helps simlating altitude change: ADS-B altitude is
+        //    provided in multiples of 25ft only. Dense positions would lead to
+        //    a staircase effect. LiveTraffic provides a smoother glide/climb
+        //    path with _less_ positions in the queue.
+        if (posDeque.size() >= 3) {
+            // i starts on the 2nd element of the queue
+            dequePositionTy::iterator i = std::next(posDeque.begin());
+            while (posDeque.size() >= 3 &&
+                   i != posDeque.end())
+            {
+                // Compare i to i-1 and i+1.
+                // If that's a straight line, and ts between them is too short
+                dequePositionTy::iterator iPrev = std::prev(i);
+                dequePositionTy::iterator iNext = std::next(i);
+                if (iNext == posDeque.end())            // we're done if there is no i+1 any longer
+                    break;
+                
+                // Close in terms of time difference on at least one side?
+                if (i->f.flightPhase == FPH_UNKNOWN &&      // must not remove any special positions like Touch Down / Lift Off
+                    iPrev->f.onGrnd == i->f.onGrnd &&       // must not remove the change between gnd to airborne
+                    (i->ts() - iPrev->ts() <= CLOSE_POS_TS_INTVL ||
+                     iNext->ts() - i->ts() <= CLOSE_POS_TS_INTVL))
+                {
+                    // track headings between those positions
+                    const double headFirst = iPrev->angle(*i);
+                    const double headSecnd = i->angle(*iNext);
+                    // Heading difference insignificant? -> remove the middle position
+                    if (std::abs(HeadingDiff(headFirst, headSecnd)) <= CLOSE_POS_HEADING)
+                    {
+                        // output debug info on request
+                        if (dataRefs.GetDebugAcPos(key())) {
+                            LOG_MSG(logDEBUG,DBG_REMOVED_CLOSE_POS,i->dbgTxt().c_str());
+                        }
+                        i = posDeque.erase(i);
+                        bChanged = true;
+                    }
+                    else
+                        i++;
+                }
+                else
+                    i++;
+            }
+        }
+        
         // *** Data Smoothing ***
         // (potentially changes timestamp, so needs to be befure
         //  maintenance, which relies on timestamps)
@@ -1244,7 +1290,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
                     // i.e. if take off is calculated to be after currently analyzed position
                     if (ppos_i.ts() + SIMILAR_TS_INTVL < takeOffTS)
                     {
-                        rotateTS = takeOffTS - mdl.ROTATE_TIME/2.0; // timestamp when to rotate
+                        rotateTS = takeOffTS - mdl.ROTATE_TIME;     // timestamp when to rotate
 
                         // find the TO position by applying a reverse vector to the pointer _after_ take off
                         vectorTy vecTO(fmod(vec.angle + 180, 360),  // angle (reverse!)
@@ -2400,11 +2446,13 @@ bool LTFlightData::IsPosOK (const positionTy& lastPos,
         
     // Any problem found?
     if (szViolTxt) {
+/*
         LOG_MSG(logDEBUG, "%s: %s: %s with headingDiff = %.0f (speed = %.f - %.fkn, max turn = %.f, max vsi = %.fft/min, mdl %s, type %s)",
                 keyDbg().c_str(), szViolTxt,
                 std::string(v).c_str(), hDiff,
                 minSpeed, maxSpeed, maxTurn, mdl.VSI_MAX,
                 mdl.modelName.c_str(), sIcaoType.c_str());
+ */
         return false;
     }
     
