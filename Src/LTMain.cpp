@@ -942,6 +942,14 @@ bool CheckEverySoOften (float& _lastCheck, float _interval, float _now)
 /// Transition altitude: Above this altitude we don't convert barometric pressure any longer
 constexpr double TRANSITION_ALT_M = 18000.0 * M_per_FT;
 
+// 2nd order Smootherstep function
+double smootherstep (double x, bool bLinearExtend)
+{
+    if (x < 0.0) return bLinearExtend ? x : 0.0;
+    if (x > 1.0) return bLinearExtend ? x : 1.0;
+    return x * x * x * (x * (6.0 * x - 15.0) + 10.0);
+}
+
 // Convert barometric altitude to pressure at that altitude, assume pressure alt got calculated with standard pressure at sea level in mind
 /// @see https://www.mide.com/air-pressure-at-altitude-calculator
 double PressureFromBaroAlt(double baroAlt_m, double refPressure)

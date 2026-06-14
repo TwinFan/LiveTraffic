@@ -381,6 +381,12 @@ inline bool CheckEverySoOften (float& _lastCheck, float _interval)
 
 // MARK: Other Utility Functions
 
+/// @brief 2nd order Smootherstep function
+/// @param x typically in range [0..1]
+/// @param bLinearExtend Instead of returning flat 0/1 if x is outside [0..1], return x
+/// @see https://en.wikipedia.org/wiki/Smoothstep#Variations
+double smootherstep (double x, bool bLinearExtend = true);
+
 /// Convert barometric altitude to pressure at that altitude, assume pressure alt got calculated with standard pressure at sea level in mind
 double PressureFromBaroAlt(double baroAlt_m, double refPressure = HPA_STANDARD);
 /// Convert a given pressure to an altitude, providing sea level pressure as reference
