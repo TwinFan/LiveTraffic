@@ -85,6 +85,9 @@ constexpr int NVGR_MIN_REFRESH_INTVL = 20;              ///< Navigraph imposes a
 #define NVGR_PAINTED_AS         "paintedAs"
 #define NVGR_OP_AS              "operatingAs"
 
+/// Sometimes aircraft position during take off "hover" over the rwy when they should be on the ground. Up to which height do we consider it hovering? Use this time * VSI_INIT_CLIMB
+constexpr double NVGR_MAX_RWY_HOVER_CLIMB_DUR_S = 12.0;
+
 //
 // MARK: Navigraph Traffic Data
 //

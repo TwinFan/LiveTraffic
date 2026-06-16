@@ -488,6 +488,10 @@ public:
     
     inline int GetRcvr() const { return rcvr; }
     
+    /// @brief For the last queue position, if it is on the ground, return its altitude
+    /// @returns `NAN` if last queue pos is not on the ground, or its altitude [m] if it is
+    double GetLastPosGndAlt_m () const;
+    
     /// @brief In case of "larger" aircraft, upgrade to use Mode S
     /// @returns if the value has been modified
     bool DetermineTransponderMode (XPMPTransponderMode& mode);
