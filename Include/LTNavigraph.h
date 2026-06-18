@@ -64,6 +64,7 @@ constexpr long NVGR_AUTH_EXP_DEFAULT = 3600;       ///< default expiration in ca
 #define NVGR_SLUG_FMT           "https://www.flightradar24.com/%06lx"
 
 constexpr int NVGR_MIN_REFRESH_INTVL = 20;              ///< Navigraph imposes a minimum refresh interval of 20s
+constexpr int NVGR_MAX_SEARCH_DIST_KM = 150;            ///< [km] Navigraph allows the 20s interval only for search distances up to 150km
 
 // Message Definition
 #define NVGR_AC_ID              "aircraftId"

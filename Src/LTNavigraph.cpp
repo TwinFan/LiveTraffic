@@ -277,12 +277,13 @@ std::string NvgrFR24Connection::GetURL (const positionTy& pos)
     }
     
     // Standard request to fetch planes:
-    // TODO: 180km limit for 20s refresh period
     char url[128] = "";
     snprintf(url, sizeof(url),
              NVGR_TRAFFIC_URL,
              pos.lat(), pos.lon(),
-             dataRefs.GetFdStdDistance_km());
+             // consider max search distance as per Navigraph 20s interval
+             std::min<int>(dataRefs.GetFdStdDistance_km(),
+                           NVGR_MAX_SEARCH_DIST_KM));
     return std::string(url);
 }
 
@@ -515,9 +516,9 @@ bool NvgrFR24Connection::ProcessFetchedData ()
                             nvgrData.pos.f.onGrnd = GND_ON;
                             nvgrData.pos.alt_m() = NAN;
                             // output all positional information as debug info on request
-                            // TODO: Undo                        if (dataRefs.GetDebugAcPos(nvgrData.key)) {
-                            LOG_MSG(logDEBUG,DBG_POS_DATA,fd.Positions2String().c_str());
-                            //                        }
+                            if (dataRefs.GetDebugAcPos(nvgrData.key)) {
+                                LOG_MSG(logDEBUG,DBG_POS_DATA,fd.Positions2String().c_str());
+                            }
                         }
                     }
                 }
