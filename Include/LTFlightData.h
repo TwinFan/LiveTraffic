@@ -249,7 +249,7 @@ public:
         
         inline const char* c_str() const    { return key.c_str(); }
         inline bool empty() const           { return key.empty(); }
-        inline operator bool() const        { return !num && !key.empty(); }
+        inline operator bool() const        { return num > 0 && !key.empty(); }
         void clear()                        { *this = FDKeyTy(); }
         
         /// return the type of key (as string)
@@ -487,6 +487,10 @@ public:
     dataRefsLT GetCurrChannel () const;                     ///< Current channel's id
     
     inline int GetRcvr() const { return rcvr; }
+    
+    /// @brief For the last queue position, if it is on the ground, return its altitude
+    /// @returns `NAN` if last queue pos is not on the ground, or its altitude [m] if it is
+    double GetLastPosGndAlt_m () const;
     
     /// @brief In case of "larger" aircraft, upgrade to use Mode S
     /// @returns if the value has been modified

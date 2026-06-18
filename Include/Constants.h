@@ -78,6 +78,7 @@ constexpr double SIMILAR_POS_DIST = 7;          // [m] if distance between posit
 constexpr double CLOSE_POS_TS_INTVL = 12;       // [s] if two positions are closer to each other than this on a straight line, we remove the middle one as it doesn't add value
 constexpr double CLOSE_POS_HEADING  = 5;        // [deg] "straight" is defined as no more than this many degrees of difference
 constexpr double GND_COLLISION_DIST = 10;       // [m] If another aircraft comes this close to a parked aircraft then the parked aircraft is removed
+constexpr double HIGHEST_AIRPORT_M  = 4411.0;   // [m] Altitude of the world's highest airport, https://en.wikipedia.org/wiki/List_of_highest_airports
 
 /// [m] Maximum distance the rendered (live-tracked) position of an aircraft
 /// may be from a parked-feed gate position before the periodic parked
@@ -665,6 +666,7 @@ constexpr const char* REMOTE_SIGNATURE      =  "TwinFan.plugin.XPMP2.Remote";
 #define CFG_SND_NO_DEVICE       "(no change)"
 #define CFG_OPENSKY_CLIENT      "OpenSky_Client"
 #define CFG_OPENSKY_SECRET      "OpenSky_Secret"
+#define CFG_NVGR_REFRESH_TOKEN  "Navigraph_RefreshToken"
 #define CFG_ADSBEX_API_KEY      "ADSBEX_API_KEY"
 #define CFG_RT_LICENSE          "RealTraffic_License"
 #define CFG_FSC_USER            "FSC_User"
@@ -722,6 +724,7 @@ constexpr const char* REMOTE_SIGNATURE      =  "TwinFan.plugin.XPMP2.Remote";
 #define HELP_SET_CH_ADSBFI      "setup/installation/adsb.fi"
 #define HELP_SET_CH_OPENGLIDER  "setup/installation/ogn"
 #define HELP_SET_CH_REALTRAFFIC "setup/installation/realtraffic-connectivity"
+#define HELP_SET_CH_NAVIGRAPH   "setup/installation/navigraph"
 #define HELP_SET_CH_FSCHARTER   "setup/installation/fscharter"
 #define HELP_SET_CH_SI          "setup/installation/sayintentions"
 #define HELP_SET_CH_AUTOATC     "setup/installation/autoatc"
@@ -889,8 +892,6 @@ constexpr int ERR_CFG_FILE_MAXWARN = 10;     // maximum number of warnings while
 #define DBG_INVENTED_TD_POS     "DEBUG INVENTED TOUCH-DOWN POS: %s"
 #define DBG_INVENTED_TO_POS     "DEBUG INVENTED TAKE-OFF POS: %s"
 #define DBG_REUSING_TO_POS      "DEBUG RE-USED POS FOR TAKE-OFF: %s"
-#define DBG_INV_POS_REMOVED     "DEBUG %s: Removed an invalid position: %s"
-#define DBG_INV_POS_AC_REMOVED  "DEBUG %s: Removed a/c due to invalid positions"
 #define DBG_HOVER_POS_REMOVED   "DEBUG %s: Removed a hovering position: %s"
 #define DBG_AC_SWITCH_POS       "DEBUG A/C SWITCH POS: %s"
 #define DBG_AC_FLIGHT_PHASE     "DEBUG A/C FLIGHT PHASE CHANGED from %i %s to %i %s"

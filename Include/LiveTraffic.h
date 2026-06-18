@@ -135,12 +135,14 @@ extern DataRefs dataRefs;
 #include "InfoListWnd.h"
 #include "LTApt.h"
 #include "LTWeather.h"
+#include "LTMsgPack.h"
 
 // LiveTraffic channels
 #include "../Lib/XPMP2/src/Network.h"
 #include "LTChannel.h"
 #include "LTForeFlight.h"
 #include "LTRealTraffic.h"
+#include "LTNavigraph.h"
 #include "LTOpenSky.h"
 #include "LTADSBEx.h"
 #include "LTADSBHub.h"
@@ -221,8 +223,15 @@ bool FileRecLookup (std::ifstream& f, size_t& n,
 void LTOpenURL  (const std::string& url, const std::string& addon = "");
 void LTOpenHelp (const std::string& path);
 
-// MARK: Remote File Download
+// MARK: Simplified CURL communication
 
+/// Send a request, return the response, throws a LTError exception if anything goes wrong
+void URLGet (const std::string& inUrl,
+             std::initializer_list<std::string> inHdr,
+             const std::string& inBody,                 // GET if empty, POST if filled
+             std::initializer_list<long> inHttpCodeOK,  // which HTTP codes are deemed OK beyond HTTP_OK, others throw exception
+             std::string& outResp,
+             long &outHttpRes);
 /// Download the given file, `false` if HTTP 404 not found, exceptions otherwise
 bool RemoteFileDownload (const std::string& url, const std::string& path);
 
@@ -309,8 +318,14 @@ void push_back_unique(ContainerT& list, typename ContainerT::const_reference key
 
 /// Base64 encoding
 std::string EncodeBase64 (const std::string& _clear);
+/// Base64url encoding
+std::string EncodeBase64url (const std::string& _clear);
 /// Base64 decoding
 std::string DecodeBase64 (const std::string& _encoded);
+/// Create pair of PKCE Verifier/Challenge 
+void PKCEVerifierChallenge (std::string& outVerifier, std::string& outChallenge);
+/// Sha256 hash, returns 32 bytes (not actually a human readable string)
+std::string Sha256_digest (const std::string& s);
 /// XOR a string s with another one t, potentially repeating the application of t if t is shorter than s
 std::string str_xor (const std::string& s, const char* t);
 /// Obfuscate a secret string for storing in the settings file

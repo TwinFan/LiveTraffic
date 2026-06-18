@@ -87,12 +87,6 @@ LTFlightDataChannel(DR_CHANNEL_FSCHARTER, FSC_NAME)
              FSC_BASE_URL,
              FSC_ENV.at(dataRefs.GetFSCEnv()).server.c_str());
     base_url = url;
-    
-    // Can't due to no FSC client secret compiled into the binary?
-    if (!IsBuiltIn()) {
-        LOG_MSG(logERR, "Cannot start " FSC_NAME " as this binary has been built without support for it.");
-        SetValid(false, true);
-    }
 }
 
 
@@ -499,9 +493,9 @@ void FSCConnection::Main ()
     
     // Can't due to no FSC client secret compiled into the binary?
     if (!IsBuiltIn()) {
-        LOG_MSG(logERR, "Cannot start " FSC_NAME " as this binary has been built without support for it.");
-        SetValid(false, true);
-        return;
+        SHOW_MSG(logERR, "Cannot start " FSC_NAME " as this binary has been built without support for it.");
+        SetValid(false, false);
+        SetEnable(false);
     }
 
     // main loop

@@ -1254,7 +1254,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
             {
                 // i == 0 is as above with actual a/c present position
                 // in later runs we use future data from our queue
-                const positionTy& ppos_i  = i == 0 ? pAc->GetPPos() : posDeque[i-1];
+                const positionTy& ppos_i  = i == 0 ? pAc->GetToPos() : posDeque[i-1];
                 positionTy& to_i          = posDeque[i];
                 const double to_i_ts      = to_i.ts();  // the reference might become invalid later once we start erasing, so we copy this timestamp that we need
                 
@@ -1278,13 +1278,19 @@ bool LTFlightData::CalcNextPos ( double simTime )
                             climbSpeed = climbVec.speed;
                         }
                     }
+                    // There was no vector after `to` to determine correct VSI.
+                    // Decide if we wait a cycle...we dare doing so if i >= 1,
+                    // i.e. if there is still GND data here in the posDeque,
+                    // so we can still deliver one more GND position to the aircraft:
+                    else if (i > 0)
+                        break;
                     
                     // Determine how much before 'to' is that take-off point
                     // We assume ppos_i, which is ON_GND, has good terrain alt
                     const double toTerrAlt = ppos_i.alt_m();
-                    const double height_m = to_i.alt_m() - toTerrAlt; // height to climb to reach 'to'?
-                    const double toClimb_s = height_m / climbVsi;   // how long to climb to reach 'to'?
-                    const double takeOffTS = to_i.ts() - toClimb_s;   // timestamp at which to start the climb, i.e. take off
+                    const double height_m = to_i.alt_m() - toTerrAlt;   // height to climb to reach 'to'?
+                    const double toClimb_s = height_m / climbVsi;       // how long to climb to reach 'to'?
+                    const double takeOffTS = to_i.ts() - toClimb_s;     // timestamp at which to start the climb, i.e. take off
                     
                     // Continue only for timestamps in the future,
                     // i.e. if take off is calculated to be after currently analyzed position
@@ -1381,7 +1387,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
                         // if ppos_i is still in the deque we can change it:
                         if (i > 0)
                             posDeque[i-1].f.flightPhase = FPH_LIFT_OFF;
-                        rotateTS = ppos_i.ts() - mdl.ROTATE_TIME/2.0;
+                        rotateTS = ppos_i.ts() - mdl.ROTATE_TIME;
                         if (dataRefs.GetDebugAcPos(key())) {
                             LOG_MSG(logDEBUG,DBG_REUSING_TO_POS,ppos_i.dbgTxt().c_str());
                         }
@@ -2430,7 +2436,7 @@ bool LTFlightData::IsPosOK (const positionTy& lastPos,
     
     // Speed limits
     const double minSpeed = thisPos.IsOnGnd() ? 0.0                          : mdl.MIN_FLIGHT_SPEED;
-    const double maxSpeed = thisPos.IsOnGnd() ? (mdl.SPEED_INIT_CLIMB * 1.2) : mdl.MAX_FLIGHT_SPEED;
+    const double maxSpeed = thisPos.IsOnGnd() ? (mdl.SPEED_INIT_CLIMB * 1.5) : mdl.MAX_FLIGHT_SPEED;
     
     // --- Validations ---
     const char* szViolTxt = nullptr;
@@ -2446,13 +2452,13 @@ bool LTFlightData::IsPosOK (const positionTy& lastPos,
         
     // Any problem found?
     if (szViolTxt) {
-/*
-        LOG_MSG(logDEBUG, "%s: %s: %s with headingDiff = %.0f (speed = %.f - %.fkn, max turn = %.f, max vsi = %.fft/min, mdl %s, type %s)",
-                keyDbg().c_str(), szViolTxt,
-                std::string(v).c_str(), hDiff,
-                minSpeed, maxSpeed, maxTurn, mdl.VSI_MAX,
-                mdl.modelName.c_str(), sIcaoType.c_str());
- */
+        if (dataRefs.GetDebugAcPos(key())) {
+            LOG_MSG(logDEBUG, "%s: %s: %s with headingDiff = %.0f (speed = %.f - %.fkn, max turn = %.f, max vsi = %.fft/min, mdl %s, type %s)",
+                    keyDbg().c_str(), szViolTxt,
+                    std::string(v).c_str(), hDiff,
+                    minSpeed, maxSpeed, maxTurn, mdl.VSI_MAX,
+                    mdl.modelName.c_str(), sIcaoType.c_str());
+        }   
         return false;
     }
     
@@ -3573,6 +3579,26 @@ void LTFlightData::dequeFDDynFindAdjacentTS (double ts,
         }
     }
 }
+
+
+/// Is there on-the-ground data in the current queue?
+double LTFlightData::GetLastPosGndAlt_m () const
+{
+    // access to our queue guarded by a mutex
+    std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
+
+    // check out the last position, either from posDeque, or the plane's `to` position
+    const positionTy* pPos = nullptr;
+    if (!posDeque.empty()) pPos = &posDeque.back();
+    else if (hasAc()) pPos = &GetAircraft()->GetToPos();
+
+    // if that pos exists and is on the ground return its altitude
+    if (pPos && pPos->IsOnGnd())
+        return pPos->alt_m();
+    
+    return NAN;
+}
+
 
 
 // In case of "larger" aircraft, upgrade to use Mode S

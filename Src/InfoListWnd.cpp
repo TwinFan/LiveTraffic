@@ -41,6 +41,7 @@ static const CreditTy CREDITS[] = {
     { "parson", "as JSON parser",                       "https://github.com/kgabis/parson" },
     { "metaf", "for parsing METARs",                    "https://github.com/nnaumenko/metaf" },
     { "libz/zlib", "as compression library (used by CURL)", "https://zlib.net/" },
+    { "sha256", "SHA-256 implementaton by Brad Conte",  "https://github.com/B-Con/crypto-algorithms/blob/master/sha256.c" },
     { "ImGui", "for user interfaces",                   "https://github.com/ocornut/imgui" },
     { "ImgWindow", "for integrating ImGui into X-Plane windows", "https://github.com/xsquawkbox/xsb_public" },
     { "IconFontCppHeaders", "for header files for the included icon font", "https://github.com/juliettef/IconFontCppHeaders" },

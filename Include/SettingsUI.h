@@ -65,6 +65,10 @@ protected:
     bool bRTZuluTime = false;       ///< Enter time as ZULU or Local?
     std::string sRTPort;            ///< RealTraffic traffic port
     
+    // Channel: Navigraph
+    bool bNvgrOpenVerifyUI = false; ///< Have we once opened the verify URI automatically?
+    std::chrono::time_point<std::chrono::steady_clock> tNvgrReset;  ///< When to reset Nvgr Auth status?
+    
     // Channel: FSCharter
     std::string sFSCUser;           ///< FSC user
     std::string sFSCPwd;            ///< FSC password
