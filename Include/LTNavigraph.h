@@ -61,12 +61,13 @@ constexpr size_t NVGR_AUTH_INTERVAL_DEFAULT = 5;
 constexpr long NVGR_AUTH_EXP_DEFAULT = 3600;       ///< default expiration in case we don't find expiration field
 
 #define NVGR_TRAFFIC_URL        "https://api.navigraph.com/v1/real-traffic/positions/nearby?lat=%.3f&lon=%.3f&radiusKm=%d"
-#define NVGR_SLUG_FMT           "https://www.flightradar24.com/%06lx"
+#define NVGR_SLUG_FMT           "https://www.flightradar24.com/%s/%s"
 
 constexpr int NVGR_MIN_REFRESH_INTVL = 20;              ///< Navigraph imposes a minimum refresh interval of 20s
 constexpr int NVGR_MAX_SEARCH_DIST_KM = 150;            ///< [km] Navigraph allows the 20s interval only for search distances up to 150km
 
 // Message Definition
+#define NVGR_FLIGHT_ID          "flightId"              ///< FR24-internal id used for URL slugs only
 #define NVGR_AC_ID              "aircraftId"
 #define NVGR_TIMESTAMP          "timestamp"
 #define NVGR_AC_TYPE            "type"
@@ -99,6 +100,7 @@ struct NvgrTrafficData
 public:
     // Static data
     LTFlightData::FDKeyTy key;  ///< aircraft id, hex transponder code
+    std::string flightId;       ///< FR24-internal id used for URL slugs only
     std::string acTypeIcao;     ///< aircraft type designator
     std::string reg;            ///< registration, tail number
     std::string orig, dest;     ///< flight origin, destination

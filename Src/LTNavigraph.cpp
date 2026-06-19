@@ -65,6 +65,7 @@ NvgrTrafficData::NvgrTrafficData (MsgPack& msg)
             field = msg.GetString();
             
             if (field == NVGR_AC_ID)            key.SetKey(LTFlightData::KEY_ICAO, msg.GetString());
+            else if (field == NVGR_FLIGHT_ID)   flightId        = msg.GetString();
             else if (field == NVGR_TIMESTAMP)   pos.ts()        = msg.GetDouble() / 1000.0;
             else if (field == NVGR_AC_TYPE)     acTypeIcao      = msg.GetString();
             else if (field == NVGR_REG)         reg             = msg.GetString();
@@ -114,7 +115,7 @@ NvgrTrafficData::operator LTFlightData::FDStaticData () const
     stat.call       = call;
     stat.setOrigDest(orig, dest);
     stat.flight     = flight;
-    snprintf(s, sizeof(s), NVGR_SLUG_FMT, key.num);
+    snprintf(s, sizeof(s), NVGR_SLUG_FMT, call.c_str(), flightId.c_str());
     stat.slug = s;
     stat.op         = opAs;
     stat.opIcao     = paintedAs.empty() ? opAs : paintedAs;
