@@ -1433,23 +1433,31 @@ std::string LTAircraft::GetFlightId() const
 //
 
 // position heading to (usually posList.back(), but ppos if ppos > posList.back())
-const positionTy& LTAircraft::GetToPos(double* pHeading) const
+const positionTy& LTAircraft::GetToPos(double* pTrack) const
 {
     // posList contains more than just the _current_ to-position, but even a future one (temporary state)
     if ( posList.size() >= 3 ) {
-        if (pHeading)
-            *pHeading = posList[posList.size()-2].angle(posList.back());
+        if (pTrack)
+            *pTrack = posList[1].angle(posList[2]);
+        return posList[1];
+    }
+    
+    // "Normal" state: 2 positions in the posList and ppos not yet reached the 2nd
+    if ( posList.size() == 2 && ppos < posList.back() ) {
+        // If we have a nextPos we can provide the track there
+        if (pTrack) {
+            if (posNext.isNormal())
+                *pTrack = posList[1].angle(posNext);
+            else
+                *pTrack = GetTrack();
+        }
         return posList.back();
     }
     
-    // posList contains the _current_ to-position...and maybe we even passed it already
-    // but heading is same in both cases
-    if (pHeading)
-        *pHeading = GetTrack();
-    if ( posList.size() >= 2 && ppos < posList.back() )
-        return posList.back();
-    else
-        return ppos;
+    // We passed our posList already and don't _exactly_ know where we are headed
+    if (pTrack)
+        *pTrack = GetTrack();
+    return ppos;
 }
 
 // are we in desperate need of new positions?
@@ -1504,7 +1512,7 @@ std::string LTAircraft::GetFlightPhaseRwyString() const
 }
 
 
-// is the aircraft on a rwy (on ground and at least on pos on rwy)
+// is the aircraft on a rwy (on ground and at least one pos on rwy)
 bool LTAircraft::IsOnRwy() const
 {
     return IsOnGrnd() &&
@@ -1550,7 +1558,7 @@ bool LTAircraft::CalcPPos()
     // we need at least two: 'from' and 'to'
     while ( posList.size() < 2 ) {
         // try fetching new data, if succeeded repeated evaluation
-        switch ( fd.TryFetchNewPos(posList, rotateTs) ){
+        switch ( fd.TryFetchNewPos(posList, posNextNext, rotateTs) ){
             case LTFlightData::TRY_NO_DATA:
                 // no new data available...tell fd (maybe again) that we urgendtly need some!
                 fd.TriggerCalcNewPos(tsLastCalcRequested = currCycle.simTime);
@@ -1586,7 +1594,7 @@ bool LTAircraft::CalcPPos()
 
         // 0,5s before reaching last known position we try adding new positions
         if (lastPos.ts() <= currCycle.simTime + TIME_REQU_POS) {
-            if (fd.TryFetchNewPos(posList, rotateTs) == LTFlightData::TRY_SUCCESS) {
+            if (fd.TryFetchNewPos(posList, posNextNext, rotateTs) == LTFlightData::TRY_SUCCESS) {
                 // we got new position(s)!
                 bArtificalPos = false;
             }
@@ -1610,19 +1618,10 @@ bool LTAircraft::CalcPPos()
         // we make posDeque[2] the next 'to'
         posList.pop_front();
 
-        // Snapshot the spline's exit-tangent control point (P3) for the
-        // new leg. After the pop, the new leg is from = posDeque[0],
-        // to = posDeque[1], and the slot one beyond `to` is posDeque[2]
-        // (if it exists). We freeze that value into `posNext` and use
-        // it for the entire leg — see the LTAircraft::posNext docstring
-        // for why we must NOT read posDeque[2] live each frame. If the
-        // deque does not yet extend that far we leave posNext invalid
-        // (lat()=NaN) and the spline evaluator falls back to
-        // duplicating P2 for a stable, slightly-tighter exit.
-        if (posList.size() >= 3)
-            posNext = posList[2];
-        else
-            posNext = positionTy();         // lat()/lon() default to NaN
+        // Snapshot the spline's exit-tangent control point (P3)
+        // That is the _likely_ (though not _guaranteed_) position to be reached
+        // after 'to', to be used as Bezier/spline control point.
+        posNext = posNextNext;
 
         // Invalidate the arc-length LUT. The control points for the new
         // segment are not yet bound to a numeric value here (we want to
@@ -1820,8 +1819,7 @@ bool LTAircraft::CalcPPos()
     if ((bNeedSpeed || bNeedCCBezier) && to.f.flightPhase != FPH_STOPPED_ON_RWY)
     {
         // Do we happen to have a next vector already in posList?
-        if (posList.size() >= 3) {
-            nextPos = posList[2];
+        if (nextPos.isNormal()) {
             nextVec = to.between(nextPos);
         }
         else {
@@ -1938,7 +1936,7 @@ bool LTAircraft::CalcPPos()
     
     // Try getting our current position from the Bezier curve
     const double _calcTs = from.ts() * (1-f) + to.ts() * f;
-    if (turn.GetPos(ppos, _calcTs)) {
+    if (f <= 1.0 && turn.GetPos(ppos, _calcTs)) {
         // sync the changing heading between Bezier curve and MovingParam
         heading.SetVal(ppos.heading());
     }
@@ -1949,9 +1947,12 @@ bool LTAircraft::CalcPPos()
     // Spline is used in case of
     // reasonable large distances (not jitter)
     // TODO: Use Spline more generically, which requires having 3 positions in posList
-    else if (from.IsOnGnd() && to.IsOnGnd() &&
+    else if (f <= 1.0 && from.IsOnGnd() && to.IsOnGnd() &&
+             !to.f.bCutCorner &&                    // For a cut-corner 'to' position we are going to create a Bezier later
              vec.dist >= GND_SPLINE_MIN_CHORD_M &&
-             vec.speed_kn() <= GND_SPLINE_MAX_KT)
+             vec.speed_kn() <= GND_SPLINE_MAX_KT &&
+             // use the spline only if having four control points
+             posPrev.isNormal() && posNext.isNormal())
     {
         // While both endpoints of the current leg are on the ground we
         // interpolate position and heading along a smooth curve fit through
@@ -1994,20 +1995,6 @@ bool LTAircraft::CalcPPos()
         // heading at the segment endpoints.
         // ------------------------------------------------------------------
 
-        // Choose control points. P0 comes from posPrev (cached at
-        // the previous segment-switch). P3 comes from posNext
-        // (cached at THIS segment's switch — see posNext docstring
-        // in LTAircraft.h for why we MUST NOT read posDeque[2] live
-        // here). When either snapshot is unavailable (insufficient
-        // deque depth at switch time) we duplicate the adjacent
-        // endpoint, which produces a zero entry/exit tangent and
-        // degenerates the spline to a quadratic-like segment at
-        // the boundary — safe, no overshoot.
-        const bool haveP0 = posPrev.isNormal();
-        const bool haveP3 = posNext.isNormal();
-        const positionTy& P0 = (haveP0 ? posPrev : from);
-        const positionTy& P3 = (haveP3 ? posNext : to);
-
         // Control-point smoothing — LOOK-AHEAD ENDPOINT (P2) ONLY.
         //
         // A centripetal Catmull-Rom spline interpolates: the curve
@@ -2041,11 +2028,11 @@ bool LTAircraft::CalcPPos()
         // the endpoint toward the segment interior, so we keep `to`
         // raw in that case. See GND_SPLINE_SMOOTH_WEIGHT in
         // Constants.h for the corner-cutting trade-off.
-        const double w = GND_SPLINE_SMOOTH_WEIGHT;
+        constexpr double w = GND_SPLINE_SMOOTH_WEIGHT;
         positionTy P2s = to;                // copy ts/flags/alt/heading
-        if (haveP3 && w > 0.0) {
-            P2s.lat() = w * from.lat() + (1.0 - 2.0 * w) * to.lat() + w * P3.lat();
-            P2s.lon() = w * from.lon() + (1.0 - 2.0 * w) * to.lon() + w * P3.lon();
+        if constexpr (w > 0.0) {
+            P2s.lat() = w * from.lat() + (1.0 - 2.0 * w) * to.lat() + w * posNext.lat();
+            P2s.lon() = w * from.lon() + (1.0 - 2.0 * w) * to.lon() + w * posNext.lon();
         }
 
         // Arc-length reparameterisation. The spline's native u is
@@ -2061,11 +2048,11 @@ bool LTAircraft::CalcPPos()
         // totalArc / duration. The LUT is built from the SAME
         // control points (raw `from`, smoothed P2s) used for eval.
         if (!splineLut.valid)
-            splineLut.Build(P0, from, P2s, P3);
+            splineLut.Build(posPrev, from, P2s, posNext);
         const double uArc = splineLut.UFromArcFraction(f);
 
         const CatmullRomResult cr =
-            CatmullRomEvalCentripetal(P0, from, P2s, P3, uArc);
+            CatmullRomEvalCentripetal(posPrev, from, P2s, posNext, uArc);
 
         // Convert spline result (local meters from P1) back to
         // geographic coordinates. P1 is the raw `from` (NOT smoothed,
@@ -2376,7 +2363,7 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
     
     // Parked?
     if (bOnGrnd &&                                      //     must be on ground
-        speed.m_s() < 0.5 &&                            // AND very slow
+        speed.m_s() < 2.0 &&                            // AND very slow
         !IsGroundVehicle() &&                           // AND NOT a car
         (ppos.f.specialPos == SPOS_STARTUP ||           // AND (   current pos is STARTUP)
          (posList.size() >= 2 &&                        //      OR (to AND from pos are STARTUP)

@@ -312,6 +312,9 @@ public:
     /// lat() is NaN until the first switch has captured a real P3 —
     /// callers must check and fall back to duplicating P2.
     positionTy           posNext;
+    /// Next Position after Next, only a buffer for the 0.5s
+    /// between the call to TriggerCalcNewPos() and position switch
+    positionTy           posNextNext;
     /// Arc-length lookup table for the current ground-rendering Catmull-Rom
     /// segment. Built once per segment switch (in the same `posPrev` /
     /// `posNext` capture block) and consulted on every render frame to
@@ -398,8 +401,8 @@ public:
     inline const positionTy& GetPPos() const { return ppos; }
     inline positionTy GetPPosLocal() const { return positionTy(ppos).WorldToLocal(); }
     /// @brief position heading to (usually posList[1], ppos if ppos > posList[1])
-    /// @param[out] pHeading Receives heading towards to-position
-    const positionTy& GetToPos (double* pHeading = nullptr) const;
+    /// @param[out] pTrack Receives heading towards to-position
+    const positionTy& GetToPos (double* pTrack = nullptr) const;
     // have no more viable positions left, in need of more?
     bool OutOfPositions() const;
     /// periodically find the nearest airport and return a nice position string relative to it

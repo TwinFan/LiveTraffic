@@ -3184,6 +3184,7 @@ void LTFlightData::AppendNewPos()
 
 // Called by a/c: reads available positions if lock available
 LTFlightData::tryResult LTFlightData::TryFetchNewPos (dequePositionTy& acPosList,
+                                                      positionTy& posNext,
                                                       double& _rotateTS)
 {
     try {
@@ -3226,14 +3227,16 @@ LTFlightData::tryResult LTFlightData::TryFetchNewPos (dequePositionTy& acPosList
             // move that next position to the a/c
             acPosList.emplace_back(std::move(posDeque.front()));
             posDeque.pop_front();
-            
-            // Was that position one that is _not_ to be reached because the corner is to be cut?
-            // In that case we also need the _next_ position to properly calculate the required Bezier curve:
-            if (acPosList.back().f.bCutCorner && !posDeque.empty()) {
-                acPosList.emplace_back(std::move(posDeque.front()));
-                posDeque.pop_front();
-            }
         }
+        
+        // If we know one more position we hand it over via the posNext parameter
+        // This is _likely_ but not _guaranteed_ to be the next position.
+        // Good enough for most cases, is used only as future control point
+        // in Bezier/Spline calculation, so worst case we have a slight corner in a taxi path:
+        if (!posDeque.empty())
+            posNext = posDeque.front();
+        else
+            posNext = positionTy();
         
         // store rotate timestamp if there is one (never overwrite with NAN!)
         if (!std::isnan(rotateTS))

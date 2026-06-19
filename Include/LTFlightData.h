@@ -453,7 +453,7 @@ public:
     };
     
     // a/c reads available positions if lock available
-    tryResult TryFetchNewPos ( dequePositionTy& posList, double& rotateTS );
+    tryResult TryFetchNewPos ( dequePositionTy& posList, positionTy& posNext, double& rotateTS );
     // const access to posDeque
     const dequePositionTy& GetPosDeque() const { return posDeque; }
     
