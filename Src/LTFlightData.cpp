@@ -605,7 +605,7 @@ void LTFlightData::DataCleansing (bool& bChanged)
         positionTy& last = posDeque.back();
         const positionTy& prev = posDeque.size() >= 2 ? *std::prev(posDeque.cend(),2) : pAc->GetToPos();
         double terrain_alt_m = pAc ? pAc->GetTerrainAlt_m() : NAN;
-        if (!last.IsOnGnd() && !prev.IsOnGnd() &&   // too late? ;-) position shall not already be on the ground
+        if (!prev.IsOnGnd() &&                      // too late? ;-) position shall not already be on the ground
             !std::isnan(last.alt_m()) &&            // do we have an altitude at all?
             last.alt_m() <= KEEP_ABOVE_MAX_ALT &&   // not way too high (this skips planes which are just cruising
             (std::isnan(terrain_alt_m) || (last.alt_m() - terrain_alt_m) < KEEP_ABOVE_MAX_AGL) && // pos not too high AGL
@@ -4167,6 +4167,12 @@ const LTFlightData* LTFlightData::FindFocusAc (const double bearing)
 // This helps focusing on one aircraft and debug through the position calculation code
 void LTFlightData::RemoveAllAcButSelected ()
 {
+    // Don't do anything if nothing selected
+    if (dataRefs.GetSelectedAcKey().empty()) {
+        SHOW_MSG(logMSG, "No aircraft selected to focus on!");
+        return;
+    }
+    
     // access guarded by the fd mutex
     std::lock_guard<std::mutex> lock (mapFdMutex);
     
@@ -4176,12 +4182,12 @@ void LTFlightData::RemoveAllAcButSelected ()
     {
         if (!i->second.bIsSelected)
             i = mapFd.erase(i);
-        else
+        else {
+            // Set the debug filter on this selected aircraft, so no other data gets processed
+            dataRefs.LTSetDebugAcFilter(nullptr, (int)i->second.acKey.num);
             ++i;
+        }
     }
-    
-    // reduce allow a/c to 1 so no new aircraft gets created
-    dataRefs.SetMaxNumAc(1);
 }
 #endif
 

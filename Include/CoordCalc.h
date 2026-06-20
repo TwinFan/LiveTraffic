@@ -226,6 +226,33 @@ struct CatmullRomArcLut {
     double UFromArcFraction(double f) const;
 };
 
+/// @brief One-dimensional Cubic Hermite Spline (cSpline)
+/// @see https://en.wikipedia.org/wiki/Cubic_Hermite_spline
+/// @details In this more generic form, the tangents are input parameters
+///          (while in the specific Catmul-Rom-Spline above
+///           the tangents are computed from additional control points).
+///          In some edge cases it can be useful to provide specific tangents.
+struct CSpline {
+    double t0=NAN, dt=NAN;              ///< t0 is the time of the first point, dt is delta-time for the segment
+    double a=NAN, b=NAN, c=NAN, d=NAN;  ///< pre-computed factors of the standard form
+    
+    /// Set the parameters (time, value like altitude, tangent like climb rate)
+    void set (double _t0, double _p0, double _m0,
+              double _t1, double _p1, double _m1);
+    
+    /// Clear, set to unused
+    void clear () { t0 = dt = a = b = c = d = NAN; }
+    
+    /// Valid?
+    operator bool () const { return !std::isnan(t0) && !std::isnan(dt) && !std::isnan(a); }
+    
+    /// Value at t with `_t0 <= t <= _t1`
+    double val (double t) const;
+    
+    /// Slope at t with `_t0 <= t <= _t1` (1st derivative of val())
+    double slope (double t) const;
+};
+
 //
 // MARK: Estimated Functions on coordinates
 //

@@ -325,6 +325,8 @@ public:
     /// `valid` is false until first build; the spline branch builds the
     /// LUT on demand if it sees an invalid one.
     CatmullRomArcLut     splineLut;
+    /// cSpline for altitude
+    CSpline             altSpline;
     
     std::string         labelInternal;  // internal label, e.g. for error messages
 protected:
