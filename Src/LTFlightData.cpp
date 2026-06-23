@@ -1153,7 +1153,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
             // To simulate touching down at the _beginning_ of the runway and
             // then rolling out to (or through) next pos we determine this case
             // and then insert an artifical touch down position, which just keeps going with
-            // previous vsi and speed down to the ground.
+            // previous vsi (a little less VSI to allow for flare) and speed down to the ground.
             const positionTy& toPos_ac = pAc->GetToPos();   // a/c's current to-position
             positionTy& next = posDeque.front();            // next pos waiting in posDeque
 
@@ -1163,17 +1163,19 @@ bool LTFlightData::CalcNextPos ( double simTime )
                 // Case determined: We are landing and have live positional
                 //                  data down the runway
                 const double descendAlt      = toPos_ac.alt_m() - next.alt_m(); // height to sink
-                const double timeToTouchDown = descendAlt / -pAc->GetVSI_m_s(); // time to sink
+                const double descendVSI      = pAc->GetVSI_m_s() + mdl.VSI_STABLE/2.0;  // we add a bit to the (neg.) VSI to sink less fast on the last leg to allow for time to flare (the cSpline needs that to end up flat)
+                const double descendSpeed    = pAc->GetSpeed_m_s();             // the speed we assume for the touch down leg
+                const double timeToTouchDown = descendAlt / -descendVSI;        // time to descend to ground
                 const double tsOfTouchDown   = toPos_ac.ts() + timeToTouchDown; // when to touch down
                 // but only reasonably a _new_ position if between to pos and next
-                // with some minima distance
+                // with some minimal distance
                 if (timeToTouchDown > TIME_REQU_POS &&
                     tsOfTouchDown + TIME_REQU_POS < next.ts())
                 {
                     vectorTy vecTouch(pAc->GetTrack(),                          // touch down is straight ahead, don't turn last second
-                                      timeToTouchDown * pAc->GetSpeed_m_s(),     // distance
-                                      pAc->GetVSI_m_s(),                         // vsi
-                                      pAc->GetSpeed_m_s());                      // speed
+                                      timeToTouchDown * descendSpeed,           // distance
+                                      descendVSI,                               // vsi
+                                      descendSpeed);                            // speed
                     
                     // insert touch-down point at beginning of posDeque
                     positionTy& touchDownPos = posDeque.emplace_front(toPos_ac.destPos(vecTouch));
@@ -1207,6 +1209,10 @@ bool LTFlightData::CalcNextPos ( double simTime )
                 {
                     // not enough distance to 'next', so we declare 'next' the landing spot
                     next.f.flightPhase = FPH_TOUCH_DOWN;
+                    // output debug info on request
+                    if (dataRefs.GetDebugAcPos(key())) {
+                        LOG_MSG(logDEBUG,DBG_REUSING_TD_POS,next.dbgTxt().c_str());
+                    }
                 }
                     
                 // Remove positions down the runway until the last RWY position

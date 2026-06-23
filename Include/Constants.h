@@ -890,6 +890,7 @@ constexpr int ERR_CFG_FILE_MAXWARN = 10;     // maximum number of warnings while
 #define DBG_REMOVED_CLOSE_POS   "DEBUG REMOVED TOO-CLOSE STRAIGHT POS: %s"
 #define DBG_INVENTED_STOP_POS   "DEBUG INVENTED STOP POS: %s"
 #define DBG_INVENTED_TD_POS     "DEBUG INVENTED TOUCH-DOWN POS: %s"
+#define DBG_REUSING_TD_POS      "DEBUG RE-USED TOUCH-DOWN POS: %s"
 #define DBG_INVENTED_TO_POS     "DEBUG INVENTED TAKE-OFF POS: %s"
 #define DBG_REUSING_TO_POS      "DEBUG RE-USED POS FOR TAKE-OFF: %s"
 #define DBG_HOVER_POS_REMOVED   "DEBUG %s: Removed a hovering position: %s"
