@@ -407,7 +407,7 @@ enum flightPhaseE : unsigned char {
 
 /// Is this a flight phase requiring a runway?
 inline bool isRwyPhase (flightPhaseE fph)
-{ return fph == FPH_TAKE_OFF || fph == FPH_TO_ROLL || fph == FPH_ROTATE ||
+{ return fph == FPH_TAKE_OFF || fph == FPH_TO_ROLL || fph == FPH_ROTATE || fph == FPH_LIFT_OFF ||
          fph == FPH_TOUCH_DOWN || fph == FPH_ROLL_OUT; }
 
 /// Ground status
@@ -550,7 +550,7 @@ public:
     /// Has position been post-processed by some optimization (like snap to taxiway)?
     bool IsPostProcessed () const { return
         f.bHeadFixed || f.bCutCorner || f.specialPos != SPOS_NONE ||
-        f.flightPhase != FPH_UNKNOWN || edgeIdx != EDGE_UNKNOWN;
+        edgeIdx != EDGE_UNKNOWN;
     }
     
     // rad/deg conversion (only affects lat and lon)

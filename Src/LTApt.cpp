@@ -720,6 +720,9 @@ public:
         double best_to_y   = NAN;
         double bestPrioDist= NAN;
         distToLineTy bestDist;
+        // if we look for a rwy position we can increase search size as rwys aren't as close to each other as taxi ways
+        const bool bRwyPhase = isRwyPhase(_pos.f.flightPhase);
+        if (bRwyPhase) _maxDist_m *= 3.0;
         // maxDist^2, used in comparisons
         const double maxDist2 = sqr(_maxDist_m);
         // This is what we add to the square distance for second prio match...
@@ -755,8 +758,7 @@ public:
                 continue;
             
             // Skip edge if pos must be on a rwy but edge is not a rwy
-            if (isRwyPhase(_pos.f.flightPhase) &&
-                e.GetType() != TaxiEdge::RUN_WAY)
+            if (bRwyPhase && e.GetType() != TaxiEdge::RUN_WAY)
                 continue;
 
             // Fetch from/to nodes from the edge

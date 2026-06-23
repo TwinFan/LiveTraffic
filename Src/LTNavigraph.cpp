@@ -477,6 +477,19 @@ bool NvgrFR24Connection::ProcessFetchedData ()
                 if (nvgrData.pos.ts() <= tsCutOff)
                     continue;
                 
+                // Navigraph/FR24 sends occasionally a combination of
+                // onGnd=0 and altitude=0, which is contracdicting.
+                // Analysis shows there are situations, in which they will
+                // be ground positions, and others where they must be in the air already.
+                // Conclusion: We just ignore the data.
+                if (nvgrData.pos.f.onGrnd == GND_OFF &&
+                    dequal(nvgrData.pos.alt_m(), 0.0))
+                {
+                    LOG_MSG(logDEBUG, "%s: Skipping inconsistent data (onGnd=0, alt=0): %s",
+                            nvgrData.key.c_str(), nvgrData.pos.dbgTxt().c_str());
+                    continue;
+                }
+                
                 // from here on access to fdMap guarded by a mutex
                 // until FD object is inserted and updated
                 std::unique_lock<std::mutex> mapFdLock (mapFdMutex);
@@ -510,6 +523,7 @@ bool NvgrFR24Connection::ProcessFetchedData ()
                         if (!std::isnan(gndAlt_m) &&
                             nvgrData.pos.alt_m() < gndAlt_m + maxHoverHeight_m)
                         {
+                            // TODO: Check if the pos is over a Rwy...we need this LTApt::IsRwyPos function
                             // So this new data comes right after a gnd position and is pretty low...
                             // ...we force it on the ground:
                             LOG_MSG(logDEBUG, "%s: Forcing a position onto ground with max hover height = %.0fm:\n%s",

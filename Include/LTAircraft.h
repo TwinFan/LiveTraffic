@@ -94,6 +94,8 @@ public:
     inline double fromTS () const   { return timeFrom; }
     inline double toTS () const     { return timeTo; }
     double percDone () const;       ///< percent done of move, returns 1.0 if not in motion
+    
+    std::string dbgTxt () const;    ///< debug output
 };
 
 // mimics acceleration / deceleration
@@ -343,7 +345,6 @@ protected:
     flightPhaseE        phase;          // current flight phase
     double              rotateTs;       // when to rotate?
     double              vsi;            // vertical speed (ft/m)
-    /// TODO: Sim timestamp at which `FPH_TOUCH_DOWN` was entered. The frame
     /// loop in `CalcFlightModel` defers the nose-down `pitch.moveTo(
     /// GND_PITCH_DEG)` until `TOUCHDOWN_HOLD_PITCH_S` seconds have
     /// elapsed since this timestamp — modelling the aerobrake during

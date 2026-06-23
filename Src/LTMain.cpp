@@ -1092,9 +1092,8 @@ const char* GetADSBEmitterCat (const std::string& cat)
 // comparing 2 doubles for near-equality
 bool dequal ( const double d1, const double d2 )
 {
-    const double epsilon = 0.00001;
-    return ((d1 - epsilon) < d2) &&
-    ((d1 + epsilon) > d2);
+    constexpr double epsilon = 0.00001;
+    return ((d1 - epsilon) < d2) && (d2 < (d1 + epsilon));
 }
 
 // Find an interpolated value
@@ -1250,27 +1249,6 @@ void LTRegularUpdates()
     // handle new network data (that func has a short-cut exit if nothing to do)
     LTFlightData::AppendAllNewPos();
 
-    // Periodic prune of `FF****` placeholder-hex duplicates.
-    //
-    // Some upstream ingest paths emit aircraft with synthetic
-    // `FF****` hex IDs when the source does not carry a real ICAO
-    // code. When a real-ICAO source later picks up the same callsign,
-    // we end up with two LTFlightData entries (one per hex) and two
-    // rendered aircraft. The prune walks mapFd and invalidates any
-    // FF-hex entry whose callsign matches a non-FF entry. Throttled
-    // to once every 10 s because the scan locks mapFd, and the
-    // duplicate condition develops over many seconds (placeholder
-    // appears, real-hex picks up 5-60 s later) — running per-flight-
-    // loop would be wasteful.
-    {
-        static std::chrono::steady_clock::time_point lastPrune;
-        const auto now = std::chrono::steady_clock::now();
-        if (now - lastPrune >= std::chrono::seconds(10)) {
-            lastPrune = now;
-            LTFlightData::PrunePlaceholderHexDuplicates();
-        }
-    }
-    
     // Count flight loop callbacks without camera control
     dataRefs.CntCyclesWithoutCamera();
 

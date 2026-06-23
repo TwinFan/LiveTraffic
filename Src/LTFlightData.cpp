@@ -1163,7 +1163,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
                 // Case determined: We are landing and have live positional
                 //                  data down the runway
                 const double descendAlt      = toPos_ac.alt_m() - next.alt_m(); // height to sink
-                const double descendVSI      = pAc->GetVSI_m_s() + mdl.VSI_STABLE/2.0;  // we add a bit to the (neg.) VSI to sink less fast on the last leg to allow for time to flare (the cSpline needs that to end up flat)
+                const double descendVSI      = pAc->GetVSI_m_s() + mdl.VSI_STABLE/3.0;  // we add a bit to the (neg.) VSI to sink less fast on the last leg to allow for time to flare (the cSpline needs that to end up flat)
                 const double descendSpeed    = pAc->GetSpeed_m_s();             // the speed we assume for the touch down leg
                 const double timeToTouchDown = descendAlt / -descendVSI;        // time to descend to ground
                 const double tsOfTouchDown   = toPos_ac.ts() + timeToTouchDown; // when to touch down
@@ -1523,6 +1523,27 @@ void LTFlightData::CalcNextPosMain ()
             }
         }
             
+        // Periodic prune of `FF****` placeholder-hex duplicates.
+        //
+        // Some upstream ingest paths emit aircraft with synthetic
+        // `FF****` hex IDs when the source does not carry a real ICAO
+        // code. When a real-ICAO source later picks up the same callsign,
+        // we end up with two LTFlightData entries (one per hex) and two
+        // rendered aircraft. The prune walks mapFd and invalidates any
+        // FF-hex entry whose callsign matches a non-FF entry. Throttled
+        // to once every 10 s because the scan locks mapFd, and the
+        // duplicate condition develops over many seconds (placeholder
+        // appears, real-hex picks up 5-60 s later) — running per-flight-
+        // loop would be wasteful.
+        {
+            static std::chrono::steady_clock::time_point lastPrune;
+            const auto now = std::chrono::steady_clock::now();
+            if (now - lastPrune >= std::chrono::seconds(10)) {
+                lastPrune = now;
+                LTFlightData::PrunePlaceholderHexDuplicates();
+            }
+        }
+        
         // sleep till woken up for processing or stopping
         {
             std::unique_lock<std::mutex> lk(FDThreadSynchMutex);
@@ -3175,8 +3196,17 @@ void LTFlightData::AppendNewPos()
         if (!posDeque.empty()) {
             youngestTS = posDeque.back().ts();
         
-            // *** trigger recalc ***
-            TriggerCalcNewPos(NAN);
+            // We definitely need to do a CalcNextPos, question is: now or later?
+            // If the just added position is now the only one in deque,
+            // then we might be in a hurry, might have waited long for it,
+            // and LTAircraft is eager to get a new pos.
+            // We rather quickly check and process it, before it gets fetched,
+            // to aligh headings, or even create takeOff/touchDown positions.
+            if (posDeque.size() == 1)
+                CalcNextPos(NAN);
+            else
+                // if not so urgent, then do it later as a background job
+                TriggerCalcNewPos(NAN);
         }
         
         // print all positional information as debug info on request
