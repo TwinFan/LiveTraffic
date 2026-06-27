@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 54;
+	objectVersion = 70;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -24,7 +24,7 @@
 		256CA1CE248C5094009F4AAE /* ImgWindow.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 256CA1CA248C5094009F4AAE /* ImgWindow.cpp */; settings = {COMPILER_FLAGS = "-Wno-deprecated-declarations"; }; };
 		256CA1CF248C5094009F4AAE /* ImgFontAtlas.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 256CA1CD248C5094009F4AAE /* ImgFontAtlas.cpp */; settings = {COMPILER_FLAGS = "-Wno-deprecated-declarations"; }; };
 		256CA1D1248C58B6009F4AAE /* OpenGL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D6A7BDA916A1DEA200D1426A /* OpenGL.framework */; };
-		256ECE04274AB6F000B02B8F /* LTFSCharter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 256ECE03274AB6F000B02B8F /* LTFSCharter.cpp */; };
+		256ECE04274AB6F000B02B8F /* LTFSCharter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 256ECE03274AB6F000B02B8F /* LTFSCharter.cpp */; settings = {COMPILER_FLAGS = "-D'FSC_PROD_CLIENT_ID=$(FSC_PROD_CLIENT_ID)' -D'FSC_PROD_CLIENT_SECRET=$(FSC_PROD_CLIENT_SECRET)' -D'FSC_STAGING_CLIENT_ID=$(FSC_STAGING_CLIENT_ID)' -D'FSC_STAGING_CLIENT_SECRET=$(FSC_STAGING_CLIENT_SECRET)'"; }; };
 		2573631A22233008005210C5 /* LTRealTraffic.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2573631922233008005210C5 /* LTRealTraffic.cpp */; };
 		2573632022233CDA005210C5 /* LTADSBEx.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2573631E22233CDA005210C5 /* LTADSBEx.cpp */; };
 		2573632122233CDA005210C5 /* LTOpenSky.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2573631F22233CDA005210C5 /* LTOpenSky.cpp */; };
@@ -49,6 +49,8 @@
 		25EF90042B497C6100D7C805 /* LTSynthetic.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25EF90032B497C6100D7C805 /* LTSynthetic.cpp */; };
 		25F3471C24D2C7DE004574E7 /* parson.c in Sources */ = {isa = PBXBuildFile; fileRef = 25F3471B24D2C7DE004574E7 /* parson.c */; settings = {COMPILER_FLAGS = "-Wno-sign-conversion"; }; };
 		25F3471F24D2CB20004574E7 /* ACTable.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25F3471E24D2CB20004574E7 /* ACTable.cpp */; };
+		25F431742FCC79800036A311 /* LTNavigraph.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25F431732FCC79800036A311 /* LTNavigraph.cpp */; settings = {COMPILER_FLAGS = "-D'NVGR_CLIENT_ID=$(NVGR_CLIENT_ID)' -D'NVGR_CLIENT_SECRET=$(NVGR_CLIENT_SECRET)' "; }; };
+		25F4317D2FD4B9560036A311 /* LTMsgPack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25F4317C2FD4B9560036A311 /* LTMsgPack.cpp */; };
 		25FEB7B9224D7B10002A051F /* LTForeFlight.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25FEB7B8224D7B10002A051F /* LTForeFlight.cpp */; };
 		D67297EB0F9E0FCC00CFD1FA /* LiveTraffic.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D67297EA0F9E0FCC00CFD1FA /* LiveTraffic.cpp */; };
 		D6A7BDC116A1DEC000D1426A /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D6A7BDC016A1DEC000D1426A /* CoreFoundation.framework */; };
@@ -194,6 +196,10 @@
 		25F3471B24D2C7DE004574E7 /* parson.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = parson.c; sourceTree = "<group>"; };
 		25F3471D24D2CB15004574E7 /* ACTable.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ACTable.h; sourceTree = "<group>"; };
 		25F3471E24D2CB20004574E7 /* ACTable.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ACTable.cpp; sourceTree = "<group>"; };
+		25F431722FCC796B0036A311 /* LTNavigraph.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTNavigraph.h; sourceTree = "<group>"; };
+		25F431732FCC79800036A311 /* LTNavigraph.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTNavigraph.cpp; sourceTree = "<group>"; };
+		25F4317B2FD4B8E60036A311 /* LTMsgPack.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTMsgPack.h; sourceTree = "<group>"; };
+		25F4317C2FD4B9560036A311 /* LTMsgPack.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTMsgPack.cpp; sourceTree = "<group>"; };
 		25F5CBAA20813880004C232C /* Notes.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = Notes.txt; sourceTree = "<group>"; };
 		25FEB7B8224D7B10002A051F /* LTForeFlight.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTForeFlight.cpp; sourceTree = "<group>"; };
 		25FEB7BA224D7C8C002A051F /* LTForeFlight.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTForeFlight.h; sourceTree = "<group>"; };
@@ -202,6 +208,10 @@
 		D6A7BDA916A1DEA200D1426A /* OpenGL.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenGL.framework; path = System/Library/Frameworks/OpenGL.framework; sourceTree = SDKROOT; };
 		D6A7BDC016A1DEC000D1426A /* CoreFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreFoundation.framework; path = System/Library/Frameworks/CoreFoundation.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		25F431752FCF79D40036A311 /* SHA256 */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = SHA256; sourceTree = "<group>"; };
+/* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		D607B19709A556E400699BC3 /* Frameworks */ = {
@@ -316,6 +326,8 @@
 				256ECE03274AB6F000B02B8F /* LTFSCharter.cpp */,
 				2515F41F248D022B00F18B76 /* LTImgWindow.cpp */,
 				25C59464207ABDC700E52073 /* LTMain.cpp */,
+				25F4317C2FD4B9560036A311 /* LTMsgPack.cpp */,
+				25F431732FCC79800036A311 /* LTNavigraph.cpp */,
 				259EC47925057815009B86F3 /* LTOpenGlider.cpp */,
 				2573631F22233CDA005210C5 /* LTOpenSky.cpp */,
 				2573631922233008005210C5 /* LTRealTraffic.cpp */,
@@ -452,6 +464,8 @@
 				25FEB7BA224D7C8C002A051F /* LTForeFlight.h */,
 				256ECE02274AB6D300B02B8F /* LTFSCharter.h */,
 				2515F41E248CF59C00F18B76 /* LTImgWindow.h */,
+				25F4317B2FD4B8E60036A311 /* LTMsgPack.h */,
+				25F431722FCC796B0036A311 /* LTNavigraph.h */,
 				259EC47825057802009B86F3 /* LTOpenGlider.h */,
 				2573631C22233CCA005210C5 /* LTOpenSky.h */,
 				2573631B22233041005210C5 /* LTRealTraffic.h */,
@@ -468,6 +482,7 @@
 		25A095CA2203B0C500658AA8 /* Lib */ = {
 			isa = PBXGroup;
 			children = (
+				25F431752FCF79D40036A311 /* SHA256 */,
 				251284AC274D829500B0F51A /* base64 */,
 				258117B5291AF24D00D05428 /* FMOD_Logo.cpp */,
 				25EFC76A249567BF005DB0A6 /* Font */,
@@ -598,6 +613,9 @@
 			dependencies = (
 				25BF00AB290DCC3E00317CAE /* PBXTargetDependency */,
 			);
+			fileSystemSynchronizedGroups = (
+				25F431752FCF79D40036A311 /* SHA256 */,
+			);
 			name = LiveTraffic;
 			productName = StarterPlugin;
 			productReference = D607B19909A556E400699BC3 /* LiveTraffic.xpl */;
@@ -683,12 +701,14 @@
 				256CA1C5248C458D009F4AAE /* imgui_draw.cpp in Sources */,
 				256CA1CF248C5094009F4AAE /* ImgFontAtlas.cpp in Sources */,
 				256CA1CE248C5094009F4AAE /* ImgWindow.cpp in Sources */,
+				258117B6291AF24D00D05428 /* FMOD_Logo.cpp in Sources */,
 				257A10992190E0A8007C1E04 /* ACInfoWnd.cpp in Sources */,
 				25F3471F24D2CB20004574E7 /* ACTable.cpp in Sources */,
 				2558579420950C6700816F65 /* CoordCalc.cpp in Sources */,
 				25C5945A207A2B7600E52073 /* DataRefs.cpp in Sources */,
 				25C5254424D0268700C73482 /* InfoListWnd.cpp in Sources */,
 				D67297EB0F9E0FCC00CFD1FA /* LiveTraffic.cpp in Sources */,
+				25F4317D2FD4B9560036A311 /* LTMsgPack.cpp in Sources */,
 				2573632022233CDA005210C5 /* LTADSBEx.cpp in Sources */,
 				25C59462207AB4D800E52073 /* LTAircraft.cpp in Sources */,
 				25624BDA23B014F600B899E1 /* LTApt.cpp in Sources */,
@@ -696,7 +716,6 @@
 				25E9C2AF207D5B8100D3C642 /* LTFlightData.cpp in Sources */,
 				25C04FED2DEB8070009D2753 /* LTAutoATC.cpp in Sources */,
 				25FEB7B9224D7B10002A051F /* LTForeFlight.cpp in Sources */,
-				258117B6291AF24D00D05428 /* FMOD_Logo.cpp in Sources */,
 				256ECE04274AB6F000B02B8F /* LTFSCharter.cpp in Sources */,
 				2515F420248D022B00F18B76 /* LTImgWindow.cpp in Sources */,
 				25C59465207ABDC700E52073 /* LTMain.cpp in Sources */,
@@ -705,6 +724,7 @@
 				2573632122233CDA005210C5 /* LTOpenSky.cpp in Sources */,
 				2573631A22233008005210C5 /* LTRealTraffic.cpp in Sources */,
 				25ABEEFE219A1C2100F61413 /* LTVersion.cpp in Sources */,
+				25F431742FCC79800036A311 /* LTNavigraph.cpp in Sources */,
 				254F278924EF230400CACCDA /* LTWeather.cpp in Sources */,
 				25EF90042B497C6100D7C805 /* LTSynthetic.cpp in Sources */,
 				25AE00D9213887AF00908E65 /* SettingsUI.cpp in Sources */,
@@ -776,9 +796,9 @@
 					"$(PROJECT_DIR)/Lib/XPMP2",
 				);
 				FSC_PROD_CLIENT_ID = 3;
-				FSC_PROD_CLIENT_SECRET = "\\\"INOP\\\"";
+				FSC_PROD_CLIENT_SECRET = "\"INOP\"";
 				FSC_STAGING_CLIENT_ID = 3;
-				FSC_STAGING_CLIENT_SECRET = "\\\"INOP\\\"";
+				FSC_STAGING_CLIENT_SECRET = "\"INOP\"";
 				GCC_C_LANGUAGE_STANDARD = c11;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_OPTIMIZATION_LEVEL = 0;
@@ -797,10 +817,6 @@
 					"LIVETRAFFIC_VER_MINOR=${LIVETRAFFIC_VER_MINOR}",
 					"LIVETRAFFIC_VER_PATCH=${LIVETRAFFIC_VER_PATCH}",
 					"LIVETRAFFIC_VERSION_BETA=${LIVETRAFFIC_VERSION_BETA}",
-					"FSC_PROD_CLIENT_ID=${FSC_PROD_CLIENT_ID}",
-					"FSC_PROD_CLIENT_SECRET=${FSC_PROD_CLIENT_SECRET}",
-					"FSC_STAGING_CLIENT_ID=${FSC_STAGING_CLIENT_ID}",
-					"FSC_STAGING_CLIENT_SECRET=${FSC_STAGING_CLIENT_SECRET}",
 				);
 				GCC_SYMBOLS_PRIVATE_EXTERN = YES;
 				GCC_VERSION = "";
@@ -822,6 +838,7 @@
 					Lib/XPMP2/inc,
 					Lib/XPMP2/lib/fmod/logo,
 					Lib/base64,
+					Lib/SHA256,
 					Lib/parson,
 					Lib/LTAPI,
 					"Lib/ImGui/**",
@@ -834,11 +851,13 @@
 				LIBRARY_SEARCH_PATHS = Lib/fmod;
 				LIVETRAFFIC_VERSION_BETA = 1;
 				LIVETRAFFIC_VER_MAJOR = 4;
-				LIVETRAFFIC_VER_MINOR = 5;
+				LIVETRAFFIC_VER_MINOR = 6;
 				LIVETRAFFIC_VER_PATCH = 0;
 				LLVM_LTO = NO;
 				MACH_O_TYPE = mh_dylib;
 				MACOSX_DEPLOYMENT_TARGET = 10.15;
+				NVGR_CLIENT_ID = "\"INOP\"";
+				NVGR_CLIENT_SECRET = "\"INOP\"";
 				ONLY_ACTIVE_ARCH = YES;
 				OTHER_CODE_SIGN_FLAGS = "--timestamp";
 				OTHER_LDFLAGS = "$(OTHER_LDFLAGS)";
@@ -897,9 +916,9 @@
 					"$(PROJECT_DIR)/Lib/XPMP2",
 				);
 				FSC_PROD_CLIENT_ID = 3;
-				FSC_PROD_CLIENT_SECRET = "\\\"INOP\\\"";
+				FSC_PROD_CLIENT_SECRET = "\"INOP\"";
 				FSC_STAGING_CLIENT_ID = 3;
-				FSC_STAGING_CLIENT_SECRET = "\\\"INOP\\\"";
+				FSC_STAGING_CLIENT_SECRET = "\"INOP\"";
 				GCC_C_LANGUAGE_STANDARD = c11;
 				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -918,10 +937,6 @@
 					"LIVETRAFFIC_VER_MINOR=${LIVETRAFFIC_VER_MINOR}",
 					"LIVETRAFFIC_VER_PATCH=${LIVETRAFFIC_VER_PATCH}",
 					"LIVETRAFFIC_VERSION_BETA=${LIVETRAFFIC_VERSION_BETA}",
-					"FSC_PROD_CLIENT_ID=${FSC_PROD_CLIENT_ID}",
-					"FSC_PROD_CLIENT_SECRET=${FSC_PROD_CLIENT_SECRET}",
-					"FSC_STAGING_CLIENT_ID=${FSC_STAGING_CLIENT_ID}",
-					"FSC_STAGING_CLIENT_SECRET=${FSC_STAGING_CLIENT_SECRET}",
 				);
 				GCC_SYMBOLS_PRIVATE_EXTERN = YES;
 				GCC_VERSION = "";
@@ -943,6 +958,7 @@
 					Lib/XPMP2/inc,
 					Lib/XPMP2/lib/fmod/logo,
 					Lib/base64,
+					Lib/SHA256,
 					Lib/parson,
 					Lib/LTAPI,
 					"Lib/ImGui/**",
@@ -955,11 +971,13 @@
 				LIBRARY_SEARCH_PATHS = Lib/fmod;
 				LIVETRAFFIC_VERSION_BETA = 1;
 				LIVETRAFFIC_VER_MAJOR = 4;
-				LIVETRAFFIC_VER_MINOR = 5;
+				LIVETRAFFIC_VER_MINOR = 6;
 				LIVETRAFFIC_VER_PATCH = 0;
 				LLVM_LTO = YES;
 				MACH_O_TYPE = mh_dylib;
 				MACOSX_DEPLOYMENT_TARGET = 10.15;
+				NVGR_CLIENT_ID = "\"INOP\"";
+				NVGR_CLIENT_SECRET = "\"INOP\"";
 				OTHER_CODE_SIGN_FLAGS = "--timestamp";
 				OTHER_LDFLAGS = "$(OTHER_LDFLAGS)";
 				PRODUCT_NAME = "${TARGET_NAME}";

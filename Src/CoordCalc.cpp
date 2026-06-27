@@ -511,6 +511,39 @@ double CatmullRomArcLut::UFromArcFraction(double f) const
     return (double(jLower) + frac) / double(N);
 }
 
+//
+// MARK: Hermite CSpline
+//
+
+/// Set the parameters (time, value like altitude, tangent like climb rate)
+void CSpline::set (double _t0, double _p0, double _m0,
+                   double _t1, double _p1, double _m1)
+{
+    t0 = _t0;                                       // beginning timestamp
+    dt = _t1 - _t0;                                 // delta-t, the time of the segment
+    a =  2*_p0 - 2*_p1 + dt * (  _m0 + _m1);        // the polinomial factors of the standard form of a Hermite Spline
+    b = -3*_p0 + 3*_p1 - dt * (2*_m0 + _m1);
+    c =                  dt *    _m0;
+    d =    _p0;
+}
+
+/// Value at t with `_t0 <= t <= _t1`
+/// @returns `au^3 + bu^2 + cu + d` with `u = (t - t0)/dt`
+double CSpline::val (double t) const
+{
+    const double u = (t - t0) / dt;
+    return ((a*u + b)*u + c)*u + d;
+}
+
+/// Slope at t with `_t0 <= t <= _t1` (1st derivative of val())
+/// @returns `1/dt * (3au^2 + 2bu + c)`
+double CSpline::slope (double t) const
+{
+    const double u = (t - t0) / dt;
+    return ((3*a*u + 2*b)*u + c) / dt;
+}
+
+
 // returns terrain altitude at given position
 // returns NaN in case of failure
 double YProbe_at_m (const positionTy& posAt, XPLMProbeRef& probeRef)

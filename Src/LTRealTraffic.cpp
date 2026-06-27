@@ -855,6 +855,47 @@ bool RealTrafficConnection::ProcessTrafficBuffer (const JSON_Object* pBuf)
             if ( fd.empty() )
                 fd.SetKey(fdKey);
             
+            // Try to identify position hovering low over a rwy
+            // TODO: Copied from Navigraph, make it generic code...there is "hover detection" in LTFlightData.cpp already
+            const Doc8643* pDoc8643 = fd.GetUnsafeStat().pDoc8643;
+            if (!pDoc8643 || !pDoc8643->hasRotor())         // only do for fixed-wing aircraft
+            {
+                // The max hover height is about 12s of "initial climb"
+                const LTAircraft::FlightModel& mdl = LTAircraft::FlightModel::FindFlightModel(fd, false);
+                const double maxHoverHeight_m = M_per_FT * mdl.VSI_INIT_CLIMB * NVGR_MAX_RWY_HOVER_CLIMB_DUR_S / 60.0;
+                if (!pos.IsOnGnd() &&                                      // not on ground
+                    pos.alt_m() < HIGHEST_AIRPORT_M + maxHoverHeight_m)    // low enough to be potentially hovering low over an airport?
+                {
+                    // Do we have a ground situation in the data,
+                    // for which the incoming position could be a lift-off position?
+                    double gndAlt_m = fd.GetLastPosGndAlt_m();
+                    if (!std::isnan(gndAlt_m) &&
+                        pos.alt_m() < gndAlt_m + maxHoverHeight_m)
+                    {
+                        // So this new data comes right after a gnd position and is pretty low...
+                        // is it also above a runway? (then pos is snapped to the rwy)
+                        if (LTAptSnapIfOverRwy(pos))
+                        {
+                            // ...we have forced it on the ground:
+                            if (dataRefs.GetDebugAcPos(fd.key())) {
+                                LOG_MSG(logDEBUG, "%s: Forcing a rwy position onto ground with max hover height = %.0fm:\n%s",
+                                        fd.key().c_str(), maxHoverHeight_m, pos.dbgTxt().c_str());
+                            }
+                            pos.f.onGrnd = GND_ON;
+                            pos.alt_m() = NAN;
+                        }
+                        // Not over a rwy: ignore this position
+                        else {
+                            if (dataRefs.GetDebugAcPos(fd.key())) {
+                                LOG_MSG(logDEBUG, "%s: Ignoring a non-rwy hovering position with max hover height = %.0fm:\n%s",
+                                        fd.key().c_str(), maxHoverHeight_m, pos.dbgTxt().c_str());
+                            }
+                            continue;
+                        }
+                    }
+                }
+            }
+            
             // add the static data
             fd.UpdateData(std::move(stat), pos.dist(posView));
 

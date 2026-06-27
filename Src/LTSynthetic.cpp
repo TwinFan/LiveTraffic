@@ -241,6 +241,9 @@ bool SyntheticConnection::ProcessFetchedData ()
     // Squared search distance for distance comparison
     const double distSearchSqr = sqr(double(dataRefs.GetFdStdDistance_m()));
     
+    // any a/c filter defined for debugging purposes?
+    const std::string acFilter ( dataRefs.GetDebugAcFilter() );
+
     // --- Parked Aircraft ---
     // For all stored aircraft
     // - lookup heading to have them point into the right direction of the startup position
@@ -249,6 +252,10 @@ bool SyntheticConnection::ProcessFetchedData ()
         const LTFlightData::FDKeyTy& key = i->first;
         SynDataTy& parkDat = i->second;
 
+        // not matching a/c filter? -> skip it
+        if ((!acFilter.empty() && (key != acFilter)) )
+            continue;
+        
         // Only process planes in search distance
         // We keep the data in memory, just in case we come back, but we don't feed data for unneeded planes
         if (parkDat.pos.distRoughSqr(posCam) > distSearchSqr) {

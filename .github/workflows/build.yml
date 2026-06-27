@@ -15,6 +15,8 @@ env:
   FSC_PROD_CLIENT_ID: ${{ secrets.FSC_PROD_CLIENT_ID }}
   FSC_STAGING_CLIENT_SECRET: ${{ secrets.FSC_STAGING_CLIENT_SECRET }}
   FSC_STAGING_CLIENT_ID: ${{ secrets.FSC_STAGING_CLIENT_ID }}
+  NVGR_CLIENT_ID: ${{ secrets.NVGR_CLIENT_ID }}
+  NVGR_CLIENT_SECRET: ${{ secrets.NVGR_CLIENT_SECRET }}
 
 jobs:
   #####################################

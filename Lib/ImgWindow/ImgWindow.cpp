@@ -238,8 +238,8 @@ ImgWindow::boxelsToNative(int x, int y, int &outX, int &outY)
 	ndc[0] *= ndc[3];
 	ndc[1] *= ndc[3];
 
-	outX = static_cast<int>((ndc[0] * 0.5f + 0.5f) * mViewport[2] + mViewport[0]);
-	outY = static_cast<int>((ndc[1] * 0.5f + 0.5f) * mViewport[3] + mViewport[1]);
+	outX = int((ndc[0] * 0.5f + 0.5f) * float(mViewport[2])) + mViewport[0];
+	outY = int((ndc[1] * 0.5f + 0.5f) * float(mViewport[3])) + mViewport[1];
 }
 
 /*
@@ -343,8 +343,8 @@ ImgWindow::translateToImguiSpace(int inX, int inY, float &outX, float &outY)
 void
 ImgWindow::translateImguiToBoxel(float inX, float inY, int &outX, int &outY)
 {
-	outX = (int)(mLeft + inX);
-	outY = (int)(mTop - inY);
+	outX = mLeft + int(inX);
+	outY = mTop  - int(inY);
 }
 
 
@@ -733,9 +733,10 @@ ImgWindow::HasWindowDragArea (int* pL, int* pT,
 bool
 ImgWindow::IsInsideWindowDragArea (int x, int y) const
 {
+    /* This comparison makes no sense if x/y are integers...
     // values outside the window aren't valid
     if (x == -FLT_MAX || y == -FLT_MAX)
-        return false;
+        return false; */
     
     // is a drag area defined in the first place?
     if (!HasWindowDragArea())

@@ -229,6 +229,9 @@ enum dataRefsXP {
     DR_REPLAY_MODE,                     ///< sim/operation/prefs/replay_mode    int    y    enum    Are we in replay mode?
     DR_VIEW_EXTERNAL,
     DR_VIEW_TYPE,
+    DR_VIEW_HEAD_HEADING,               ///< sim/graphics/view/pilots_head_psi    float    y    degrees    Position of pilot's head heading
+    DR_VIEW_HEAD_PITCH,                 ///< sim/graphics/view/pilots_head_the    float    y    degrees    Position of pilot's head pitch
+    DR_VIEW_HEAD_ROLL,                  ///< sim/graphics/view/pilots_head_phi    float    y    degrees    Position of the pilot's head roll
     DR_MODERN_DRIVER,                   // sim/graphics/view/using_modern_driver: boolean: Vulkan/Metal in use?
 
     DR_CAMERA_TCAS_IDX,                 ///< Shared data ref created by us: If LiveTraffic's camera is on, then on which aircraft? Here: TCAS index
@@ -456,6 +459,7 @@ enum dataRefsLT {
     DR_CHANNEL_ADSB_EXCHANGE_ONLINE,
     DR_CHANNEL_ADSB_FI_ONLINE,
     DR_CHANNEL_AIRPLANES_LIVE,
+    DR_CHANNEL_NVGR_FR24,
     DR_CHANNEL_REAL_TRAFFIC_ONLINE,     // currently highest-prio channel
     // always last, number of elements:
     CNT_DATAREFS_LT
@@ -778,6 +782,7 @@ protected:
     std::string sSoundDevice = CFG_SND_NO_DEVICE;               ///< Output sound device name
     std::string sOpenSkyClient;         ///< OpenSky Network Client ID
     std::string sOpenSkySecret;         ///< OpenSky Network Client Secret
+    std::string sNvgrRefreshToken;      ///< Navigraph Refresh Token (that we get after initial authorization)
     std::string sADSBExAPIKey;          ///< ADS-B Exchange API key
     std::string sRTLicense;             ///< RealTraffic License
     std::string sFSCUser;               ///< FSCharter login user
@@ -888,6 +893,9 @@ public:
     float GetMiscNetwTime() const;
     inline bool  IsViewExternal() const         { return XPLMGetDatai(adrXP[DR_VIEW_EXTERNAL]) != 0; }
     inline XPViewTypes GetViewType () const     { return (XPViewTypes)XPLMGetDatai(adrXP[DR_VIEW_TYPE]); }
+    float GetViewHeadHeading () const           { return XPLMGetDataf(adrXP[DR_VIEW_HEAD_HEADING]); }
+    float GetViewHeadPitch () const             { return XPLMGetDataf(adrXP[DR_VIEW_HEAD_PITCH]); }
+    float GetViewHeadRoll () const              { return XPLMGetDataf(adrXP[DR_VIEW_HEAD_ROLL]); }
     inline bool UsingModernDriver () const      { return bUsingModernDriver; }
     inline bool  IsVREnabled() const            { return lastVREnabled; }
     bool IsUsingSystemTime() const              { return lastUsingSystemTime; }
@@ -1054,6 +1062,10 @@ public:
     void SetOpenSkyClient (const std::string& clientId)     { sOpenSkyClient = clientId;     OpenSkyRRemain = LONG_MAX; OpenSkyRetryAt.clear(); }
     void SetOpenSkySecret (const std::string& clientSecret) { sOpenSkySecret = clientSecret; OpenSkyRRemain = LONG_MAX; OpenSkyRetryAt.clear(); }
 
+    bool HaveNvgrRefreshToken () const { return !sNvgrRefreshToken.empty(); }
+    const std::string& GetNvgrRefreshToken () const { return sNvgrRefreshToken; }
+    void SetNvgrRefrshToken (const std::string& sNewToken);     ///< Store token and immediately save settings to disk
+    
     const std::string& GetADSBExAPIKey () const { return sADSBExAPIKey; }
     void SetADSBExAPIKey (const std::string& apiKey) { sADSBExAPIKey = apiKey; }
     

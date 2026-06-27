@@ -357,6 +357,9 @@ const char* DATA_REFS_XP[] = {
     "sim/operation/prefs/replay_mode",          //    int    y    enum    Are we in replay mode?
     "sim/graphics/view/view_is_external",
     "sim/graphics/view/view_type",
+    "sim/graphics/view/pilots_head_psi",        // float    y    degrees    Position of pilot's head heading
+    "sim/graphics/view/pilots_head_the",        // float    y    degrees    Position of pilot's head pitch
+    "sim/graphics/view/pilots_head_phi",        // float    y    degrees    Position of the pilot's head roll
     "sim/graphics/view/using_modern_driver",    // boolean: Vulkan/Metal in use? (since XP11.50)
 
     "sim/multiplayer/camera/tcas_idx",          // Shared data refs filled by LiveTraffic with aircraft under camera
@@ -610,6 +613,7 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/channel/adsb_exchange/online",    DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/adsb_fi/online",          DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/airplanes_live/online",   DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
+    {"livetraffic/channel/navigraph/fr24",          DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/real_traffic/online",     DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
 };
 
@@ -2301,6 +2305,8 @@ bool DataRefs::LoadConfigFile()
                 SetOpenSkyClient(sVal);
             else if (sDataRef == CFG_OPENSKY_SECRET)
                 SetOpenSkySecret(Cleartext(sVal));
+            else if (sDataRef == CFG_NVGR_REFRESH_TOKEN)
+                SetNvgrRefrshToken(Cleartext(sVal));
             else if (sDataRef == CFG_ADSBEX_API_KEY) {
                 // With v4.2 ADSBEx switches to a new service, so we need a new API key
                 if (conv != CFG_V420)
@@ -2453,6 +2459,8 @@ bool DataRefs::SaveConfigFile()
         fOut << CFG_OPENSKY_CLIENT << ' ' << sOpenSkyClient << '\n';
     if (!sOpenSkySecret.empty())
         fOut << CFG_OPENSKY_SECRET << ' ' << Obfuscate(sOpenSkySecret) << '\n';
+    if (!sNvgrRefreshToken.empty())
+        fOut << CFG_NVGR_REFRESH_TOKEN << ' ' << Obfuscate(sNvgrRefreshToken) << '\n';
     if (!GetADSBExAPIKey().empty())
         fOut << CFG_ADSBEX_API_KEY << ' ' << Obfuscate(GetADSBExAPIKey()) << '\n';
     if (!GetRTLicense().empty())
@@ -2617,6 +2625,15 @@ int DataRefs::CntChannelEnabled () const
                            std::end(bChannel),
                            1);
 }
+
+
+// Store token and immediately save settings to disk
+void DataRefs::SetNvgrRefrshToken (const std::string& sNewToken)
+{
+    sNvgrRefreshToken = sNewToken;
+    SaveConfigFile();
+}
+
 
 //
 // MARK: Internet UTC Time

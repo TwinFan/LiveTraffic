@@ -1,0 +1,909 @@
+/// @file       LTNavigraph.cpp
+/// @brief      Navigraph/Flightradar24: Requests and processes live tracking data
+/// @see        https://navigraph.com/blog/navigraph-flightradar24
+/// @see        https://developers.navigraph.com/docs/authentication/device-authorization
+/// @details    Implements NvgrFR24Connection:\n
+///             - Handles the OAuth authentication protocol
+///             - Provides a proper REST-conform URL\n
+///             - Interprets the response and passes the tracking data on to LTFlightData.\n
+/// @details    The following are request rate limits as informed by Navigraph
+///             ≤150 km = 1 req / 20 s
+///             ≤300 km = 1 req / 40 s
+///             ≤500 km (or beyond) = 1 req / 60 s
+/// @author     Birger Hoppe
+/// @copyright  (c) 2026 Birger Hoppe
+/// @copyright  Permission is hereby granted, free of charge, to any person obtaining a
+///             copy of this software and associated documentation files (the "Software"),
+///             to deal in the Software without restriction, including without limitation
+///             the rights to use, copy, modify, merge, publish, distribute, sublicense,
+///             and/or sell copies of the Software, and to permit persons to whom the
+///             Software is furnished to do so, subject to the following conditions:\n
+///             The above copyright notice and this permission notice shall be included in
+///             all copies or substantial portions of the Software.\n
+///             THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+///             IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+///             FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+///             AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+///             LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+///             OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+///             THE SOFTWARE.
+
+// All includes are collected in one header
+#include "LiveTraffic.h"
+
+//
+// MARK: Client ID/Secret
+//
+
+// We need a client id/secret coming in from the build command line, or we just don't do Navigraph
+#if !defined(NVGR_CLIENT_SECRET) || !defined(NVGR_CLIENT_ID)
+#error NVGR_CLIENT_SECRET/NVGR_CLIENT_ID not defined! At least define them to be "INOP".
+#endif
+
+static const std::string gsNvgrClientId(NVGR_CLIENT_ID);
+static const std::string gsNvgrClientSecret(NVGR_CLIENT_SECRET);
+
+#undef NVGR_CLIENT_ID
+#undef NVGR_CLIENT_SECRET
+
+//
+// MARK: Navigraph Traffic Data
+//
+
+/// Reads information from the provided Message Pack, assumes the `pos` points at the beginning of the map
+NvgrTrafficData::NvgrTrafficData (MsgPack& msg)
+{
+    // Each plane should be a key/value map
+    size_t numPairs = msg.GetMapSize();
+    for (size_t i = 0; i < numPairs; ++i)
+    {
+        std::string field;
+        
+        try {
+            // Read the key
+            field += '+';                       // that's just for error reporting: if "key" in the exception has a trailing '+' then we know the exception happened in the following line, while trying to read the _next_ key.
+            field = msg.GetString();
+            
+            if (field == NVGR_AC_ID)            key.SetKey(LTFlightData::KEY_ICAO, msg.GetString());
+            else if (field == NVGR_FLIGHT_ID)   flightId        = msg.GetString();
+            else if (field == NVGR_TIMESTAMP)   pos.ts()        = msg.GetDouble() / 1000.0;
+            else if (field == NVGR_AC_TYPE)     acTypeIcao      = msg.GetString();
+            else if (field == NVGR_REG)         reg             = msg.GetString();
+            else if (field == NVGR_ORIGIN)      orig            = msg.GetString();
+            else if (field == NVGR_DEST)        dest            = msg.GetString();
+            else if (field == NVGR_FLIGHT_NO)   flight          = msg.GetString();
+            else if (field == NVGR_SQUAWK)      radar.code      = std::stol(msg.GetString());
+            else if (field == NVGR_LAT)         pos.lat()       = msg.GetDouble();
+            else if (field == NVGR_LON)         pos.lon()       = msg.GetDouble();
+            else if (field == NVGR_TRACK)       pos.heading()   = msg.GetDouble();  // not correct, but a good guess
+            else if (field == NVGR_ALT) {       // barometric altitude given in feet
+                const double baroAlt_m = msg.GetDouble() * M_per_FT;
+                if (pos.f.onGrnd != GND_ON)     // only set/overwrite if not already clear that we are on the ground
+                    pos.alt_m() = BaroAltToGeoAlt_m(baroAlt_m, dataRefs.GetPressureHPA());
+            }
+            else if (field == NVGR_SPD)         spd             = msg.GetDouble();
+            else if (field == NVGR_GND) {       // ground flag
+                if(msg.GetBool()) {
+                    pos.f.onGrnd = GND_ON;
+                    pos.alt_m() = NAN;          // clear any altitude, will be re-determined based on terrain
+                } else {
+                    pos.f.onGrnd = GND_OFF;
+                }
+            }
+            else if (field == NVGR_VSI)         vsi             = msg.GetDouble();
+            else if (field == NVGR_CALL)        call            = msg.GetString();
+            else if (field == NVGR_PAINTED_AS)  paintedAs       = msg.GetString();
+            else if (field == NVGR_OP_AS)       opAs            = msg.GetString();
+            else
+                msg.Skip();                     // just skip over unnecessary/unknown fields
+        }
+        catch (const std::exception& e) {       // inform the field we were trying to read
+            LOG_MSG(logERR, "Could not decode and process MessagePack for a/c '%s', %zu. field '%s': %s",
+                    key.c_str(), i, field.c_str(), e.what());
+            throw;                              // forward exception to caller
+        }
+    }
+}
+
+/// Fills a static data structure
+NvgrTrafficData::operator LTFlightData::FDStaticData () const
+{
+    char s[100];
+    LTFlightData::FDStaticData stat;
+    stat.reg        = reg;
+    stat.acTypeIcao = acTypeIcao;
+    stat.call       = call;
+    stat.setOrigDest(orig, dest);
+    stat.flight     = flight;
+    snprintf(s, sizeof(s), NVGR_SLUG_FMT, call.c_str(), flightId.c_str());
+    stat.slug = s;
+    stat.op         = opAs;
+    stat.opIcao     = paintedAs.empty() ? opAs : paintedAs;
+    return stat;
+}
+
+/// Fills a dynamic data structure
+NvgrTrafficData::operator LTFlightData::FDDynamicData () const
+{
+    LTFlightData::FDDynamicData dyn;
+    dyn.radar       = radar;
+    dyn.gnd         = pos.IsOnGnd();
+    dyn.heading     = pos.heading();
+    dyn.spd         = spd;
+    dyn.vsi         = vsi;
+    dyn.ts          = pos.ts();
+    return dyn;
+}
+
+
+
+//
+// MARK: Navigraph
+//
+
+// Constructor
+NvgrFR24Connection::NvgrFR24Connection () :
+LTFlightDataChannel(DR_CHANNEL_NVGR_FR24, NVGR_NAME)
+{
+    // purely informational
+    urlName  = NVGR_CHECK_NAME;
+    urlLink  = NVGR_CHECK_URL;
+    urlPopup = NVGR_CHECK_POPUP;
+}
+
+NvgrFR24Connection::~NvgrFR24Connection ()
+{
+    CurlCleanupSlist(pHdrForm);
+    CurlCleanupSlist(pHdrToken);
+}
+
+// used to force fetching a new token, e.g. after change of credentials
+void NvgrFR24Connection::ResetStatus ()
+{
+    sErrMsg.clear();
+    CurlCleanupSlist(pHdrToken);
+    tAccessExpiration = std::chrono::time_point<std::chrono::steady_clock>();
+    eState = NVGR_STATE_GETTING_TOKEN;
+}
+
+
+// virtual thread main function
+void NvgrFR24Connection::Main ()
+{
+    // This is a communication thread's main function, set thread's name and C locale
+    ThreadSettings TS ("LT_Navigraph", LC_ALL_MASK);
+    
+    // Reset state
+    ResetStatus();
+    bLastTrafficInvToken = false;
+    
+    // Can't run if we don't have Client Secret/ID
+    if (!IsBuiltIn()) {
+        SHOW_MSG(logERR, "No Navigraph support built into this binary, can't start Navigraph/FR24");
+        SetValid(false,false); SetEnable(false);
+    }
+    // Can't run if we don't have Refresh Token
+    else if (!dataRefs.HaveNvgrRefreshToken()) {
+        SHOW_MSG(logERR, "No Navigraph Refresh Token available. You need to authorize LiveTraffic first with Navigraph, see Settings.");
+        SetValid(false,false); SetEnable(false);
+    }
+
+    while ( shallRun() ) {
+        // LiveTraffic Top Level Exception Handling
+        try {
+            // when to wake up next?
+            std::chrono::time_point<std::chrono::steady_clock> tNext;
+            
+            // where are we right now?
+            const positionTy pos (dataRefs.GetViewPos());
+            
+            // If the camera position is valid we can request data around it
+            if (pos.isNormal()) {
+                // fetch data and process it
+                if (FetchAllData(pos) && ProcessFetchedData())
+                        // reduce error count if processed successfully
+                        // as a chance to appear OK in the long run
+                        DecErrCnt();
+                
+                // If next request is a refresh token request, we can do it immediately,
+                // if is is a traffic request we must wait until valid
+                if (eState == NVGR_STATE_GET_PLANES)
+                    tNext = tNextWakeup;
+            }
+            else {
+                // Camera position is yet invalid, retry in a second
+                tNext = std::chrono::steady_clock::now() + std::chrono::seconds(1);
+            }
+            
+            // sleep until scheduled wakeup or if woken up for termination
+            // by condition variable trigger
+            {
+                std::unique_lock<std::mutex> lk(FDThreadSynchMutex);
+                FDThreadSynchCV.wait_until(lk, tNextWakeup,
+                                           [this]{return !shallRun();});
+            }
+            
+        } catch (const std::exception& e) {
+            LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());
+            IncErrCnt();
+        } catch (...) {
+            LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, "(unknown type)");
+            IncErrCnt();
+        }
+    }
+    
+    // Cleanup
+    CurlCleanupSlist(pHdrForm);
+    CurlCleanupSlist(pHdrToken);
+    eState = NVGR_STATE_NONE;
+}
+
+
+// Initialize CURL, adding OpenSky credentials
+bool NvgrFR24Connection::InitCurl ()
+{
+    // Standard-init first (repeated call will just return true without effect)
+    if (!LTOnlineChannel::InitCurl())
+        return false;
+    
+    // Do we have a token that is about to expire and needs a refresh?
+    if (tAccessExpiration.time_since_epoch().count() > 0 &&
+        std::chrono::steady_clock::now() >= tAccessExpiration)
+    {
+        ResetStatus();
+    }
+    
+    // if fetching token then we need to set the content type
+    if (eState == NVGR_STATE_GETTING_TOKEN) {
+        // create the header list if it doesn't exist yet
+        if (!pHdrForm) {
+            pHdrForm = curl_slist_append(nullptr, "Content-Type: application/x-www-form-urlencoded");
+        }
+        curl_easy_setopt(pCurl, CURLOPT_HTTPHEADER, pHdrForm);
+    }
+    else {
+        // in all other cases we may, if defined, set the access token header
+        curl_easy_setopt(pCurl, CURLOPT_HTTPHEADER, pHdrToken);
+    }
+    return true;
+}
+
+// put together the URL to fetch based on current view position
+std::string NvgrFR24Connection::GetURL (const positionTy& pos)
+{
+    // Do we need a token? Let's go for one:
+    if (eState == NVGR_STATE_GETTING_TOKEN) {
+        LOG_MSG(logDEBUG, "Refreshing token...");
+        return NVGR_TOKEN_URL;
+    }
+    
+    // Standard request to fetch planes:
+    char url[128] = "";
+    snprintf(url, sizeof(url),
+             NVGR_TRAFFIC_URL,
+             pos.lat(), pos.lon(),
+             // consider max search distance as per Navigraph 20s interval
+             std::min<int>(dataRefs.GetFdStdDistance_km(),
+                           NVGR_MAX_SEARCH_DIST_KM));
+    return std::string(url);
+}
+
+// only needed for token request, will then form token request body
+void NvgrFR24Connection::ComputeBody (const positionTy& /*pos*/)
+{
+    if (eState == NVGR_STATE_GETTING_TOKEN) {
+        // if we are to fetch a token then we need to put credentials into the body
+        char s[256];
+        snprintf(s, sizeof(s), NVGR_TOKEN_REFRESH_BODY,
+                 gsNvgrClientId.c_str(), gsNvgrClientSecret.c_str(),
+                 dataRefs.GetNvgrRefreshToken().c_str());
+        requBody = s;
+    }
+    else {
+        // in all other case we don't have a body and will send a GET request
+        requBody.clear();
+    }
+}
+
+
+// Tries to interpret pBuf as JSON and looks for "error" or similar
+std::string NvgrFR24Connection::TryExtractErrorMsg (const JSON_Object* pMain)
+{
+    if (!pMain) return "";
+    
+    std::string s = jog_s(pMain, NVGR_ERROR);           // try official 'error' first
+    if (s.empty()) s = jog_s(pMain, NVGR_ERROR_MSG);    // else try 'message'
+    return s;
+}
+
+std::string NvgrFR24Connection::TryExtractErrorMsg (const std::string& resp)
+{
+    // try reading a reason from the response
+    JSONRootPtr pRoot (resp.c_str());
+    return TryExtractErrorMsg(pRoot ? json_object(pRoot.get()) : nullptr);
+}
+
+// update shared flight data structures with received flight data
+bool NvgrFR24Connection::ProcessFetchedData ()
+{
+    char buf[1024];
+    
+    // Try to interpret response as JSON, might contain error information
+    JSONRootPtr pRoot (netData);
+    JSON_Object* pObj = pRoot ? json_object(pRoot.get()) : nullptr;
+    std::string errMsg = TryExtractErrorMsg(pObj);
+    
+    // Extend known errors with some hints
+    if (errMsg == "invalid_grant")      errMsg += " (Device no longer authorized)";
+    else if (errMsg == "Invalid token" && bLastTrafficInvToken) errMsg += " (No Unlimited subscription?)";
+    
+    // Only proceed in case HTTP response was OK
+    switch (httpResponse)
+    {
+        // All OK
+        case HTTP_OK:
+            sErrMsg.clear();
+            break;
+            
+        // Unauthorized? Also wrong token, or wrong credentials when trying to get the token
+        case HTTP_BAD_REQUEST:
+        case HTTP_UNAUTHORIZED:     // No valid access token
+            if (eState == NVGR_STATE_GETTING_TOKEN ||           // was an attempt to get a token?
+                bLastTrafficInvToken)                           // or was the 2nd consecutive attempt to use an access token?
+            {
+                sErrMsg = "Authorization failed: " + errMsg;
+                SHOW_MSG(logERR, "%s: Authorization failed: %s. You will need to re-authenticate Navigraph in Settings.",
+                         pszChName, errMsg.c_str());
+                SetValid(false,false);
+                SetEnable(false);
+                dataRefs.SetNvgrRefrshToken("");
+                AuthInit();
+                return false;
+            }
+            else {
+                sErrMsg = "Authorization failed or timed out, trying to get a new access token...";
+                LOG_MSG(logERR, "%s: Bad or timed-out access token: %s",
+                        pszChName, errMsg.c_str());
+                ResetStatus();                  // let's try once with a new access token
+                bLastTrafficInvToken = true;    // but this attempt failed, we only try once again
+                IncErrCnt();
+                return false;
+            }
+            
+        case HTTP_FORBIDDEN:
+            sErrMsg = "Access denied: " + errMsg;
+            SHOW_MSG(logERR, "%s: %s. Make sure you have Navigraph Unlimited subscription.",
+                     pszChName, errMsg.c_str());
+            SetValid(false,false);
+            SetEnable(false);
+            eAuthUI = NVGR_AUTH_UI_REAUTH_NEED_UNLIMITED;   // tell the user it needs the Unlimited tier
+            return false;
+            
+        case HTTP_TOO_MANY_REQU:
+            LOG_MSG(logWARN, "Too many requests, skipping a beat");
+            tNextWakeup = std::chrono::steady_clock::now() + std::chrono::seconds(NVGR_MIN_REFRESH_INTVL);
+            return false;
+
+        // anything else is serious and treated as some problem
+        default:
+            sErrMsg = "Unknown error: " + errMsg;
+            IncErrCnt();
+            return false;
+    }
+    
+    // data is expected to be in netData string
+    if ( !netDataPos ) {
+        LOG_MSG(logERR, "No actual data received!");
+        IncErrCnt();
+        return false;
+    }
+    
+    // --- Token ---
+    // is this a token response?
+    if (eState == NVGR_STATE_GETTING_TOKEN) {
+        // Now we do need a JSON body!
+        if (!pRoot) { LOG_MSG(logERR,ERR_JSON_PARSE); IncErrCnt(); return false; }
+        if (!pObj) { LOG_MSG(logERR,ERR_JSON_MAIN_OBJECT); IncErrCnt(); return false; }
+        
+        // Save the refresh token
+        const std::string sRefresh = jog_s(pObj, NVGR_TOKEN_REFRESH);
+        dataRefs.SetNvgrRefrshToken(sRefresh);          // we save whatever we get
+        if (sRefresh.empty())  {                        // but if we didn't get anything we've got a problem
+            AuthInit();
+            SHOW_MSG(logERR, "Did not receive a new Refresh Token in last Navigraph authorization response! You will need to re-authenticate in Setting.");
+        }
+            
+        // Find the access token and type, that's required
+        const std::string sToken = jog_s(pObj, NVGR_TOKEN_ACCESS);
+        const std::string sType  = jog_s(pObj, NVGR_TOKEN_TYPE);
+        if (sToken.empty() || sType.empty()) {
+            LOG_MSG(logERR,"Token response is missing the %s or %s fields:\n%s",
+                    NVGR_TOKEN_ACCESS, NVGR_TOKEN_TYPE, netData);
+            IncErrCnt();
+            return false;
+        }
+        
+        // If we get a timeout value we use that, otherwise a default
+        long nTimeout = jog_l(pObj, NVGR_TOKEN_EXPIRES);
+        if (!nTimeout) nTimeout = NVGR_AUTH_EXP_DEFAULT;
+        nTimeout -= 2 * dataRefs.GetFdRefreshIntvl();           // reduce a little so we make sure we get a new token before it expires
+        tAccessExpiration = std::chrono::steady_clock::now() + std::chrono::seconds(nTimeout);
+        
+        // prepare the token with the header string and create the actual header list
+        snprintf(buf, sizeof(buf), NVGR_AUTH_HEADER,
+                 sType.c_str(), sToken.c_str());
+        CurlCleanupSlist(pHdrToken);
+        pHdrToken = curl_slist_append(nullptr, buf);
+        LOG_MSG(logDEBUG, "Successfully refreshed the tokens.");
+        
+        // Now that we have an access token we can request traffic data
+        eState = NVGR_STATE_GET_PLANES;
+
+        return true;
+    }
+    
+    // --- Planes ---
+    bLastTrafficInvToken = false;                   // The access token seemed OK
+    
+    // Next wakeup only in 20s or even later
+    tNextWakeup = std::chrono::steady_clock::now() +
+                  std::chrono::seconds(std::max(NVGR_MIN_REFRESH_INTVL, dataRefs.GetFdRefreshIntvl()));
+    
+    // any a/c filter defined for debugging purposes?
+    std::string acFilter ( dataRefs.GetDebugAcFilter() );
+    
+    // Cut-off time: We ignore tracking data, which is "in the past" compared to simTime
+    const double tsCutOff = dataRefs.GetSimTime();
+
+    // We need to calculate distance to current camera later on
+    const positionTy viewPos = dataRefs.GetViewPos();
+    
+    // Try interpreting the MessagePack
+    size_t n = 0;                               // index into plane array
+    MsgPack msg(reinterpret_cast<const uint8_t*>(netData), netDataPos);
+    try {
+        // Should be an array of planes
+        const size_t numPlanes = msg.GetArraySize();
+        for (n = 0; n < numPlanes; ++n)
+        {
+            // Read each tracking info into a structure first,
+            // so we don't depend on the order of fields in the Message Pack
+            NvgrTrafficData nvgrData (msg);
+            if (nvgrData) {
+                // ignore if not matching debug a/c filter
+                if (!acFilter.empty() && (nvgrData.key != acFilter))
+                    continue;
+                // ignore if too old a position
+                if (nvgrData.pos.ts() <= tsCutOff)
+                    continue;
+                
+                // Navigraph/FR24 sends occasionally a combination of
+                // onGnd=0 and altitude=0, which is contracdicting.
+                // Analysis shows there are situations, in which they will
+                // be ground positions, and others where they must be in the air already.
+                // Conclusion: We just ignore the data.
+                if (nvgrData.pos.f.onGrnd == GND_OFF &&
+                    dequal(nvgrData.pos.alt_m(), 0.0))
+                {
+                    LOG_MSG(logDEBUG, "%s: Skipping inconsistent data (onGnd=0, alt=0): %s",
+                            nvgrData.key.c_str(), nvgrData.pos.dbgTxt().c_str());
+                    continue;
+                }
+                
+                // from here on access to fdMap guarded by a mutex
+                // until FD object is inserted and updated
+                std::unique_lock<std::mutex> mapFdLock (mapFdMutex);
+                // get the fd object from the map, key is the transpIcao
+                // this fetches an existing or, if not existing, creates a new one
+                LTFlightData& fd = mapFd[nvgrData.key];
+                // also get the data access lock once and for all
+                // so following fetch/update calls only make quick recursive calls
+                std::lock_guard<std::recursive_mutex> fdLock (fd.dataAccessMutex);
+                // now that we have the detail lock we can release the global one
+                mapFdLock.unlock();
+                
+                // completely new? fill key fields
+                if ( fd.empty() )
+                    fd.SetKey(nvgrData.key);
+                
+                // Try to identify position hovering low over a rwy
+                const Doc8643* pDoc8643 = fd.GetUnsafeStat().pDoc8643;
+                if (!pDoc8643 || !pDoc8643->hasRotor())         // only do for fixed-wing aircraft
+                {
+                    // The max hover height is about 12s of "initial climb"
+                    const LTAircraft::FlightModel& mdl = LTAircraft::FlightModel::FindFlightModel(fd, false);
+                    const double maxHoverHeight_m = M_per_FT * mdl.VSI_INIT_CLIMB * NVGR_MAX_RWY_HOVER_CLIMB_DUR_S / 60.0;
+                    if (!nvgrData.pos.IsOnGnd() &&                                      // not on ground
+                        nvgrData.pos.alt_m() < HIGHEST_AIRPORT_M + maxHoverHeight_m)    // low enough to be potentially hovering low over an airport?
+                    {
+                        // Do we have a ground situation in the data,
+                        // for which the incoming position could be a lift-off position?
+                        double gndAlt_m = fd.GetLastPosGndAlt_m();
+                        if (!std::isnan(gndAlt_m) &&
+                            nvgrData.pos.alt_m() < gndAlt_m + maxHoverHeight_m)
+                        {
+                            // So this new data comes right after a gnd position and is pretty low...
+                            // is it also above a runway? (then pos is snapped to the rwy)
+                            if (LTAptSnapIfOverRwy(nvgrData.pos))
+                            {
+                                // ...we have forced it on the ground:
+                                if (dataRefs.GetDebugAcPos(fd.key())) {
+                                    LOG_MSG(logDEBUG, "%s: Forcing a rwy position onto ground with max hover height = %.0fm:\n%s",
+                                            nvgrData.key.c_str(), maxHoverHeight_m, nvgrData.pos.dbgTxt().c_str());
+                                }
+                                nvgrData.pos.f.onGrnd = GND_ON;
+                                nvgrData.pos.alt_m() = NAN;
+                            }
+                            // Not over a rwy: ignore this position
+                            else {
+                                if (dataRefs.GetDebugAcPos(fd.key())) {
+                                    LOG_MSG(logDEBUG, "%s: Ignoring a non-rwy hovering position with max hover height = %.0fm:\n%s",
+                                            nvgrData.key.c_str(), maxHoverHeight_m, nvgrData.pos.dbgTxt().c_str());
+                                }
+                                continue;
+                            }
+                        }
+                    }
+                }
+                
+                // Add static data
+                fd.UpdateData(nvgrData, nvgrData.pos.dist(viewPos));
+
+                // Add dynamic data
+                LTFlightData::FDDynamicData dyn = nvgrData;
+                dyn.pChannel = this;
+                fd.AddDynData(dyn, 0, 0, &nvgrData.pos);
+                
+            } else {
+                LOG_MSG(logWARN, "Skipped one incomplete tracking data record for '%s'",
+                        nvgrData.key.c_str());
+            }
+        }
+        
+        // all good and processed
+        return true;
+    }
+    catch (const std::exception& e) {
+        LOG_MSG(logERR, "Could not decode and process MessagePack for %zu. plane: %s",
+                n, e.what());
+        IncErrCnt();
+        return false;
+    }
+}
+
+
+// get status info, including remaining requests
+std::string NvgrFR24Connection::GetStatusText () const
+{
+    if (!IsBuiltIn())
+        return "No support for Navigraph built into this binary";
+    
+    std::string s;
+    
+    // Authorization Process underway?
+    DevAuthState authState = AuthGetState();
+    if (authState > NVGR_AUTH_NONE) {
+        switch (authState) {
+            case NVGR_AUTH_NONE:        break;
+            case NVGR_AUTH_FETCHING:    s += "Fetching Device Authorization..."; break;
+            case NVGR_AUTH_WAITING:     s += "Waiting for you to authorize LiveTraffic, see link/browser"; break;
+            case NVGR_AUTH_ERROR:
+                s += "Error during Device Authorization: ";
+                s += sErrMsg;
+                break;
+            case NVGR_AUTH_TIMEOUT:     s += "Device Authorization timed out!"; break;
+            case NVGR_AUTH_SUCCESS:     s += "Device Authorization successful"; break;
+            case NVGR_AUTH_CANCEL:      s += "Device Authorization being cancelled..."; break;
+        }
+        return s;
+    }
+    
+    // Normal traffic data processing
+    if (eState == NVGR_STATE_GETTING_TOKEN)
+        s = "Getting access token...";
+    else
+        s = LTChannel::GetStatusText();
+    if (!sErrMsg.empty()) {
+        s += " | ";
+        s += sErrMsg;
+    }
+    return s;
+}
+
+// Is Navigraph support built in, i.e. do we have a proper client secret/id?
+bool NvgrFR24Connection::IsBuiltIn()
+{
+    static bool bBuiltIn = (gsNvgrClientId != "INOP") && (gsNvgrClientSecret != "INOP");
+    return bBuiltIn;
+}
+
+//
+// MARK: Device Authorization
+//
+
+/// Synchronization mutex between main and auth thread, e.g. writing to the static vars
+static std::recursive_mutex gAuthMtx;
+static std::mutex gAuthCVMtx;
+static std::condition_variable gAuthCV;
+std::thread NvgrFR24Connection::thrAuth;            // the authroization communication thread
+
+// Current state of Device Authorization
+NvgrFR24Connection::DevAuthState NvgrFR24Connection::eAuthState = NvgrFR24Connection::NVGR_AUTH_NONE;
+NvgrFR24Connection::DevAuthUI NvgrFR24Connection::eAuthUI = NvgrFR24Connection::NVGR_AUTH_UI_NOTHING;
+std::string NvgrFR24Connection::sErrMsg;            // last error message, empty if OK
+std::string NvgrFR24Connection::sAuthVerifyURI;     // Verification URI, to be passed on to the user
+struct curl_slist* NvgrFR24Connection::pHdrToken = nullptr;   // HTTP Header containing the bearer token
+std::chrono::time_point<std::chrono::steady_clock> NvgrFR24Connection::tAccessExpiration;
+
+
+void NvgrFR24Connection::AuthInit ()
+{
+    // If process is still underway, cancel it
+    AuthCancelProcess();
+    
+    // Reset the status to the very beginning
+    std::lock_guard<std::recursive_mutex> lk(gAuthMtx);
+    eAuthState = NVGR_AUTH_NONE;
+    eAuthUI = !IsBuiltIn()                      ?   NVGR_AUTH_UI_NOTHING :
+              dataRefs.HaveNvgrRefreshToken()   ?   NVGR_AUTH_UI_REAUTH :
+                                                    NVGR_AUTH_UI_AUTH;
+    sAuthVerifyURI.clear();
+}
+
+// Triggers the process (if not NVGR_AUTH_FETCHING/WAITING)
+bool NvgrFR24Connection::AuthStartProcess ()
+{
+    std::lock_guard<std::recursive_mutex> lk(gAuthMtx);
+    // Can only start a new process if we aren't waiting for results just now
+    if ((NVGR_AUTH_FETCHING <= AuthGetState() && AuthGetState() <= NVGR_AUTH_WAITING) &&
+        thrAuth.joinable())
+        return false;
+    
+    // Make sure thread isn't running any longer
+    AuthCancelProcess();
+    
+    // Start the thread
+    eAuthState = NVGR_AUTH_FETCHING;
+    sAuthVerifyURI.clear();
+    thrAuth = std::thread(AuthMain);
+    return true;
+}
+
+// If process is underway, cancel it and wait for it to end
+void NvgrFR24Connection::AuthCancelProcess ()
+{
+    if (thrAuth.joinable()) {
+        LOG_MSG(logDEBUG, "Trying to shut down Navigraph Device Auth thread...");
+        std::unique_lock<std::recursive_mutex> lk(gAuthMtx);
+        eAuthState = NVGR_AUTH_CANCEL;
+        lk.unlock();
+        thrAuth.join();
+        LOG_MSG(logDEBUG, "Navigraph Device Auth thread shut down.");
+    }
+}
+
+// Get state of auth process
+NvgrFR24Connection::DevAuthState NvgrFR24Connection::AuthGetState ()
+{
+    std::lock_guard<std::recursive_mutex> lk(gAuthMtx);
+    return eAuthState;
+}
+
+// What to show the user just now?
+NvgrFR24Connection::DevAuthUI NvgrFR24Connection::AuthGetUI ()
+{
+    std::lock_guard<std::recursive_mutex> lk(gAuthMtx);
+    return eAuthUI;
+}
+
+// Return the verification URI, if the authorization process received and needs one
+std::string NvgrFR24Connection::AuthGetVerifyURI ()
+{
+    std::string s;
+    std::lock_guard<std::recursive_mutex> lk(gAuthMtx);
+    if (AuthGetState() == NVGR_AUTH_WAITING)    // shall only have a Verification URI if we are waiting for the user to authorize it
+        s = sAuthVerifyURI;
+    return s;
+}
+
+// Sets the new state, lock-conrolled, and save: only overwrite eOld with eNew
+bool NvgrFR24Connection::AuthSetState (DevAuthState eOld, DevAuthState eNew)
+{
+    std::lock_guard<std::recursive_mutex> lk(gAuthMtx);
+    // Not the expected old state? Don't override...some other thread probably was faster
+    if (eAuthState != eOld) {
+        LOG_MSG(logWARN, "AuthStatus is not %d as expected, but %d, hence could not change status to %d",
+                eOld, eAuthState, eNew);
+        return false;
+    }
+    // Only change if there is a change
+    if (eAuthState != eNew) {
+        eAuthState = eNew;
+        LOG_MSG(logDEBUG, "AuthStatus changed from %d to %d", eOld, eNew);
+        switch (eAuthState) {
+            case NVGR_AUTH_NONE:                // Nothing's going on right now, so offer a button to start the process
+                eAuthUI = !IsBuiltIn()                      ?   NVGR_AUTH_UI_NOTHING :
+                          dataRefs.HaveNvgrRefreshToken()   ?   NVGR_AUTH_UI_REAUTH :
+                                                                NVGR_AUTH_UI_AUTH;
+                break;
+            case NVGR_AUTH_FETCHING:            // We are waiting for a server reply, just wait
+            case NVGR_AUTH_CANCEL:              // We are waiting for the background process to shut down, just wait
+                eAuthUI = NVGR_AUTH_UI_WAIT;
+                break;
+            case NVGR_AUTH_WAITING:             // We are waiting for the user to authorize, so have the user go authroize!
+                eAuthUI = NVGR_AUTH_UI_VERIFY_URI;
+                break;
+            case NVGR_AUTH_ERROR:               // Any kind of final result: We're done.
+            case NVGR_AUTH_TIMEOUT:
+            case NVGR_AUTH_SUCCESS:
+                eAuthUI = NVGR_AUTH_UI_DONE;
+                break;
+        }
+    }
+    return true;
+}
+
+
+// Thread main function running the auth process
+void NvgrFR24Connection::AuthMain ()
+{
+    // This is a communication thread's main function, set thread's name and C locale
+    ThreadSettings TS ("LT_NvgrAuth", LC_ALL_MASK);
+    LOG_MSG(logDEBUG, "LT_NvgrAuth thread started");
+    sErrMsg.clear();
+    
+    char szBody[1024];                                      // Request body
+    std::string PKCEverifier, PKCEchallenge;                // PKCE verifier & challenge
+    std::string sDeviceCode;                                // Device code received from Navigraph
+    std::string resp;                                       // Network response
+    long httpResp;                                          // HTTP response code
+    size_t tInterval = NVGR_AUTH_INTERVAL_DEFAULT;          // how often to query auth status?
+
+    // Main loop
+    while (true) {
+        // State Machine
+        DevAuthState authState = AuthGetState();            // lock-controlled
+
+        // Need to send the initial request to initiate the flow?
+        if (authState == NVGR_AUTH_FETCHING) {
+            try {
+                // Get a PKCE Verifier and challenge
+                PKCEVerifierChallenge(PKCEverifier, PKCEchallenge);
+                // Put together the POST body
+                snprintf(szBody, sizeof(szBody), NVGR_AUTH_BODY,
+                         gsNvgrClientId.c_str(),
+                         gsNvgrClientSecret.c_str(),
+                         PKCEchallenge.c_str());
+                // Query Navigraph server, wait for the response
+                URLGet(NVGR_AUTH_URL,
+                       { "Content-Type: application/x-www-form-urlencoded" },
+                       szBody, {}, resp, httpResp);
+                
+                // Read the response as JSON and fetch what we need
+                JSONRootPtr pRoot (resp.c_str());
+                if (!pRoot) { THROW_ERROR(logERR,ERR_JSON_PARSE); }
+                JSON_Object* pObj = json_object(pRoot.get());
+                if (!pObj) { THROW_ERROR(logERR,ERR_JSON_MAIN_OBJECT); }
+                // Device Code
+                sDeviceCode = jog_s(pObj, NVGR_AUTH_DEV_CODE);
+                if (sDeviceCode.empty()) { THROW_ERROR(logERR, "Device Authorization response is missing the '" NVGR_AUTH_DEV_CODE "' field"); }
+                // Verification URI
+                std::lock_guard<std::recursive_mutex> lk(gAuthMtx);
+                sAuthVerifyURI = jog_s(pObj, NVGR_AUTH_VERIFY_URI);
+                if (sAuthVerifyURI.empty()) { THROW_ERROR(logERR, "Device Authorization response is missing the '" NVGR_AUTH_VERIFY_URI "' field"); }
+                // Polling interval
+                tInterval = (size_t)jog_l(pObj, NVGR_AUTH_INTERVAL);
+                if (!tInterval) tInterval = NVGR_AUTH_INTERVAL_DEFAULT;
+                
+                // Next expected step: wait
+                AuthSetState (NVGR_AUTH_FETCHING, NVGR_AUTH_WAITING);
+            }
+            catch (const std::exception& e) {
+                sErrMsg = TryExtractErrorMsg(resp);
+                if (sErrMsg.empty()) sErrMsg = e.what();
+                AuthSetState (NVGR_AUTH_FETCHING, NVGR_AUTH_ERROR);
+            }
+        }
+        
+        // Need to periodically fetch the status?
+        else if (authState == NVGR_AUTH_WAITING) {
+            try {
+                // Put together the POST body
+                snprintf(szBody, sizeof(szBody), NVGR_TOKEN_POLL_BODY,
+                         sDeviceCode.c_str(),
+                         PKCEverifier.c_str(),
+                         gsNvgrClientId.c_str(),
+                         gsNvgrClientSecret.c_str());
+                DevAuthState nextState = NVGR_AUTH_WAITING;
+                AuthSetState(NVGR_AUTH_WAITING, nextState);
+                // Query Navigraph server, wait for the response
+                URLGet(NVGR_TOKEN_URL,
+                       { "Content-Type: application/x-www-form-urlencoded" },
+                       szBody,
+                       { HTTP_BAD_REQUEST },        // all "errors", including expected "authorization_pending" come back as 400, which is a tad inconvenient, so we need to handle 400 all by ourselves
+                       resp, httpResp);
+                
+                // Interpret the response as JSON (even a 400 response delivers a JSON)
+                JSONRootPtr pRoot (resp.c_str());
+                if (!pRoot) { THROW_ERROR(logERR,ERR_JSON_PARSE); }
+                JSON_Object* pObj = json_object(pRoot.get());
+                if (!pObj) { THROW_ERROR(logERR,ERR_JSON_MAIN_OBJECT); }
+                
+                // HTTP_BAD_REQUEST -> handle the expected stuff, throw the unexpected
+                if (httpResp == HTTP_BAD_REQUEST) {
+                    std::string sError = jog_s(pObj, NVGR_ERROR);
+                    if (sError.empty()) sError = jog_s(pObj, NVGR_ERROR_MSG);       // unlikely...but better safe than sorry: we also try 'message' if 'error' was empty; at least good for final error reporting
+                    if (sError == "authorization_pending") { /* do nothing...just keep polling */ }
+                    else if (sError == "slow_down") { tInterval += NVGR_AUTH_INTERVAL_DEFAULT; }
+                    else if (sError == "access_denied") {
+                        dataRefs.SetNvgrRefrshToken("");            // clear any potentially saved refresh token
+                        AuthSetState (NVGR_AUTH_WAITING, NVGR_AUTH_ERROR);
+                        sErrMsg = "Access has been denied.";
+                    }
+                    else if (sError == "expired_token") { AuthSetState (NVGR_AUTH_WAITING, NVGR_AUTH_TIMEOUT); }
+                    else {
+                        THROW_ERROR(logERR, "Unexpected error while polling authorization: %s", sError.c_str());
+                    }
+                }
+                // HTTP_OK
+                else {
+                    // temporary access token and type
+                    const std::string accessToken = jog_s(pObj, NVGR_TOKEN_ACCESS);
+                    if (accessToken.empty()) { THROW_ERROR(logERR, "Device Authorization response is missing the '" NVGR_TOKEN_ACCESS "' field"); }
+                    const std::string accessType = jog_s(pObj, NVGR_TOKEN_TYPE);
+                    if (accessType.empty()) { THROW_ERROR(logERR, "Device Authorization response is missing the '" NVGR_TOKEN_TYPE "' field"); }
+                    // access token expiration
+                    long tExpiresIn = jog_l(pObj, NVGR_TOKEN_EXPIRES);
+                    if (!tExpiresIn) tExpiresIn = NVGR_AUTH_EXP_DEFAULT;
+                    tExpiresIn -= 2 * dataRefs.GetFdRefreshIntvl();           // reduce a little so we make sure we get a new token before it expires
+                    tAccessExpiration = std::chrono::steady_clock::now() + std::chrono::seconds(tExpiresIn);
+                    // refresh token (this one's long-lived and we store it in the settings)
+                    const std::string refreshToken = jog_s(pObj, NVGR_TOKEN_REFRESH);
+                    if (refreshToken.empty()) { THROW_ERROR(logERR, "Device Authorization response is missing the '" NVGR_TOKEN_REFRESH "' field"); }
+                    dataRefs.SetNvgrRefrshToken(refreshToken);
+                    // Store the access token in a CURL header
+                    snprintf(szBody, sizeof(szBody), NVGR_AUTH_HEADER,
+                             accessType.c_str(), accessToken.c_str());
+                    std::lock_guard<std::recursive_mutex> lk(gAuthMtx);
+                    CurlCleanupSlist(pHdrToken);
+                    curl_slist_append(pHdrToken, szBody);
+                    
+                    // We're done!
+                    AuthSetState (NVGR_AUTH_WAITING, NVGR_AUTH_SUCCESS);
+                }
+            }
+            catch (const std::exception& e) {
+                // all extraction has been done in the code above already
+                sErrMsg = e.what();
+                AuthSetState (NVGR_AUTH_WAITING, NVGR_AUTH_ERROR);
+            }
+        }
+        
+        // Re-Fetch state now after above processing
+        authState = AuthGetState();                         // lock-controlled
+        if (authState > NVGR_AUTH_WAITING)                  // leave the loop?
+            break;
+        
+        // Wait for a while before going back in loop
+        {
+            std::unique_lock<std::mutex> lk(gAuthCVMtx);
+            gAuthCV.wait_for(lk, std::chrono::seconds(tInterval));
+        }
+    }
+    
+    LOG_MSG(logDEBUG, "LT_NvgrAuth ended");
+}
+
+
+// Enabled this module
+bool NavigraphStart ()
+{
+    NvgrFR24Connection::AuthInit();
+    return true;
+}
+
+/// Stop this module, makes sure the auth thread shuts down
+void NavigraphStop ()
+{
+    NvgrFR24Connection::AuthCancelProcess();
+}

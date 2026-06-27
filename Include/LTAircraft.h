@@ -40,6 +40,8 @@ public:
     // wrap around at max, i.e. start over at begin?
     // (good for heading, which goes from 0 to 360)
     const bool bWrapAround;
+    // Use Smootherstep instead of linear function
+    const bool bSmootherstep;
 protected:
     // target values (tTime is NaN if we are _not_ moving
     double valFrom, valTo, valDist, timeFrom, timeTo;
@@ -51,7 +53,7 @@ protected:
 public:
     // Constructor
     MovingParam(double _dur, double _max=1.0, double _min=0.0,
-                bool _wrap_around=false);
+                bool _wrap_around=false, bool _smootherstep=false);
     void SetVal (double _val);
     
     // are we in motion? (i.e. moving from val to target?)
@@ -92,6 +94,8 @@ public:
     inline double fromTS () const   { return timeFrom; }
     inline double toTS () const     { return timeTo; }
     double percDone () const;       ///< percent done of move, returns 1.0 if not in motion
+    
+    std::string dbgTxt () const;    ///< debug output
 };
 
 // mimics acceleration / deceleration
@@ -310,6 +314,9 @@ public:
     /// lat() is NaN until the first switch has captured a real P3 —
     /// callers must check and fall back to duplicating P2.
     positionTy           posNext;
+    /// Next Position after Next, only a buffer for the 0.5s
+    /// between the call to TriggerCalcNewPos() and position switch
+    positionTy           posNextNext;
     /// Arc-length lookup table for the current ground-rendering Catmull-Rom
     /// segment. Built once per segment switch (in the same `posPrev` /
     /// `posNext` capture block) and consulted on every render frame to
@@ -320,6 +327,8 @@ public:
     /// `valid` is false until first build; the spline branch builds the
     /// LUT on demand if it sees an invalid one.
     CatmullRomArcLut     splineLut;
+    /// cSpline for altitude
+    CSpline             altSpline;
     
     std::string         labelInternal;  // internal label, e.g. for error messages
 protected:
@@ -333,59 +342,15 @@ protected:
     double              tsLastCalcRequested;
     
     // dynamic parameters of the plane
-    flightPhaseE         phase;          // current flight phase
+    flightPhaseE        phase;          // current flight phase
     double              rotateTs;       // when to rotate?
     double              vsi;            // vertical speed (ft/m)
-    /// Sim timestamp at which the aircraft transitioned from on-ground
-    /// to airborne. Used to smooth the altitude render during the first
-    /// `LIFTOFF_BLEND_TIME_S` seconds after lift-off — without this the
-    /// rendered altitude jumps from terrain level to the interpolated
-    /// climb-out altitude on a single frame. NAN when no blend is active.
-    double              liftoffBlendStartTs = NAN;
-    /// Sim timestamp at which `FPH_TOUCH_DOWN` was entered. The frame
     /// loop in `CalcFlightModel` defers the nose-down `pitch.moveTo(
     /// GND_PITCH_DEG)` until `TOUCHDOWN_HOLD_PITCH_S` seconds have
     /// elapsed since this timestamp — modelling the aerobrake during
     /// which a real airliner holds its nose up after the mains touch.
     /// Cleared back to NAN once the deferred move has fired.
     double              touchdownTs = NAN;
-    /// Terrain altitude (m, MSL) captured on the frame that the
-    /// aircraft transitioned to airborne. Used as the START of the
-    /// liftoff blend curve. Frozen so the curve does not jitter if
-    /// `terrainAlt_m` from `YProbe` changes slightly as the aircraft
-    /// moves horizontally during the blend. NAN when no blend active.
-    double              liftoffStartAlt_m = NAN;
-    /// @brief Per-aircraft archive of altitude samples used by
-    ///        `LookupAltAtTs` for its Gaussian-weighted local linear
-    ///        regression smoothing.
-    /// @details `fd.posDeque` only retains ONE past slot at any given
-    ///          render time (the loop in `LTFlightData::CalcNextPos`
-    ///          pops slots aggressively to keep the deque short).
-    ///          Running a Gaussian-weighted regression directly on
-    ///          `posDeque` therefore has the regression's weight
-    ///          concentrated on a single past sample whose Gaussian
-    ///          weight near `targetTs` is close to 1.0 — and the
-    ///          moment that sample is popped, the weighted mean
-    ///          recomputes WITHOUT it, in a single frame. For a
-    ///          climbing aircraft the just-popped slot was the low-
-    ///          altitude one, so removing it makes the mean jump up
-    ///          by tens to hundreds of feet. That is the discrete
-    ///          jump symptom the user reported despite "smoothing".
-    ///
-    ///          We mirror every slot we observe in `posDeque` into
-    ///          this archive, and the archive does NOT pop when
-    ///          `posDeque` does. The regression then runs on
-    ///          `pastAltSamples_` + `posDeque` (deduped), so popped
-    ///          slots remain in the regression with their Gaussian
-    ///          weight smoothly decaying toward zero as `targetTs`
-    ///          moves past them. No more discrete jumps at the
-    ///          deque-pop boundary.
-    ///
-    ///          Pruned per frame to keep only samples within
-    ///          ~`±10·σ` of `targetTs` — well beyond the Gaussian
-    ///          tail so the regression result is indistinguishable
-    ///          from one over the unpruned history.
-    mutable std::deque<positionTy> pastAltSamples_;
     bool                bArtificalPos;  // running on artifical positions for roll-out?
     bool                bNeedSpeed = false;     ///< need speed calculation?
     bool                bNeedCCBezier = false;  ///< need Bezier calculation due to cut-corner case?
@@ -439,8 +404,8 @@ public:
     inline const positionTy& GetPPos() const { return ppos; }
     inline positionTy GetPPosLocal() const { return positionTy(ppos).WorldToLocal(); }
     /// @brief position heading to (usually posList[1], ppos if ppos > posList[1])
-    /// @param[out] pHeading Receives heading towards to-position
-    const positionTy& GetToPos (double* pHeading = nullptr) const;
+    /// @param[out] pTrack Receives heading towards to-position
+    const positionTy& GetToPos (double* pTrack = nullptr) const;
     // have no more viable positions left, in need of more?
     bool OutOfPositions() const;
     /// periodically find the nearest airport and return a nice position string relative to it
@@ -502,23 +467,6 @@ protected:
     void CalcCorrAngle ();
     /// determines terrain altitude via XPLM's Y Probe
     bool YProbe ();
-    /// @brief Interpolate altitude (m, MSL) at an arbitrary timestamp
-    ///        across `posList`, with linear extrapolation past the end.
-    /// @details Used by the liftoff-blend code to look up the natural
-    ///          climb-out altitude at the moment the blend will end
-    ///          (`liftoffBlendStartTs + LIFTOFF_BLEND_TIME_S`). Driving
-    ///          the blend toward this future target — instead of toward
-    ///          the live `from`-to-`to` linear interp — decouples the
-    ///          rendered altitude from the slope discontinuities at each
-    ///          deque-slot boundary, eliminating the visible "kinks"
-    ///          that otherwise show up mid-blend whenever the aircraft
-    ///          crosses from one leg to the next. When the requested
-    ///          timestamp is beyond the deque's last slot, projects
-    ///          forward using the slope of the final two slots.
-    /// @param targetTs Absolute sim timestamp at which alt is wanted.
-    /// @return Interpolated/extrapolated altitude in metres MSL; falls
-    ///         back to `terrainAlt_m` if `posList` is empty.
-    double LookupAltAtTs (double targetTs) const;
     // determines if now visible
     bool CalcVisible ();
     /// Determines AI priority based on bearing to user's plane and ground status

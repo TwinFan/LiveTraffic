@@ -720,6 +720,9 @@ public:
         double best_to_y   = NAN;
         double bestPrioDist= NAN;
         distToLineTy bestDist;
+        // if we look for a rwy position we can increase search size as rwys aren't as close to each other as taxi ways
+        const bool bRwyPhase = isRwyPhase(_pos.f.flightPhase);
+        if (bRwyPhase) _maxDist_m *= 3.0;
         // maxDist^2, used in comparisons
         const double maxDist2 = sqr(_maxDist_m);
         // This is what we add to the square distance for second prio match...
@@ -755,8 +758,7 @@ public:
                 continue;
             
             // Skip edge if pos must be on a rwy but edge is not a rwy
-            if (isRwyPhase(_pos.f.flightPhase) &&
-                e.GetType() != TaxiEdge::RUN_WAY)
+            if (bRwyPhase && e.GetType() != TaxiEdge::RUN_WAY)
                 continue;
 
             // Fetch from/to nodes from the edge
@@ -2715,6 +2717,36 @@ positionTy LTAptFindRwy (const LTAircraft::FlightModel& _mdl,
                 std::string(retPos).c_str(),
                 _logTxt.c_str());
     return retPos;
+}
+
+
+/// @brief Snap to the runway if this position is over one
+/// @param _pos The position to check and potentially change
+/// @returns `true` if _pos is over a rwy
+bool LTAptSnapIfOverRwy (positionTy& _pos)
+{
+    // Access to the list of airports is guarded by a lock
+    std::unique_lock<std::recursive_timed_mutex> lock(mtxGMapApt,
+                                                      dataRefs.IsXPThread() ?
+                                                      std::chrono::milliseconds(100) :
+                                                      std::chrono::milliseconds(500));
+    if (lock) {
+        // Which airport are we looking at?
+        Apt* pApt = LTAptFind(_pos);
+        if (!pApt)                          // not a position in any airport's bounding box
+            return false;
+        
+        // Let's snap!
+        positionTy posForSeach = _pos;
+        // We trick the function into searching for RWY nodes only:
+        posForSeach.f.flightPhase = FPH_TOUCH_DOWN;
+        return pApt->FindClosestEdge(posForSeach, _pos,
+                                     dataRefs.GetFdSnapTaxiDist_m(),
+                                     ART_EDGE_ANGLE_TOLERANCE,
+                                     ART_EDGE_ANGLE_TOLERANCE_EXT) != nullptr;
+    }
+    else
+        return false;
 }
 
 

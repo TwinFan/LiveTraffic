@@ -41,6 +41,7 @@ static const CreditTy CREDITS[] = {
     { "parson", "as JSON parser",                       "https://github.com/kgabis/parson" },
     { "metaf", "for parsing METARs",                    "https://github.com/nnaumenko/metaf" },
     { "libz/zlib", "as compression library (used by CURL)", "https://zlib.net/" },
+    { "sha256", "SHA-256 implementaton by Brad Conte",  "https://github.com/B-Con/crypto-algorithms/blob/master/sha256.c" },
     { "ImGui", "for user interfaces",                   "https://github.com/ocornut/imgui" },
     { "ImgWindow", "for integrating ImGui into X-Plane windows", "https://github.com/xsquawkbox/xsb_public" },
     { "IconFontCppHeaders", "for header files for the included icon font", "https://github.com/juliettef/IconFontCppHeaders" },
@@ -586,14 +587,16 @@ void InfoListWnd::buildInterface()
                 // Thanks
                 if (ImGui::TreeNode("Thanks")) {
                     ImGui::PushTextWrapPos();
-                    ImGui::TextUnformatted("172MC, Dozo, and Sir.Anri for continued Beta testing.");
-                    ImGui::Spacing();
 
                     ImGui::TextUnformatted("Sparker for providing"); ImGui::SameLine();
                     ImGui::ButtonURL("imgui4xp", "https://github.com/sparker256/imgui4xp", nullptr, true); ImGui::SameLine();
                     ImGui::TextUnformatted("as a testbed for ImGui integration and for accepting my additions to it;");
                     ImGui::TextUnformatted("as well as for providing the initial Linux build Docker environment.");
                     ImGui::Spacing();
+                    
+                    ImGui::TextUnformatted("Balthasar Indermuehle ("); ImGui::SameLine();
+                    ImGui::ButtonURL("www.flyrealtraffic.com", "https://www.flyrealtraffic.com"); ImGui::SameLine();
+                    ImGui::TextUnformatted("for contributing plane movement improvements in v4.5.0.");
                     
                     ImGui::TextUnformatted("Crbascott for compiling and providing the"); ImGui::SameLine();
                     ImGui::ButtonURL("model_typecode.txt", "https://github.com/TwinFan/LiveTraffic/blob/master/Resources/model_typecode.txt", nullptr, true); ImGui::SameLine();
@@ -609,6 +612,12 @@ void InfoListWnd::buildInterface()
                     ImGui::ButtonURL("FontAwesome", "https://fontawesome.com/icons?d=gallery&s=solid&m=free", nullptr, true); ImGui::SameLine();
                     ImGui::TextUnformatted("for the icon font fa-solid-900.ttf " ICON_FA_PLANE);
 
+                    ImGui::TextUnformatted("Many thanks to my beta testers 172MC, Dozo, Sir.Anri, Flap, GAK, safeflight, FlyMe2dMoon, KosFlyer, akports103, Torkermax, and mainbrain!");
+                    ImGui::Spacing();
+                    
+                    ImGui::TextUnformatted("And let's not forget about the CSL model developers like Bluebell, Oktalist, and X-CSL, to name just a few. Without them there would only be labels in the sky but no planes.");
+                    ImGui::Spacing();
+                    
                     ImGui::PopTextWrapPos();
                     ImGui::TreePop();
                 }
