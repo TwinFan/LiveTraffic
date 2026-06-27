@@ -506,7 +506,7 @@ bool NvgrFR24Connection::ProcessFetchedData ()
                 if ( fd.empty() )
                     fd.SetKey(nvgrData.key);
                 
-                // Try to identify position hovering low over a rwy, we do that only if we have an a/c already
+                // Try to identify position hovering low over a rwy
                 const Doc8643* pDoc8643 = fd.GetUnsafeStat().pDoc8643;
                 if (!pDoc8643 || !pDoc8643->hasRotor())         // only do for fixed-wing aircraft
                 {
@@ -527,15 +527,20 @@ bool NvgrFR24Connection::ProcessFetchedData ()
                             if (LTAptSnapIfOverRwy(nvgrData.pos))
                             {
                                 // ...we have forced it on the ground:
-                                LOG_MSG(logDEBUG, "%s: Forcing a rwy position onto ground with max hover height = %.0fm:\n%s",
-                                        nvgrData.key.c_str(), maxHoverHeight_m, nvgrData.pos.dbgTxt().c_str());
+                                if (dataRefs.GetDebugAcPos(fd.key())) {
+                                    LOG_MSG(logDEBUG, "%s: Forcing a rwy position onto ground with max hover height = %.0fm:\n%s",
+                                            nvgrData.key.c_str(), maxHoverHeight_m, nvgrData.pos.dbgTxt().c_str());
+                                }
                                 nvgrData.pos.f.onGrnd = GND_ON;
                                 nvgrData.pos.alt_m() = NAN;
                             }
                             // Not over a rwy: ignore this position
                             else {
-                                LOG_MSG(logDEBUG, "%s: Ignoring a non-rwy hovering position with max hover height = %.0fm:\n%s",
-                                        nvgrData.key.c_str(), maxHoverHeight_m, nvgrData.pos.dbgTxt().c_str());
+                                if (dataRefs.GetDebugAcPos(fd.key())) {
+                                    LOG_MSG(logDEBUG, "%s: Ignoring a non-rwy hovering position with max hover height = %.0fm:\n%s",
+                                            nvgrData.key.c_str(), maxHoverHeight_m, nvgrData.pos.dbgTxt().c_str());
+                                }
+                                continue;
                             }
                         }
                     }

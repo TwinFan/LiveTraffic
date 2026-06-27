@@ -1658,6 +1658,9 @@ bool LTAircraft::CalcPPos()
             // Then overwrite posDeque[0] if not currently turning using a Bezier
             if (!turn.isTsInbetween(currCycle.simTime))
                 posList.front() = ppos;
+            // but even if turning by Bezier save the current heading
+            else
+                posList.front().heading() = ppos.heading();
         }
         // flag: switched positions
         bPosSwitch = true;
@@ -1810,9 +1813,10 @@ bool LTAircraft::CalcPPos()
                 // ...start the turn from the initial heading to the vector heading
                 heading.defDuration = IsOnGrnd() ? pMdl->TAXI_TURN_TIME : pMdl->FLIGHT_TURN_TIME;
                 heading.moveQuickestToBy(ppos.heading(),
-                                         vec.dist > SIMILAR_POS_DIST ?  // if vector long enough:
+                                         vec.dist > SIMILAR_POS_DIST && // if vector long enough
+                                         !to.f.bHeadFixed   ?           // and target heading not enforced:
                                          vec.angle :                    // turn to vector heading
-                                         HeadingAvg(from.heading(),to.heading()),   // otherwise only turn to avg between from- and target-heading
+                                         HeadingAvg(ppos.heading(),to.heading()),   // otherwise only turn to avg between now and target-heading
                                          NAN, from.ts()+duration/2,     // by half the vector flight time
                                          true);                         // start immediately
             }
@@ -2069,12 +2073,12 @@ bool LTAircraft::CalcPPos()
         // time across the leg, with the visible speed equal to
         // totalArc / duration. The LUT is built from the SAME
         // control points (raw `from`, smoothed P2s) used for eval.
-        if (!splineLut.valid)
+/* TODO Remove or fix? Currently heading isn't properly aligned between segments:        if (!splineLut.valid)
             splineLut.Build(posPrev, from, P2s, posNext);
-        const double uArc = splineLut.UFromArcFraction(f);
+        const double uArc = splineLut.UFromArcFraction(f); */
 
         const CatmullRomResult cr =
-            CatmullRomEvalCentripetal(posPrev, from, P2s, posNext, uArc);
+            CatmullRomEvalCentripetal(posPrev, from, P2s, posNext, f);
 
         // Convert spline result (local meters from P1) back to
         // geographic coordinates. P1 is the raw `from` (NOT smoothed,
@@ -2114,14 +2118,27 @@ bool LTAircraft::CalcPPos()
         if (from.f.bHeadFixed || to.f.bHeadFixed) {
             const double h0 = from.heading();
             const double hd = HeadingDiff(h0, to.heading());
-            ppos.heading() = HeadingNormalize(h0 + hd * f);
-            heading.SetVal(ppos.heading());
+            const double h = HeadingNormalize(h0 + hd * f);
+            
+            // output debug info on request
+            if (dataRefs.GetDebugAcPos(key())) {
+                LOG_MSG(logDEBUG,"DEBUG Spline for %s: Setting heading(fixed) from %.1f to %.1f",
+                        key().c_str(), ppos.heading(), h);
+                
+            }
+            heading.SetVal(ppos.heading() = h);
         } else {
             // Sync the MovingParam so any downstream code that reads
             // `heading.get()` sees the spline-derived value as the
-            // current state.
-            ppos.heading() = cr.headingDeg;
-            heading.SetVal(cr.headingDeg);
+            // current state.;
+
+            // output debug info on request
+            if (dataRefs.GetDebugAcPos(key())) {
+                LOG_MSG(logDEBUG,"DEBUG Spline for %s: Setting heading from %.1f to %.1f",
+                        key().c_str(), ppos.heading(), cr.headingDeg);
+                
+            }
+            heading.SetVal(ppos.heading() = cr.headingDeg);
         }
     }
     // No bezier, no spline...just linear interpolation,
@@ -2229,10 +2246,10 @@ bool LTAircraft::CalcPPos()
         // during the acceleration phase of a takeoff leg before the
         // rendered speed has caught up to the leg average, undoing
         // the Bezier-skip choice for the very legs that need it most.
-        else if (!dequal(heading.toVal(), to.heading()) &&
+        else if (!dequal(heading.toVal(), to.heading()) /* TODO: Really need this? We're now missing turns that we would have needed. Proper way is to make sure that to.heading is correct &&
                  !(IsOnGrnd() &&
                    !std::isnan(vec.speed) &&
-                   vec.speed_kn() >= GND_TRACK_HEADING_MIN_KT))
+                   vec.speed_kn() >= GND_TRACK_HEADING_MIN_KT)*/)
         {
             heading.defDuration = IsOnGrnd() ? pMdl->TAXI_TURN_TIME : pMdl->FLIGHT_TURN_TIME;
             heading.moveQuickestToBy(ppos.heading(), to.heading(), // target heading
