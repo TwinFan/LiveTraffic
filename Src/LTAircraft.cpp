@@ -1972,7 +1972,8 @@ bool LTAircraft::CalcPPos()
     //
     // Spline is used in case of
     // reasonable large distances (not jitter)
-    // TODO: Use Spline more generically
+    // TODO: Splines currently break more than they fix...re-implement based on OpenGL coordinates, not Lat/Lon, and maybe take taxiways better into account
+/*
     else if (f <= 1.0 && from.IsOnGnd() && to.IsOnGnd() &&
              !to.f.bCutCorner &&                    // For a cut-corner 'to' position we are going to create a Bezier later
              vec.dist >= GND_SPLINE_MIN_CHORD_M &&
@@ -2073,9 +2074,9 @@ bool LTAircraft::CalcPPos()
         // time across the leg, with the visible speed equal to
         // totalArc / duration. The LUT is built from the SAME
         // control points (raw `from`, smoothed P2s) used for eval.
-/* TODO Remove or fix? Currently heading isn't properly aligned between segments:        if (!splineLut.valid)
-            splineLut.Build(posPrev, from, P2s, posNext);
-        const double uArc = splineLut.UFromArcFraction(f); */
+// TODO Remove or fix? Currently heading isn't properly aligned between segments:        if (!splineLut.valid)
+//            splineLut.Build(posPrev, from, P2s, posNext);
+//        const double uArc = splineLut.UFromArcFraction(f); 
 
         const CatmullRomResult cr =
             CatmullRomEvalCentripetal(posPrev, from, P2s, posNext, f);
@@ -2140,7 +2141,7 @@ bool LTAircraft::CalcPPos()
             }
             heading.SetVal(ppos.heading() = cr.headingDeg);
         }
-    }
+    } */
     // No bezier, no spline...just linear interpolation,
     // heading comes from the moving parameter define during pos switch
     else {
