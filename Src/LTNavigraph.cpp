@@ -513,9 +513,8 @@ bool NvgrFR24Connection::ProcessFetchedData ()
                     // The max hover height is about 12s of "initial climb"
                     const LTAircraft::FlightModel& mdl = LTAircraft::FlightModel::FindFlightModel(fd, false);
                     const double maxHoverHeight_m = M_per_FT * mdl.VSI_INIT_CLIMB * NVGR_MAX_RWY_HOVER_CLIMB_DUR_S / 60.0;
-                    ;
-                    if (!nvgrData.pos.IsOnGnd() &&                          // not on ground
-                        nvgrData.pos.alt_m() < HIGHEST_AIRPORT_M + maxHoverHeight_m)   // low enough to be potentially hovering low over an airport?
+                    if (!nvgrData.pos.IsOnGnd() &&                                      // not on ground
+                        nvgrData.pos.alt_m() < HIGHEST_AIRPORT_M + maxHoverHeight_m)    // low enough to be potentially hovering low over an airport?
                     {
                         // Do we have a ground situation in the data,
                         // for which the incoming position could be a lift-off position?
@@ -523,16 +522,20 @@ bool NvgrFR24Connection::ProcessFetchedData ()
                         if (!std::isnan(gndAlt_m) &&
                             nvgrData.pos.alt_m() < gndAlt_m + maxHoverHeight_m)
                         {
-                            // TODO: Check if the pos is over a Rwy...we need this LTApt::IsRwyPos function
                             // So this new data comes right after a gnd position and is pretty low...
-                            // ...we force it on the ground:
-                            LOG_MSG(logDEBUG, "%s: Forcing a position onto ground with max hover height = %.0fm:\n%s",
-                                    nvgrData.key.c_str(), maxHoverHeight_m, nvgrData.pos.dbgTxt().c_str());
-                            nvgrData.pos.f.onGrnd = GND_ON;
-                            nvgrData.pos.alt_m() = NAN;
-                            // output all positional information as debug info on request
-                            if (dataRefs.GetDebugAcPos(nvgrData.key)) {
-                                LOG_MSG(logDEBUG,DBG_POS_DATA,fd.Positions2String().c_str());
+                            // is it also above a runway? (then pos is snapped to the rwy)
+                            if (LTAptSnapIfOverRwy(nvgrData.pos))
+                            {
+                                // ...we have forced it on the ground:
+                                LOG_MSG(logDEBUG, "%s: Forcing a rwy position onto ground with max hover height = %.0fm:\n%s",
+                                        nvgrData.key.c_str(), maxHoverHeight_m, nvgrData.pos.dbgTxt().c_str());
+                                nvgrData.pos.f.onGrnd = GND_ON;
+                                nvgrData.pos.alt_m() = NAN;
+                            }
+                            // Not over a rwy: ignore this position
+                            else {
+                                LOG_MSG(logDEBUG, "%s: Ignoring a non-rwy hovering position with max hover height = %.0fm:\n%s",
+                                        nvgrData.key.c_str(), maxHoverHeight_m, nvgrData.pos.dbgTxt().c_str());
                             }
                         }
                     }

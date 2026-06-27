@@ -57,6 +57,20 @@ inline positionTy LTAptFindRwy (const LTAircraft& _ac, std::string& _rwyId, bool
                          bDoLogging ? std::string(_ac) : "");
 }
 
+/// @brief Snap to the runway if this position is over one
+/// @param _pos The position to check and potentially change
+/// @returns `true` if _pos is over a rwy
+bool LTAptSnapIfOverRwy (positionTy& _pos);
+
+/// @brief Is this position over a runway?
+/// @param _pos The position to check
+/// @returns `true` if _pos is over a rwy
+inline bool LTAptIsOverRwy (const positionTy& _pos)
+{
+    positionTy pos = _pos;
+    return LTAptSnapIfOverRwy(pos);
+}
+
 /// @brief Find close-by startup position
 /// @param pos Searching around this position
 /// @param maxDist Max search distance

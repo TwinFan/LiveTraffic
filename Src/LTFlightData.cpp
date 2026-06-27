@@ -3626,14 +3626,15 @@ double LTFlightData::GetLastPosGndAlt_m () const
     // access to our queue guarded by a mutex
     std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
 
-    // check out the last position, either from posDeque, or the plane's `to` position
-    const positionTy* pPos = nullptr;
-    if (!posDeque.empty()) pPos = &posDeque.back();
-    else if (hasAc()) pPos = &GetAircraft()->GetToPos();
-
-    // if that pos exists and is on the ground return its altitude
-    if (pPos && pPos->IsOnGnd())
-        return pPos->alt_m();
+    // check out the last position, either from posDeque, or the plane's `to` position, to find one on the ground with an altitude
+    for (const positionTy& pos: posDeque)
+    {
+        if (pos.IsOnGnd() && !std::isnan(pos.alt_m()))
+            return pos.alt_m();
+    }
+    
+    if (hasAc())
+        return GetAircraft()->GetTerrainAlt_m();
     
     return NAN;
 }

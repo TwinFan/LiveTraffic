@@ -2720,6 +2720,36 @@ positionTy LTAptFindRwy (const LTAircraft::FlightModel& _mdl,
 }
 
 
+/// @brief Snap to the runway if this position is over one
+/// @param _pos The position to check and potentially change
+/// @returns `true` if _pos is over a rwy
+bool LTAptSnapIfOverRwy (positionTy& _pos)
+{
+    // Access to the list of airports is guarded by a lock
+    std::unique_lock<std::recursive_timed_mutex> lock(mtxGMapApt,
+                                                      dataRefs.IsXPThread() ?
+                                                      std::chrono::milliseconds(100) :
+                                                      std::chrono::milliseconds(500));
+    if (lock) {
+        // Which airport are we looking at?
+        Apt* pApt = LTAptFind(_pos);
+        if (!pApt)                          // not a position in any airport's bounding box
+            return false;
+        
+        // Let's snap!
+        positionTy posForSeach = _pos;
+        // We trick the function into searching for RWY nodes only:
+        posForSeach.f.flightPhase = FPH_TOUCH_DOWN;
+        return pApt->FindClosestEdge(posForSeach, _pos,
+                                     dataRefs.GetFdSnapTaxiDist_m(),
+                                     ART_EDGE_ANGLE_TOLERANCE,
+                                     ART_EDGE_ANGLE_TOLERANCE_EXT) != nullptr;
+    }
+    else
+        return false;
+}
+
+
 // Find close-by startup position
 positionTy LTAptFindStartupLoc (const positionTy& pos,
                                 double maxDist,
