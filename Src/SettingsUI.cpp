@@ -459,9 +459,8 @@ void LTSettingsUI::buildInterface()
                                            sFilter, nOpCl))
             {
                 // If ADSBHub has just been enabled then, as a courtesy,
-                // we also make sure that OpenSky Master data is enabled
+                // we also make sure that OpenSky Masterdata File is enabled as it doesn't send a/c type info
                 if (!bWasADSBHubEnabled && dataRefs.IsChannelEnabled(DR_CHANNEL_ADSB_HUB)) {
-                    dataRefs.SetChannelEnabled(DR_CHANNEL_OPEN_SKY_AC_MASTERDATA, true);
                     dataRefs.SetChannelEnabled(DR_CHANNEL_OPEN_SKY_AC_MASTERFILE, true);
                 }
                 
@@ -706,7 +705,6 @@ void LTSettingsUI::buildInterface()
             }
             
             // --- Navigraph / Flightradar24 ---
-            const bool bWasNvgrEnabled = dataRefs.IsChannelEnabled(DR_CHANNEL_NVGR_FR24);
             if (ImGui::TreeNodeCbxLinkHelp("Navigraph/FR24", nCol,
                                            DR_CHANNEL_NVGR_FR24, "Connect to Navigraph for Flightradar24 tracking data, requires Navigraph Unlimited",
                                            ICON_FA_EXTERNAL_LINK_SQUARE_ALT " " NVGR_CHECK_NAME,

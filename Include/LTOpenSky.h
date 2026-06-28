@@ -111,19 +111,6 @@ protected:
 constexpr std::chrono::duration OPSKY_WAIT_BETWEEN = std::chrono::milliseconds( 300);   ///< Wait between immediate requests to OpenSky Master
 constexpr std::chrono::duration OPSKY_WAIT_NOQUEUE = std::chrono::milliseconds(3000);   ///< Wait if there is no request in the queue
 #define OPSKY_MD_NAME           "OpenSky Masterdata Online"
-#define OPSKY_MD_URL            "https://opensky-network.org/api/metadata/aircraft/icao/"
-#define OPSKY_MD_TRANSP_ICAO    "icao24"
-#define OPSKY_MD_COUNTRY        "country"
-#define OPSKY_MD_MAN            "manufacturerName"
-#define OPSKY_MD_MDL            "model"
-#define OPSKY_MD_OP_ICAO        "operatorIcao"
-#define OPSKY_MD_OP             "owner"
-#define OPSKY_MD_REG            "registration"
-#define OPSKY_MD_AC_TYPE_ICAO   "typecode"
-#define OPSKY_MD_CAT_DESCR      "categoryDescription"
-#define OPSKY_MD_TEXT_VEHICLE   "Surface Vehicle"
-constexpr size_t OPSKY_MD_TEXT_VEHICLE_LEN = 20;    ///< length after which category description might contain useful text in case of a Surface Vehicle
-#define OPSKY_MD_TEXT_NO_CAT    "No ADS-B Emitter Category Information"
 
 #define OPSKY_ROUTE_URL         "https://opensky-network.org/api/routes?callsign="
 #define OPSKY_ROUTE_CALLSIGN    "callsign"
@@ -146,7 +133,6 @@ public:
 protected:
     bool AcceptRequest (const acStatUpdateTy& requ) override;       ///< accept requests that aren't in the ignore lists
     void Main () override;                                          ///< virtual thread main function
-    bool ProcessMasterData (JSON_Object* pJAc);                     ///< Process received aircraft master data
     bool ProcessRouteInfo (JSON_Object* pJRoute);                   ///< Process received route info
 };
 

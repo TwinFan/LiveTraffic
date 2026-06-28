@@ -795,7 +795,6 @@ ILWrect (0, 400, 965, 0)
     bChannel[DR_CHANNEL_AIRPLANES_LIVE          - DR_CHANNEL_FIRST] = true;
     bChannel[DR_CHANNEL_ADSB_FI_ONLINE          - DR_CHANNEL_FIRST] = true;
     bChannel[DR_CHANNEL_OPEN_SKY_ONLINE         - DR_CHANNEL_FIRST] = true;
-    bChannel[DR_CHANNEL_OPEN_SKY_AC_MASTERDATA  - DR_CHANNEL_FIRST] = true;
     bChannel[DR_CHANNEL_OPEN_SKY_AC_MASTERFILE  - DR_CHANNEL_FIRST] = true;
     bChannel[DR_CHANNEL_OPEN_GLIDER_NET         - DR_CHANNEL_FIRST] = true;
     bChannel[DR_CHANNEL_SYNTHETIC               - DR_CHANNEL_FIRST] = true;
@@ -2278,6 +2277,9 @@ bool DataRefs::LoadConfigFile()
                         // Switching on OpenSky Master File (was switched of with v4.3.6)
                         if (*i == DATA_REFS_LT[DR_CHANNEL_OPEN_SKY_AC_MASTERFILE])
                             sVal = "1";
+                        // Switching off OpenSky Master Data
+                        if (*i == DATA_REFS_LT[DR_CHANNEL_OPEN_SKY_AC_MASTERDATA])
+                            sVal = "0";
                         break;
                 }
                 
@@ -2578,9 +2580,8 @@ void DataRefs::SetChannelEnabled (dataRefsLT ch, bool bEnable)
 {
     bChannel[ch - DR_CHANNEL_FIRST] = bEnable;
 
-    // If OpenSky Tracking is enabled then make sure OpenSky Master is also
+    // If OpenSky Tracking is enabled then make sure OpenSky Master File is also
     if (IsChannelEnabled(DR_CHANNEL_OPEN_SKY_ONLINE)) {
-        bChannel[DR_CHANNEL_OPEN_SKY_AC_MASTERDATA - DR_CHANNEL_FIRST] = true;
         bChannel[DR_CHANNEL_OPEN_SKY_AC_MASTERFILE - DR_CHANNEL_FIRST] = true;
     }
 
