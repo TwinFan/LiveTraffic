@@ -482,6 +482,10 @@ protected:
     bool ProcessRecvedWeatherData (const char* weather);                                      ///< Process UDP weather JSON from RT Application
     std::string GetSlug (unsigned long hex) const;          ///< returns a slug string for a given hex id
     
+    /// For placeholder planes with an "FF" hex id check for duplicates based on call sign
+    bool IsPlacehoderAndDuplicate (const LTFlightData::FDKeyTy& fdKey,
+                                   const std::string& call) const;
+    
     /// Determine timestamp adjustment necessary in case of historic data
     void AdjustTimestamp (double& ts, int nBuffer);
     /// Return a string describing the current timestamp adjustment
