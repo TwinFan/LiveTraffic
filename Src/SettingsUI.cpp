@@ -319,8 +319,8 @@ void LTSettingsUI::buildInterface()
                 bool bDoSave = false;               // shall the "Save" be executed?
                 OpenSkyConnection* pOpenSkyCh = dynamic_cast<OpenSkyConnection*>(LTFlightDataGetCh(DR_CHANNEL_OPEN_SKY_ONLINE));
                 
-                ImGui::FilteredCfgCheckbox("OpenSky Network Master Data", sFilter, DR_CHANNEL_OPEN_SKY_AC_MASTERDATA, "Query OpenSky for aicraft master data like type, registration...");
-                ImGui::FilteredCfgCheckbox("OpenSky Network Master File", sFilter, DR_CHANNEL_OPEN_SKY_AC_MASTERFILE, "Download aircraft database from OpenSky and use it for master data like type, registration...");
+                ImGui::FilteredCfgCheckbox("OpenSky Aircraft DB File", sFilter, DR_CHANNEL_OPEN_SKY_AC_MASTERFILE, "Download aircraft database from OpenSky and use it for master data like type, registration...");
+                ImGui::FilteredCfgCheckbox("OpenSky Route Info", sFilter, DR_CHANNEL_OPEN_SKY_AC_MASTERDATA, "Query OpenSky for route information (departure, destination airports) by call sign.");
 
                 // Hint that registered users have more allowed requests
                 if (!*sFilter && (sOpenSkyClientId.empty() || sOpenSkySecret.empty())) {

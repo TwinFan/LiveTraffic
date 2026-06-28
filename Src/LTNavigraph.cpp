@@ -356,7 +356,7 @@ bool NvgrFR24Connection::ProcessFetchedData ()
                          pszChName, errMsg.c_str());
                 SetValid(false,false);
                 SetEnable(false);
-                dataRefs.SetNvgrRefrshToken("");
+                dataRefs.SetNvgrRefrshToken("", false);
                 AuthInit();
                 return false;
             }
@@ -832,11 +832,11 @@ void NvgrFR24Connection::AuthMain ()
                 // HTTP_BAD_REQUEST -> handle the expected stuff, throw the unexpected
                 if (httpResp == HTTP_BAD_REQUEST) {
                     std::string sError = jog_s(pObj, NVGR_ERROR);
-                    if (sError.empty()) sError = jog_s(pObj, NVGR_ERROR_MSG);       // unlikely...but better safe than sorry: we also try 'message' if 'error' was empty; at least good for final error reporting
+                    if (sError.empty()) sError = jog_s(pObj, NVGR_ERROR_MSG);   // unlikely...but better safe than sorry: we also try 'message' if 'error' was empty; at least good for final error reporting
                     if (sError == "authorization_pending") { /* do nothing...just keep polling */ }
                     else if (sError == "slow_down") { tInterval += NVGR_AUTH_INTERVAL_DEFAULT; }
                     else if (sError == "access_denied") {
-                        dataRefs.SetNvgrRefrshToken("");            // clear any potentially saved refresh token
+                        dataRefs.SetNvgrRefrshToken("", false);                 // clear any potentially saved refresh token
                         AuthSetState (NVGR_AUTH_WAITING, NVGR_AUTH_ERROR);
                         sErrMsg = "Access has been denied.";
                     }
