@@ -32,6 +32,7 @@
 //MARK: ADSBHub Constants
 //
 
+#define ADSBHUB_NAME            "ADSBHub"                   ///< Human-readable Name of connection
 #define ADSBHUB_CHECK_NAME      "ADSBHub Coverage"
 #define ADSBHUB_CHECK_URL       "https://www.adsbhub.org/coverage.php"
 #define ADSBHUB_CHECK_POPUP     "Check ADSBHub's coverage"

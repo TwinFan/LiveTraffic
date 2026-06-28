@@ -110,7 +110,7 @@ protected:
 
 constexpr std::chrono::duration OPSKY_WAIT_BETWEEN = std::chrono::milliseconds( 300);   ///< Wait between immediate requests to OpenSky Master
 constexpr std::chrono::duration OPSKY_WAIT_NOQUEUE = std::chrono::milliseconds(3000);   ///< Wait if there is no request in the queue
-#define OPSKY_MD_NAME           "OpenSky Masterdata Online"
+#define OPSKY_MD_NAME           "OpenSky Route Info"
 
 #define OPSKY_ROUTE_URL         "https://opensky-network.org/api/routes?callsign="
 #define OPSKY_ROUTE_CALLSIGN    "callsign"
@@ -140,7 +140,7 @@ protected:
 //MARK: OpenSkyAcMasterFile
 //
 
-#define OPSKY_MDF_NAME          "OpenSky Masterdata File"
+#define OPSKY_MDF_NAME          "OpenSky Aircraft DB File"
 #define OPSKY_MDF_URL           "https://s3.opensky-network.org/data-samples/metadata/"
 #define OPSKY_MDF_FILE_BEGIN    "aircraft-database-complete-"
 #define OPSKY_MDF_FILE          "aircraft-database-complete-%04d-%02d.csv"
