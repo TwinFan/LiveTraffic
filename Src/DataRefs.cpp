@@ -796,6 +796,7 @@ ILWrect (0, 400, 965, 0)
     bChannel[DR_CHANNEL_ADSB_FI_ONLINE          - DR_CHANNEL_FIRST] = true;
     bChannel[DR_CHANNEL_OPEN_SKY_ONLINE         - DR_CHANNEL_FIRST] = true;
     bChannel[DR_CHANNEL_OPEN_SKY_AC_MASTERDATA  - DR_CHANNEL_FIRST] = true;
+    bChannel[DR_CHANNEL_OPEN_SKY_AC_MASTERFILE  - DR_CHANNEL_FIRST] = true;
     bChannel[DR_CHANNEL_OPEN_GLIDER_NET         - DR_CHANNEL_FIRST] = true;
     bChannel[DR_CHANNEL_SYNTHETIC               - DR_CHANNEL_FIRST] = true;
 
@@ -2122,7 +2123,7 @@ bool DataRefs::LoadConfigFile()
 
     // which conversion to do with the (older) version of the config file?
     unsigned long cfgFileVer = 0;
-    enum cfgFileConvE { CFG_NO_CONV=0, CFG_V3, CFG_V31, CFG_V331, CFG_V342, CFG_V350, CFG_V420, CFG_V436 } conv = CFG_NO_CONV;
+    enum cfgFileConvE { CFG_NO_CONV=0, CFG_V3, CFG_V31, CFG_V331, CFG_V342, CFG_V350, CFG_V420, CFG_V460 } conv = CFG_NO_CONV;
     
     // open a config file
     std::string sFileName (LTCalcFullPath(PATH_CONFIG_FILE));
@@ -2182,8 +2183,8 @@ bool DataRefs::LoadConfigFile()
                 cfgFileVer += std::stoul(m[3]);
             
             // any conversions required?
-            if (cfgFileVer < 40306)         // < 4.3.6: Switch off OpenSky Master File
-                conv = CFG_V436;
+            if (cfgFileVer < 40600)         // < 4.6.0: Switch on OpenSky Master File again (was switched off in v4.3.6, but now the online service stopped working)
+                conv = CFG_V460;
             if (cfgFileVer < 40200)         // < 4.2.0: Clear ADSBEx API key (switch to other service)
                 conv = CFG_V420;
             if (cfgFileVer < 30500) {       // < 3.5.0
@@ -2273,10 +2274,10 @@ bool DataRefs::LoadConfigFile()
                         if (*i == DATA_REFS_LT[DR_CHANNEL_ADSB_EXCHANGE_ONLINE])
                             sVal = "0";
                         [[fallthrough]];
-                    case CFG_V436:
-                        // Switching off OpenSky Master File
+                    case CFG_V460:
+                        // Switching on OpenSky Master File (was switched of with v4.3.6)
                         if (*i == DATA_REFS_LT[DR_CHANNEL_OPEN_SKY_AC_MASTERFILE])
-                            sVal = "0";
+                            sVal = "1";
                         break;
                 }
                 
@@ -2580,6 +2581,7 @@ void DataRefs::SetChannelEnabled (dataRefsLT ch, bool bEnable)
     // If OpenSky Tracking is enabled then make sure OpenSky Master is also
     if (IsChannelEnabled(DR_CHANNEL_OPEN_SKY_ONLINE)) {
         bChannel[DR_CHANNEL_OPEN_SKY_AC_MASTERDATA - DR_CHANNEL_FIRST] = true;
+        bChannel[DR_CHANNEL_OPEN_SKY_AC_MASTERFILE - DR_CHANNEL_FIRST] = true;
     }
 
     // When the user enables a channel we also reset its validity flag.

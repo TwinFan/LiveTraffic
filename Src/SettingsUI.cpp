@@ -462,6 +462,7 @@ void LTSettingsUI::buildInterface()
                 // we also make sure that OpenSky Master data is enabled
                 if (!bWasADSBHubEnabled && dataRefs.IsChannelEnabled(DR_CHANNEL_ADSB_HUB)) {
                     dataRefs.SetChannelEnabled(DR_CHANNEL_OPEN_SKY_AC_MASTERDATA, true);
+                    dataRefs.SetChannelEnabled(DR_CHANNEL_OPEN_SKY_AC_MASTERFILE, true);
                 }
                 
                 // ADSBHub's connection status details
@@ -715,12 +716,6 @@ void LTSettingsUI::buildInterface()
                                            sFilter, nOpCl))
             {
                 if (NvgrFR24Connection::IsBuiltIn()) {
-                    // If Navigraph has just been enabled then, as a courtesy,
-                    // we also make sure that OpenSky Master data is enabled
-                    if (!bWasNvgrEnabled && dataRefs.IsChannelEnabled(DR_CHANNEL_NVGR_FR24)) {
-                        dataRefs.SetChannelEnabled(DR_CHANNEL_OPEN_SKY_AC_MASTERDATA, true);
-                    }
-                    
                     // Reset the UI status some time after completion, so we can start over?
                     if (tNvgrReset.time_since_epoch().count() > 0 &&
                         std::chrono::steady_clock::now() >=  tNvgrReset)
@@ -802,7 +797,6 @@ void LTSettingsUI::buildInterface()
                                     case NvgrFR24Connection::NVGR_AUTH_SUCCESS:
                                         ImGui::TextWrapped("LiveTraffic is successfully authorized.");
                                         dataRefs.SetChannelEnabled(DR_CHANNEL_NVGR_FR24, true);
-                                        dataRefs.SetChannelEnabled(DR_CHANNEL_OPEN_SKY_AC_MASTERDATA, true);
                                         break;
                                     default:
                                         ImGui::TextWrapped("Authorization failed, see status below:");

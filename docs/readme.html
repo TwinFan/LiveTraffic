@@ -151,7 +151,16 @@
         <li>Added new <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/navigraph">channel <b>Navigraph/FR24</b></a>.
             You need a <a href="https://navigraph.com/available-products">Navigraph Unlimited subscription</a>.
             Refresh is restricted by Navigraph to 20s period / 150km (80nm) range.</li>
-        <li>Fixed some effects of the flight model changes introduced in v4.5, especially handling of altitude,
+        <li><b>OpenSky Masterdata</b> is needed for OpenSky and some other simpler channels to find the aircraft type
+            of a plane identified by ADS-B id.<br>
+            The OpenSky Masterdata <b>Online</b> channel is no longer available for aircraft info (it was an undocumented API all along).
+            It is still being used for route info, but also that is an undocumented API and may cease soon.<br>
+            The OpenSky Masterdata <b>File</b> interface has been resurrected and is now again enabled by default.
+            LiveTraffic is changed to now allow for the rather slow but steady download of the database file from OpenSky over several minutes.<br>
+            Also this allows for a download of the 2025-08 file only. OpenSky is not currently maintaining this information in an accessible way.
+            Will implement other ways of downloading aircraft info by ADS-B hex id in a future version.
+        </li>
+        <li>Fixed some effects of the <b>flight model changes</b> introduced in v4.5, especially handling of altitude,
             some handling of heading. Not all perfect yet, more fundamental design changes to come.</li>
         </li>
     </ul>

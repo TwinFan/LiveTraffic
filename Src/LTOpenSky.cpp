@@ -1024,8 +1024,8 @@ bool OpenSkyAcMasterFile::OpenDatabaseFile ()
     tm.tm_year += 1900;
     tm.tm_mon++;
     
-    // Try this month and two previous months
-    for (int i = 2; i >= 0; --i) {
+    // Try this month and the previous months
+    for (int i = 1; i >= 0; --i) {
         if (TryOpenDbFile(tm.tm_year, tm.tm_mon))
             return true;
         // try previous month, potentially rolling back to previous year
@@ -1035,8 +1035,13 @@ bool OpenSkyAcMasterFile::OpenDatabaseFile ()
         }
     }
     
-    // as a last resort: we _know_ that the file for FEB-2025 was there
-    return TryOpenDbFile(2025, 2);
+    // as a last resort: we _know_ that the file for AUG-2025 was there
+    if (!TryOpenDbFile(2025, 8)) {
+        LOG_MSG(logERR, "%s: Could not download/open any aircraft database file, which may affect aircraft type derivation, hence proper representation of planes.",
+                ChName());
+        return false;
+    }
+    return true;
 }
 
 
@@ -1067,7 +1072,7 @@ bool OpenSkyAcMasterFile::TryOpenDbFile (int year, int month)
             url += sAcDbfileName;
             LOG_MSG(logDEBUG, "Trying to download %s", url.c_str());
             if (!RemoteFileDownload(url,filePath)) {
-                LOG_MSG(logWARN, "Download of %s unavailable", url.c_str());
+                LOG_MSG(logINFO, "Download of %s unavailable", url.c_str());
                 return false;
             }
 
@@ -1180,7 +1185,7 @@ bool OpenSkyAcMasterFile::TryOpenDbFile (int year, int month)
         return true;
         
     } catch (const std::exception& e) {
-        LOG_MSG(logERR, "Could not download/open a/c database file '%s': %s", sAcDbfileName, e.what());
+        LOG_MSG(logINFO, "Could not download/open a/c database file '%s': %s", sAcDbfileName, e.what());
     } catch (...) {
         LOG_MSG(logERR, "Could not download/open a/c database file '%s'", sAcDbfileName);
     }
