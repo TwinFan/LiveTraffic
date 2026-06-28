@@ -637,7 +637,6 @@ bool LTOnlineChannel::InitCurl ()
     curl_easy_setopt(pCurl, CURLOPT_TCP_KEEPALIVE, 1L);
     curl_easy_setopt(pCurl, CURLOPT_TCP_KEEPIDLE,  20L);
     curl_easy_setopt(pCurl, CURLOPT_TCP_KEEPINTVL, 10L);
-    curl_easy_setopt(pCurl, CURLOPT_FORBID_REUSE,  1L);
 
     // success
     return true;

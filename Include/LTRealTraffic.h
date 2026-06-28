@@ -430,6 +430,8 @@ protected:
     // MARK: Direct Connection by Request/Reply
 protected:
     void MainDirect ();                                     ///< thread main function for the direct connection
+    bool InitCurl () override;                              ///< sets CURLOPT_FORBID_REUSE
+
     /// Which request do we need next and when can we send it?
     std::chrono::time_point<std::chrono::steady_clock> SetRequType (const positionTy& pos);
 public:

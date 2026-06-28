@@ -282,6 +282,18 @@ void RealTrafficConnection::MainDirect ()
         WeatherReset();
 }
 
+
+bool RealTrafficConnection::InitCurl ()
+{
+    if (LTFlightDataChannel::InitCurl()) {
+        // Balt preferred this option for RealTraffic, which I don't want for all the other channels
+        curl_easy_setopt(pCurl, CURLOPT_FORBID_REUSE,  1L);
+        return true;
+    }
+    return false;
+}
+
+
 // Which request do we need next and when?
 std::chrono::time_point<std::chrono::steady_clock> RealTrafficConnection::SetRequType (const positionTy& _pos)
 {
