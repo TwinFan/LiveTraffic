@@ -430,6 +430,8 @@ protected:
     // MARK: Direct Connection by Request/Reply
 protected:
     void MainDirect ();                                     ///< thread main function for the direct connection
+    bool InitCurl () override;                              ///< sets CURLOPT_FORBID_REUSE
+
     /// Which request do we need next and when can we send it?
     std::chrono::time_point<std::chrono::steady_clock> SetRequType (const positionTy& pos);
 public:
@@ -479,6 +481,10 @@ protected:
     bool ProcessAITFC (LTFlightData::FDKeyTy& fdKey, const std::vector<std::string>& tfc, int nBuffer);
     bool ProcessRecvedWeatherData (const char* weather);                                      ///< Process UDP weather JSON from RT Application
     std::string GetSlug (unsigned long hex) const;          ///< returns a slug string for a given hex id
+    
+    /// For placeholder planes with an "FF" hex id check for duplicates based on call sign
+    bool IsPlacehoderAndDuplicate (const LTFlightData::FDKeyTy& fdKey,
+                                   const std::string& call) const;
     
     /// Determine timestamp adjustment necessary in case of historic data
     void AdjustTimestamp (double& ts, int nBuffer);

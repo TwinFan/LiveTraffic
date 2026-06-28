@@ -1522,27 +1522,6 @@ void LTFlightData::CalcNextPosMain ()
                 }
             }
         }
-            
-        // Periodic prune of `FF****` placeholder-hex duplicates.
-        //
-        // Some upstream ingest paths emit aircraft with synthetic
-        // `FF****` hex IDs when the source does not carry a real ICAO
-        // code. When a real-ICAO source later picks up the same callsign,
-        // we end up with two LTFlightData entries (one per hex) and two
-        // rendered aircraft. The prune walks mapFd and invalidates any
-        // FF-hex entry whose callsign matches a non-FF entry. Throttled
-        // to once every 10 s because the scan locks mapFd, and the
-        // duplicate condition develops over many seconds (placeholder
-        // appears, real-hex picks up 5-60 s later) — running per-flight-
-        // loop would be wasteful.
-        {
-            static std::chrono::steady_clock::time_point lastPrune;
-            const auto now = std::chrono::steady_clock::now();
-            if (now - lastPrune >= std::chrono::seconds(10)) {
-                lastPrune = now;
-                LTFlightData::PrunePlaceholderHexDuplicates();
-            }
-        }
         
         // sleep till woken up for processing or stopping
         {
@@ -4096,71 +4075,6 @@ void LTFlightData::UpdateAllModels ()
     }
 }
 
-// Prune `FF****` placeholder-hex duplicates.
-//
-// See header doc for full rationale. Two-pass design:
-//   pass 1 — collect callsigns held by non-FF (real-hex) entries
-//   pass 2 — invalidate any FF entry whose callsign is in the set
-//
-// Two passes are necessary because we cannot decide-and-invalidate in
-// a single sweep: a real-hex entry may be discovered AFTER its FF
-// counterpart in map iteration order, and we would miss the prune.
-//
-// Performance: O(N) for N entries in mapFd, run from the main thread.
-// The scan walks raw `mapFd` keys and uses `GetUnsafeStat()` to read
-// callsigns without per-entry mutex acquisition — racy but acceptable:
-// the worst case is a stale callsign read that we re-evaluate on the
-// next call (this method is intended to be invoked periodically, not
-// once-per-frame).
-void LTFlightData::PrunePlaceholderHexDuplicates ()
-{
-    try {
-        // Hold the map mutex for the whole pass: we both read and
-        // potentially SetInvalid entries within it, and any concurrent
-        // erase from the cleanup pipeline must not race with our
-        // iteration.
-        std::lock_guard<std::mutex> lock (mapFdMutex);
-
-        // Lambda: does the hex key start with "FF" (case-insensitive)?
-        // FDKeyTy::key is the canonical uppercase hex string per
-        // SetKey()'s normalization, but we tolerate either case here
-        // for robustness.
-        auto isPlaceholderHex = [](const std::string& hex) -> bool {
-            return hex.length() >= 2 &&
-                   (hex[0] == 'F' || hex[0] == 'f') &&
-                   (hex[1] == 'F' || hex[1] == 'f');
-        };
-
-        // Pass 1: collect callsigns from real-hex (non-FF) entries.
-        // Skip entries with empty callsigns — they cannot be matched.
-        std::set<std::string> realHexCallsigns;
-        for (const auto& fdPair : mapFd) {
-            if (isPlaceholderHex(fdPair.first.key))
-                continue;
-            const std::string& call = fdPair.second.GetUnsafeStat().call;
-            if (!call.empty())
-                realHexCallsigns.insert(call);
-        }
-
-        // Pass 2: invalidate FF entries whose callsign is held by a
-        // real-hex entry. SetInvalid(true) also drops the rendered
-        // aircraft so the visual duplicate disappears immediately.
-        for (auto& fdPair : mapFd) {
-            if (!isPlaceholderHex(fdPair.first.key))
-                continue;
-            const std::string& call = fdPair.second.GetUnsafeStat().call;
-            if (!call.empty() && realHexCallsigns.count(call) > 0) {
-                LOG_MSG(logINFO,
-                        "PRUNE_FF: removing placeholder-hex %s (cs=%s)"
-                        " — real-hex entry exists for same callsign",
-                        fdPair.first.key.c_str(), call.c_str());
-                fdPair.second.SetInvalid();
-            }
-        }
-    } catch(const std::system_error& e) {
-        LOG_MSG(logERR, ERR_LOCK_ERROR, "mapFd", e.what());
-    }
-}
 
 // finds the closest a/c roughly in the given direction ('focus a/c')
 const LTFlightData* LTFlightData::FindFocusAc (const double bearing)

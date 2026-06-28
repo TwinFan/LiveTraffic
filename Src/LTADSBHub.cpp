@@ -35,7 +35,6 @@
 // MARK: ADSBHub Definitions
 //
 
-#define ADSBHUB_NAME                "ADSBHub"               ///< Human-readable Name of connection
 #define ADSBHUB_HOST                "data.adsbhub.org"      ///< Host to connect to
 constexpr int ADSBHUB_PORT          = 5002;                 ///< Port to connect to
 constexpr size_t ADSBHUB_BUF_SIZE   = 8192;                 ///< Buffer size to use

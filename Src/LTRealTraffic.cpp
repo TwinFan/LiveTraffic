@@ -282,6 +282,18 @@ void RealTrafficConnection::MainDirect ()
         WeatherReset();
 }
 
+
+bool RealTrafficConnection::InitCurl ()
+{
+    if (LTFlightDataChannel::InitCurl()) {
+        // Balt preferred this option for RealTraffic, which I don't want for all the other channels
+        curl_easy_setopt(pCurl, CURLOPT_FORBID_REUSE,  1L);
+        return true;
+    }
+    return false;
+}
+
+
 // Which request do we need next and when?
 std::chrono::time_point<std::chrono::steady_clock> RealTrafficConnection::SetRequType (const positionTy& _pos)
 {
@@ -795,6 +807,10 @@ bool RealTrafficConnection::ProcessTrafficBuffer (const JSON_Object* pBuf)
         stat.catDescr           = GetADSBEmitterCat(s);
         stat.slug               = GetSlug(fdKey.num);
         
+        // Skip placeholder aircraft, for which proper data is available
+        if (IsPlacehoderAndDuplicate(fdKey, stat.call))
+            continue;
+        
         // RealTraffic often sends ASW20 when it should be AS20, a glider
         if (stat.acTypeIcao == "ASW20") stat.acTypeIcao = "AS20";
         
@@ -1125,6 +1141,10 @@ bool RealTrafficConnection::ProcessParkedAcBuffer (const JSON_Object* pData)
         stat.call               = std::move(dat.call);
         stat.reg                = std::move(dat.reg);
 
+        // Skip placeholder aircraft, for which proper data is available
+        if (IsPlacehoderAndDuplicate(fdKey, stat.call))
+            continue;
+        
         // RealTraffic often sends ASW20 when it should be AS20, a glider
         if (stat.acTypeIcao == "ASW20") stat.acTypeIcao = "AS20";
         
@@ -2293,6 +2313,13 @@ bool RealTrafficConnection::ProcessRTTFC (LTFlightData::FDKeyTy& fdKey,
         const std::string& sCat = tfc[RT_RTTFC_CATEGORY];
         stat.catDescr       = GetADSBEmitterCat(sCat);
         
+        // Skip placeholder aircraft silently, for which proper data is available
+        if (IsPlacehoderAndDuplicate(fdKey, stat.call))
+            return true;
+        
+        // RealTraffic often sends ASW20 when it should be AS20, a glider
+        if (stat.acTypeIcao == "ASW20") stat.acTypeIcao = "AS20";
+
         // Static objects are all equally marked with a/c type TWR
         if ((sCat == "C3" || sCat == "C4" || sCat == "C5") ||
             (stat.reg == STATIC_OBJECT_TYPE && stat.acTypeIcao == STATIC_OBJECT_TYPE))
@@ -2482,6 +2509,13 @@ bool RealTrafficConnection::ProcessAITFC (LTFlightData::FDKeyTy& fdKey,
         
         stat.slug               = GetSlug(fdKey.num);
 
+        // Skip placeholder aircraft silently, for which proper data is available
+        if (IsPlacehoderAndDuplicate(fdKey, stat.call))
+            return true;
+        
+        // RealTraffic often sends ASW20 when it should be AS20, a glider
+        if (stat.acTypeIcao == "ASW20") stat.acTypeIcao = "AS20";
+        
         // -- dynamic data --
         LTFlightData::FDDynamicData dyn;
         
@@ -2560,6 +2594,49 @@ std::string RealTrafficConnection::GetSlug (unsigned long hex) const
 }
 
 
+/// For placeholder planes with an "FF" hex id check for duplicates based on call sign
+bool RealTrafficConnection::IsPlacehoderAndDuplicate (const LTFlightData::FDKeyTy& fdKey,
+                                                      const std::string& _call) const
+{
+    // Lambda: does the hex key start with "FF" (case-insensitive)?
+    // FDKeyTy::key is the canonical uppercase hex string per
+    // SetKey()'s normalization, but we tolerate either case here
+    // for robustness.
+    auto isPlaceholderHex = [](const std::string& hex) -> bool {
+        return hex.length() == 6 &&
+        (hex[0] == 'F' || hex[0] == 'f') &&
+        (hex[1] == 'F' || hex[1] == 'f');
+    };
+    
+    // Is this a placeholder plane at all?
+    if (!isPlaceholderHex(fdKey.key) ||
+        _call.empty())                      // or doesn't have a call sign to match
+        return false;
+    
+    // Prepare the call sign...it often has a trailing underscope, which hampers later comparison
+    std::string call = _call;
+    if (call.back() == '_') call.pop_back();
+    
+    try {
+        // Hold the map mutex for the whole pass: we both read and
+        // potentially SetInvalid entries within it, and any concurrent
+        // erase from the cleanup pipeline must not race with our
+        // iteration.
+        std::lock_guard<std::mutex> lock (mapFdMutex);
+        
+        // Pass 1: collect callsigns from real-hex (non-FF) entries.
+        // Skip entries with empty callsigns — they cannot be matched.
+        for (const auto& fdPair : mapFd) {
+            if (isPlaceholderHex(fdPair.first.key))
+                continue;
+            if (fdPair.second.GetUnsafeStat().call == call)
+                return true;
+        }
+    } catch(const std::system_error& e) {
+        LOG_MSG(logERR, ERR_LOCK_ERROR, "mapFd", e.what());
+    }
+    return false;
+}
 
 // Determine timestamp adjustment necessary in case of historic data
 void RealTrafficConnection::AdjustTimestamp (double& ts, int nBuffer)

@@ -549,8 +549,7 @@ LTACMasterdataChannel(DR_CHANNEL_OPEN_SKY_AC_MASTERDATA, OPSKY_MD_NAME)
 // accept requests that aren't in the ignore lists
 bool OpenSkyAcMasterdata::AcceptRequest (const acStatUpdateTy& r)
 {
-    if ((r.type == DATREQU_ROUTE ||                     // accepting all kinds of call signs
-         r.acKey.eKeyType == LTFlightData::KEY_ICAO) && // but only ICAO-typed master data requests
+    if (r.type == DATREQU_ROUTE &&                     // accepting all kinds of route requests only
         !ShallIgnore(r))
     {
         InsertRequest(r);
@@ -620,10 +619,9 @@ void OpenSkyAcMasterdata::Main ()
 std::string OpenSkyAcMasterdata::GetURL (const positionTy& /*pos*/)
 {
     switch (currRequ.type) {
-        case DATREQU_AC_MASTER:
-            return std::string(OPSKY_MD_URL) + URLEncode(currRequ.acKey.key);
         case DATREQU_ROUTE:
             return std::string(OPSKY_ROUTE_URL) + URLEncode(currRequ.callSign);
+        case DATREQU_AC_MASTER:
         case DATREQU_NONE:
             return std::string();
     }
@@ -652,67 +650,15 @@ bool OpenSkyAcMasterdata::ProcessFetchedData ()
     
     // Pass on the further processing depending on the request type
     switch (currRequ.type) {
-        case DATREQU_AC_MASTER:
-            return ProcessMasterData(pObj);
         case DATREQU_ROUTE:
             return ProcessRouteInfo(pObj);
+        case DATREQU_AC_MASTER:                 // can't process master data any longer
         case DATREQU_NONE:
             break;
     }
     return false;
 }
 
-
-// Process received aircraft master data
-bool OpenSkyAcMasterdata::ProcessMasterData (JSON_Object* pJAc)
-{
-    LTFlightData::FDKeyTy fdKey;        // the key: transponder Icao code, filled from response!
-    LTFlightData::FDStaticData statDat; // here we collect the master data
-
-    // fetch values from the online data
-    fdKey.SetKey(LTFlightData::KEY_ICAO,
-                 jog_s(pJAc, OPSKY_MD_TRANSP_ICAO));
-    statDat.reg         = jog_s(pJAc, OPSKY_MD_REG);
-    statDat.country     = jog_s(pJAc, OPSKY_MD_COUNTRY);
-    statDat.acTypeIcao  = jog_s(pJAc, OPSKY_MD_AC_TYPE_ICAO);
-    statDat.man         = jog_s(pJAc, OPSKY_MD_MAN);
-    statDat.mdl         = jog_s(pJAc, OPSKY_MD_MDL);
-    statDat.catDescr    = jog_s(pJAc, OPSKY_MD_CAT_DESCR);
-    statDat.op          = jog_s(pJAc, OPSKY_MD_OP);
-    statDat.opIcao      = jog_s(pJAc, OPSKY_MD_OP_ICAO);
-            
-    // -- Ground vehicle identification --
-    // OpenSky only delivers "category description" and has a
-    // pretty clear indicator for a ground vehicle
-    if (statDat.acTypeIcao.empty() &&           // don't know a/c type yet
-        (statDat.catDescr.find(OPSKY_MD_TEXT_VEHICLE) != std::string::npos ||
-         // I'm having the feeling that if nearly all is empty and the category description is "No Info" then it's often also a ground vehicle
-         (statDat.catDescr.find(OPSKY_MD_TEXT_NO_CAT) != std::string::npos &&
-          statDat.man.empty() &&
-          statDat.mdl.empty() &&
-          statDat.opIcao.empty())))
-    {
-        // we assume ground vehicle
-        statDat.acTypeIcao = dataRefs.GetDefaultCarIcaoType();
-        // The category description usually is something like
-        // "Surface Vehicle – Service Vehicle"
-        // Save the latter part if we have no model info yet
-        if (statDat.mdl.empty() &&
-            statDat.catDescr.find(OPSKY_MD_TEXT_VEHICLE) != std::string::npos &&
-            statDat.catDescr.length() > OPSKY_MD_TEXT_VEHICLE_LEN)
-        {
-            statDat.mdl = statDat.catDescr.c_str() + OPSKY_MD_TEXT_VEHICLE_LEN;
-        }
-    }
-    // Replace type GRND with our default car type, too
-    else if (statDat.acTypeIcao == "GRND" || statDat.acTypeIcao == "GND")
-        statDat.acTypeIcao = dataRefs.GetDefaultCarIcaoType();
-    
-    // Perform the update
-    UpdateStaticData(fdKey, statDat);
-    return true;
-}
-        
 
 // Process received route info
 bool OpenSkyAcMasterdata::ProcessRouteInfo (JSON_Object* pJRoute)
@@ -1024,8 +970,8 @@ bool OpenSkyAcMasterFile::OpenDatabaseFile ()
     tm.tm_year += 1900;
     tm.tm_mon++;
     
-    // Try this month and two previous months
-    for (int i = 2; i >= 0; --i) {
+    // Try this month and the previous months
+    for (int i = 1; i >= 0; --i) {
         if (TryOpenDbFile(tm.tm_year, tm.tm_mon))
             return true;
         // try previous month, potentially rolling back to previous year
@@ -1035,8 +981,13 @@ bool OpenSkyAcMasterFile::OpenDatabaseFile ()
         }
     }
     
-    // as a last resort: we _know_ that the file for FEB-2025 was there
-    return TryOpenDbFile(2025, 2);
+    // as a last resort: we _know_ that the file for AUG-2025 was there
+    if (!TryOpenDbFile(2025, 8)) {
+        LOG_MSG(logERR, "%s: Could not download/open any aircraft database file, which may affect aircraft type derivation, hence proper representation of planes.",
+                ChName());
+        return false;
+    }
+    return true;
 }
 
 
@@ -1067,7 +1018,7 @@ bool OpenSkyAcMasterFile::TryOpenDbFile (int year, int month)
             url += sAcDbfileName;
             LOG_MSG(logDEBUG, "Trying to download %s", url.c_str());
             if (!RemoteFileDownload(url,filePath)) {
-                LOG_MSG(logWARN, "Download of %s unavailable", url.c_str());
+                LOG_MSG(logINFO, "Download of %s unavailable", url.c_str());
                 return false;
             }
 
@@ -1180,7 +1131,7 @@ bool OpenSkyAcMasterFile::TryOpenDbFile (int year, int month)
         return true;
         
     } catch (const std::exception& e) {
-        LOG_MSG(logERR, "Could not download/open a/c database file '%s': %s", sAcDbfileName, e.what());
+        LOG_MSG(logINFO, "Could not download/open a/c database file '%s': %s", sAcDbfileName, e.what());
     } catch (...) {
         LOG_MSG(logERR, "Could not download/open a/c database file '%s'", sAcDbfileName);
     }

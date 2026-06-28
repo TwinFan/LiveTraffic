@@ -431,6 +431,70 @@ void URLGet (const std::string& inUrl,
                 inUrl.c_str(), (int)outHttpRes);
 }
 
+/// Quick info structure for file downloads
+struct FileDownloadInfo {
+    const std::string& url;
+    const std::string& path;
+    curl_off_t fileSize = 0;            // set by progress callback
+    curl_off_t downloaded = 0;          // set by progress callback
+    std::time_t tLastByteRcved = 0;     // initialized to 'now', then used by progress callback: when received the last bytes?
+    
+    FileDownloadInfo (const std::string& _url, const std::string& _path) :
+    url(_url), path(_path), tLastByteRcved(std::time(nullptr)) {}
+};
+
+/// @brief Progress callback, called by CURL while downloading a file
+/// @see https://curl.se/libcurl/c/CURLOPT_XFERINFOFUNCTION.html
+static int RemoteFileProgressCallback(void *clientp,
+                                      curl_off_t dltotal,
+                                      curl_off_t dlnow,
+                                      curl_off_t /*ultotal*/,
+                                      curl_off_t /*ulnow*/)
+{
+    FileDownloadInfo &fdlInfo = *((FileDownloadInfo*)clientp);
+    int ret = CURL_PROGRESSFUNC_CONTINUE;
+    
+    // Just received the first bytes?
+    if (!fdlInfo.downloaded && dlnow > 0) {
+        LOG_MSG(logDEBUG, "Received first %zd bytes of %s", dlnow, fdlInfo.url.c_str());
+    }
+    
+    // Mark every 10% of download
+    if (dltotal > 0) {
+        const curl_off_t pctOld = fdlInfo.fileSize > 0 ? (fdlInfo.downloaded * 10 / fdlInfo.fileSize) : 0;
+        const curl_off_t pctNew = dlnow * 10 / dltotal;
+        if (pctNew > pctOld) {
+            LOG_MSG(logDEBUG, "Received %ld%% of %s",
+                    dlnow * 100 / dltotal, fdlInfo.url.c_str());
+        }
+    }
+    // or every 1MB
+    else {
+        const curl_off_t mbOld = fdlInfo.fileSize / (1024L * 1024L);
+        const curl_off_t mbNew = dlnow / (1024L * 1024L);
+        if (mbOld > mbNew) {
+            LOG_MSG(logDEBUG, "Received %ld MB of %s", mbNew, fdlInfo.url.c_str());
+        }
+    }
+    
+    // Did we actually receive _anything_? -> remember wall clock time for timeout calculation
+    const std::time_t now = std::time(nullptr);
+    const std::time_t dt = now - fdlInfo.tLastByteRcved;
+    if (dlnow > fdlInfo.downloaded)                 // received some bytes
+        fdlInfo.tLastByteRcved = now;
+    else if (dt > 60) {                             // Not received anything for 60s? -> abort
+        LOG_MSG(logERR, "Aborting download after receiving no data for 60s: %s", fdlInfo.url.c_str());
+        ret = 1;                                    // indicates "abort the transfer"
+    }
+    
+    // store latest values
+    fdlInfo.fileSize = dltotal;
+    fdlInfo.downloaded = dlnow;
+    
+    return ret;
+}
+
+
 // Download the given file, `false` if HTTP 404 not found, exceptions otherwise
 bool RemoteFileDownload (const std::string& url, const std::string& path)
 {
@@ -448,12 +512,18 @@ bool RemoteFileDownload (const std::string& url, const std::string& path)
     
     // prepare the handle with the right options
     curl_easy_setopt(pCurl.get(), CURLOPT_NOSIGNAL, 1);
-    curl_easy_setopt(pCurl.get(), CURLOPT_TIMEOUT, 3 * dataRefs.GetNetwTimeoutMax());
     curl_easy_setopt(pCurl.get(), CURLOPT_ERRORBUFFER, curl_errtxt);
     curl_easy_setopt(pCurl.get(), CURLOPT_WRITEFUNCTION, NULL);     // use CURL's standard of writing to FILE
     curl_easy_setopt(pCurl.get(), CURLOPT_WRITEDATA, fOut);
     curl_easy_setopt(pCurl.get(), CURLOPT_USERAGENT, HTTP_USER_AGENT);
     curl_easy_setopt(pCurl.get(), CURLOPT_URL, url.c_str());
+    
+    // Progress control
+    curl_easy_setopt(pCurl.get(), CURLOPT_TIMEOUT, 0);              // don't time out, we handle that ourselves
+    curl_easy_setopt(pCurl.get(), CURLOPT_NOPROGRESS, 0);           // use our own progress tracking
+    curl_easy_setopt(pCurl.get(), CURLOPT_XFERINFOFUNCTION, RemoteFileProgressCallback);
+    FileDownloadInfo fdlInfo (url, path);
+    curl_easy_setopt(pCurl.get(), CURLOPT_XFERINFODATA, &fdlInfo);
 
     // perform the HTTP get request
     CURLcode cc = curl_easy_perform(pCurl.get());

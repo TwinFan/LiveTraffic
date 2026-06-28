@@ -151,7 +151,19 @@
         <li>Added new <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/navigraph">channel <b>Navigraph/FR24</b></a>.
             You need a <a href="https://navigraph.com/available-products">Navigraph Unlimited subscription</a>.
             Refresh is restricted by Navigraph to 20s period / 150km (80nm) range.</li>
-        <li>Fixed some effects of the flight model changes introduced in v4.5, especially handling of altitude,
+        <li><b><a href="https://twinfan.gitbook.io/livetraffic/setup/installation/opensky">OpenSky</a> Masterdata</b> is needed for OpenSky and some other simpler channels like ADSBHub to find the aircraft type
+            of a plane identified by ADS-B id, which is crucial to find a proper CSL model for display.<br>
+            The OpenSky Masterdata <b>Online</b> channel is no longer available for aircraft info (it was an undocumented API all along).
+            It could still be used for route info, but also that is an undocumented API and may cease soon.
+            Hence, the channel is now renamed to <b>OpenSky Route Info</b> for clarity
+            and <b>disabled</b> by default, though it can still be manually activated.<br>
+            The OpenSky Masterdata <b>File</b> interface has been resurrected,
+            renamed to <b>OpenSky Aircraft DB File</b> for clarity, and is now again <b>enabled</b> by default.
+            LiveTraffic is changed to now allow for the rather slow but steady download of the database file from OpenSky over several minutes.<br>
+            Also this allows for a download of the 2025-08 file only. OpenSky is not currently maintaining this data in an accessible way.
+            Will implement other ways of downloading aircraft info by ADS-B hex id in a future version.
+        </li>
+        <li>Fixed some effects of the <b>flight model changes</b> introduced in v4.5, especially handling of altitude,
             some handling of heading. Not all perfect yet, more fundamental design changes to come.</li>
         </li>
     </ul>

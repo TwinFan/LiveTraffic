@@ -264,7 +264,7 @@ void LTSettingsUI::buildInterface()
             }
             
             // --- Airplanes.live ---
-            if (ImGui::TreeNodeCbxLinkHelp("Airplanes.live", nCol,
+            if (ImGui::TreeNodeCbxLinkHelp(AIRPLANES_NAME, nCol,
                                            DR_CHANNEL_AIRPLANES_LIVE, "Connect to Airplanes.live for tracking data",
                                            ICON_FA_EXTERNAL_LINK_SQUARE_ALT " " AIRPLANES_CHECK_NAME,
                                            AIRPLANES_CHECK_URL,
@@ -286,7 +286,7 @@ void LTSettingsUI::buildInterface()
             }
 
             // --- adsb.fi ---
-            if (ImGui::TreeNodeCbxLinkHelp("adsb.fi", nCol,
+            if (ImGui::TreeNodeCbxLinkHelp(ADSBFI_NAME, nCol,
                                            DR_CHANNEL_ADSB_FI_ONLINE, "Connect to adsb.fi for tracking data",
                                            ICON_FA_EXTERNAL_LINK_SQUARE_ALT " " ADSBFI_CHECK_NAME,
                                            ADSBFI_CHECK_URL,
@@ -308,7 +308,7 @@ void LTSettingsUI::buildInterface()
             }
             
             // --- OpenSky ---
-            if (ImGui::TreeNodeCbxLinkHelp("OpenSky Network", nCol,
+            if (ImGui::TreeNodeCbxLinkHelp(OPSKY_NAME, nCol,
                                            DR_CHANNEL_OPEN_SKY_ONLINE, "Enable OpenSky tracking data",
                                            ICON_FA_EXTERNAL_LINK_SQUARE_ALT " " OPSKY_CHECK_NAME,
                                            OPSKY_CHECK_URL,
@@ -319,8 +319,8 @@ void LTSettingsUI::buildInterface()
                 bool bDoSave = false;               // shall the "Save" be executed?
                 OpenSkyConnection* pOpenSkyCh = dynamic_cast<OpenSkyConnection*>(LTFlightDataGetCh(DR_CHANNEL_OPEN_SKY_ONLINE));
                 
-                ImGui::FilteredCfgCheckbox("OpenSky Network Master Data", sFilter, DR_CHANNEL_OPEN_SKY_AC_MASTERDATA, "Query OpenSky for aicraft master data like type, registration...");
-                ImGui::FilteredCfgCheckbox("OpenSky Network Master File", sFilter, DR_CHANNEL_OPEN_SKY_AC_MASTERFILE, "Download aircraft database from OpenSky and use it for master data like type, registration...");
+                ImGui::FilteredCfgCheckbox(OPSKY_MDF_NAME, sFilter, DR_CHANNEL_OPEN_SKY_AC_MASTERFILE, "Download aircraft database from OpenSky and use it for master data like type, registration...");
+                ImGui::FilteredCfgCheckbox(OPSKY_MD_NAME, sFilter, DR_CHANNEL_OPEN_SKY_AC_MASTERDATA, "Query OpenSky for route information (departure, destination airports) by call sign.");
 
                 // Hint that registered users have more allowed requests
                 if (!*sFilter && (sOpenSkyClientId.empty() || sOpenSkySecret.empty())) {
@@ -450,7 +450,7 @@ void LTSettingsUI::buildInterface()
             
             // --- ADSBHub ---
             const bool bWasADSBHubEnabled = dataRefs.IsChannelEnabled(DR_CHANNEL_ADSB_HUB);
-            if (ImGui::TreeNodeCbxLinkHelp("ADSBHub", nCol,
+            if (ImGui::TreeNodeCbxLinkHelp(ADSBHUB_NAME, nCol,
                                            DR_CHANNEL_ADSB_HUB, "Connect to ADSBHub for tracking data, requires feeder setup",
                                            ICON_FA_EXTERNAL_LINK_SQUARE_ALT " " ADSBHUB_CHECK_NAME,
                                            ADSBHUB_CHECK_URL,
@@ -459,9 +459,9 @@ void LTSettingsUI::buildInterface()
                                            sFilter, nOpCl))
             {
                 // If ADSBHub has just been enabled then, as a courtesy,
-                // we also make sure that OpenSky Master data is enabled
+                // we also make sure that OpenSky Masterdata File is enabled as it doesn't send a/c type info
                 if (!bWasADSBHubEnabled && dataRefs.IsChannelEnabled(DR_CHANNEL_ADSB_HUB)) {
-                    dataRefs.SetChannelEnabled(DR_CHANNEL_OPEN_SKY_AC_MASTERDATA, true);
+                    dataRefs.SetChannelEnabled(DR_CHANNEL_OPEN_SKY_AC_MASTERFILE, true);
                 }
                 
                 // ADSBHub's connection status details
@@ -478,7 +478,7 @@ void LTSettingsUI::buildInterface()
             }
 
             // --- Open Glider Network ---
-            if (ImGui::TreeNodeCbxLinkHelp("Open Glider Network", nCol,
+            if (ImGui::TreeNodeCbxLinkHelp(OPGLIDER_NAME, nCol,
                                            DR_CHANNEL_OPEN_GLIDER_NET, "Enable OGN tracking data",
                                            ICON_FA_EXTERNAL_LINK_SQUARE_ALT " "  OPGLIDER_CHECK_NAME,
                                            OPGLIDER_CHECK_URL,
@@ -546,7 +546,7 @@ void LTSettingsUI::buildInterface()
             }
             
             // --- RealTraffic ---
-            if (ImGui::TreeNodeCbxLinkHelp("RealTraffic", nCol,
+            if (ImGui::TreeNodeCbxLinkHelp(REALTRAFFIC_NAME, nCol,
                                            DR_CHANNEL_REAL_TRAFFIC_ONLINE,
                                            "Enable RealTraffic tracking data",
                                            ICON_FA_EXTERNAL_LINK_SQUARE_ALT " " RT_CHECK_NAME,
@@ -705,8 +705,7 @@ void LTSettingsUI::buildInterface()
             }
             
             // --- Navigraph / Flightradar24 ---
-            const bool bWasNvgrEnabled = dataRefs.IsChannelEnabled(DR_CHANNEL_NVGR_FR24);
-            if (ImGui::TreeNodeCbxLinkHelp("Navigraph/FR24", nCol,
+            if (ImGui::TreeNodeCbxLinkHelp(NVGR_NAME, nCol,
                                            DR_CHANNEL_NVGR_FR24, "Connect to Navigraph for Flightradar24 tracking data, requires Navigraph Unlimited",
                                            ICON_FA_EXTERNAL_LINK_SQUARE_ALT " " NVGR_CHECK_NAME,
                                            NVGR_CHECK_URL,
@@ -715,12 +714,6 @@ void LTSettingsUI::buildInterface()
                                            sFilter, nOpCl))
             {
                 if (NvgrFR24Connection::IsBuiltIn()) {
-                    // If Navigraph has just been enabled then, as a courtesy,
-                    // we also make sure that OpenSky Master data is enabled
-                    if (!bWasNvgrEnabled && dataRefs.IsChannelEnabled(DR_CHANNEL_NVGR_FR24)) {
-                        dataRefs.SetChannelEnabled(DR_CHANNEL_OPEN_SKY_AC_MASTERDATA, true);
-                    }
-                    
                     // Reset the UI status some time after completion, so we can start over?
                     if (tNvgrReset.time_since_epoch().count() > 0 &&
                         std::chrono::steady_clock::now() >=  tNvgrReset)
@@ -802,7 +795,6 @@ void LTSettingsUI::buildInterface()
                                     case NvgrFR24Connection::NVGR_AUTH_SUCCESS:
                                         ImGui::TextWrapped("LiveTraffic is successfully authorized.");
                                         dataRefs.SetChannelEnabled(DR_CHANNEL_NVGR_FR24, true);
-                                        dataRefs.SetChannelEnabled(DR_CHANNEL_OPEN_SKY_AC_MASTERDATA, true);
                                         break;
                                     default:
                                         ImGui::TextWrapped("Authorization failed, see status below:");
@@ -831,7 +823,7 @@ void LTSettingsUI::buildInterface()
             }
 
             // --- ADS-B Exchange ---
-            if (ImGui::TreeNodeCbxLinkHelp("ADS-B Exchange", nCol,
+            if (ImGui::TreeNodeCbxLinkHelp(ADSBEX_NAME, nCol,
                                            // we offer the enable checkbox only when an API key is defined
                                            dataRefs.GetADSBExAPIKey().empty() ? dataRefsLT(-1) : DR_CHANNEL_ADSB_EXCHANGE_ONLINE,
                                            dataRefs.GetADSBExAPIKey().empty() ? "ADS-B Exchange requires an API key" : "Enable ADS-B Exchange tracking data",
@@ -1040,10 +1032,10 @@ void LTSettingsUI::buildInterface()
             
             // --- AutoATC ---
             ImGui::Indent();
-            ImGui::FilteredCfgCheckbox("AutoATC", sFilter, DR_CHANNEL_AUTOATC,
+            ImGui::FilteredCfgCheckbox(AATC_NAME, sFilter, DR_CHANNEL_AUTOATC,
                                        "Connect to AutoATC for generated traffic",
                                        false);      // don't move to next cell yet
-            if (ImGui::MatchesFilter("AutoATC", sFilter)) {
+            if (ImGui::MatchesFilter(AATC_NAME, sFilter)) {
                 ImGui::SameLine();
                 ImGui::ButtonURL(ICON_FA_EXTERNAL_LINK_SQUARE_ALT " " AATC_CHECK_NAME, AATC_CHECK_URL, AATC_CHECK_POPUP);
                 ImGui::TableNextCell();
