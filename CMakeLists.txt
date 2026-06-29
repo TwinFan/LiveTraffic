@@ -87,7 +87,7 @@ message("FSCharter Production          = Client ID: ${FSC_PROD_CLIENT_ID}, Clien
 string(SUBSTRING "${FSC_STAGING_CLIENT_SECRET}" 0 10 _short_secret)
 message("FSCharter Staging             = Client ID: ${FSC_STAGING_CLIENT_ID}, Client Secret: ${_short_secret}")
 
-# Navigraph/FR24 OAuth Configuration
+# Navigraph OAuth Configuration
 # These can be set via environment variables or CMake cache variables
 # For GitHub Actions, set these as repository secrets
 # For local builds, set environment variables before running cmake

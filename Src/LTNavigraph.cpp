@@ -179,7 +179,7 @@ void NvgrFR24Connection::Main ()
     
     // Can't run if we don't have Client Secret/ID
     if (!IsBuiltIn()) {
-        SHOW_MSG(logERR, "No Navigraph support built into this binary, can't start Navigraph/FR24");
+        SHOW_MSG(logERR, "No Navigraph support built into this binary, can't start Navigraph channel.");
         SetValid(false,false); SetEnable(false);
     }
     // Can't run if we don't have Refresh Token
@@ -477,7 +477,7 @@ bool NvgrFR24Connection::ProcessFetchedData ()
                 if (nvgrData.pos.ts() <= tsCutOff)
                     continue;
                 
-                // Navigraph/FR24 sends occasionally a combination of
+                // Navigraph/Flightradar24 sends occasionally a combination of
                 // onGnd=0 and altitude=0, which is contracdicting.
                 // Analysis shows there are situations, in which they will
                 // be ground positions, and others where they must be in the air already.

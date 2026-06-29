@@ -30,7 +30,7 @@
 #include "LTChannel.h"
 
 // MARK: Navigraph Constants
-#define NVGR_NAME               "Navigraph/FR24"
+#define NVGR_NAME               "Navigraph"
 #define NVGR_CHECK_NAME         "Flightradar24 Tracker"
 #define NVGR_CHECK_URL          "https://www.flightradar24.com/%.3f,%.3f"
 #define NVGR_CHECK_POPUP        "Check Flightradar's coverage"
@@ -67,7 +67,7 @@ constexpr int NVGR_MIN_REFRESH_INTVL = 20;              ///< Navigraph imposes a
 constexpr int NVGR_MAX_SEARCH_DIST_KM = 150;            ///< [km] Navigraph allows the 20s interval only for search distances up to 150km
 
 // Message Definition
-#define NVGR_FLIGHT_ID          "flightId"              ///< FR24-internal id used for URL slugs only
+#define NVGR_FLIGHT_ID          "flightId"              ///< Flightradar24-internal id used for URL slugs only
 #define NVGR_AC_ID              "aircraftId"
 #define NVGR_TIMESTAMP          "timestamp"
 #define NVGR_AC_TYPE            "type"
@@ -100,7 +100,7 @@ struct NvgrTrafficData
 public:
     // Static data
     LTFlightData::FDKeyTy key;  ///< aircraft id, hex transponder code
-    std::string flightId;       ///< FR24-internal id used for URL slugs only
+    std::string flightId;       ///< Flightradar24-internal id used for URL slugs only
     std::string acTypeIcao;     ///< aircraft type designator
     std::string reg;            ///< registration, tail number
     std::string orig, dest;     ///< flight origin, destination
