@@ -1812,11 +1812,22 @@ bool LTAircraft::CalcPPos()
             {
                 // ...start the turn from the initial heading to the vector heading
                 heading.defDuration = IsOnGrnd() ? pMdl->TAXI_TURN_TIME : pMdl->FLIGHT_TURN_TIME;
-                heading.moveQuickestToBy(ppos.heading(),
-                                         vec.dist > SIMILAR_POS_DIST && // if vector long enough
-                                         !to.f.bHeadFixed   ?           // and target heading not enforced:
-                                         vec.angle :                    // turn to vector heading
-                                         HeadingAvg(ppos.heading(),to.heading()),   // otherwise only turn to avg between now and target-heading
+                // Target heading...defaults to vector heading, i.e. point to where we go to
+                double h = vec.angle;
+                // only potentially override in low speed situations
+                if (!bGndFast) {
+                    // long leg: typically we stick to default vector heading
+                    if (vec.dist > SIMILAR_POS_DIST) {
+                        // Except:  to-heading points backwards? Might be push-back, so go backwards
+                        if (to.f.bHeadFixed && std::abs(HeadingDiff(vec.angle, to.heading())) > 90.0)
+                            h = HeadingNormalize(vec.angle + 180.0);
+                    }
+                    // short leg: turn half-way to to-heading
+                    else {
+                        h = HeadingAvg(ppos.heading(),to.heading());
+                    }
+                }
+                heading.moveQuickestToBy(ppos.heading(), h,
                                          NAN, from.ts()+duration/2,     // by half the vector flight time
                                          true);                         // start immediately
             }

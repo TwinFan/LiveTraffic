@@ -721,7 +721,7 @@ public:
         double bestPrioDist= NAN;
         distToLineTy bestDist;
         // if we look for a rwy position we can increase search size as rwys aren't as close to each other as taxi ways
-        const bool bRwyPhase = isRwyPhase(_pos.f.flightPhase);
+        bool bRwyPhase = isRwyPhase(_pos.f.flightPhase);
         if (bRwyPhase) _maxDist_m *= 3.0;
         // maxDist^2, used in comparisons
         const double maxDist2 = sqr(_maxDist_m);
@@ -802,12 +802,23 @@ public:
                 prioDist += SCND_PRIO_ADD;
             }
             
-            // If priorized distance is farther than best we know: skip
-            if (prioDist >= bestPrioDist)
-                continue;
-            
             // If base of shortest path to point is too far outside actual line
             if (dist.DistSqrOfBaseBeyondLine() > maxDist2)
+                continue;
+            
+            // e now is an edge that could be chosen.
+            // We absolutely prefer RWY edges. If there is a potential RWY edge we pick that.
+            if (e.GetType() == TaxiEdge::RUN_WAY) {
+                // from now on we only need to consider runways
+                bRwyPhase = true;
+                
+                // current best edge is not a RWY? -> Override
+                if (bestEdge && bestEdge->GetType() != TaxiEdge::RUN_WAY)
+                    bestPrioDist = NAN;
+            }
+            
+            // If priorized distance is farther than best we know: skip
+            if (prioDist >= bestPrioDist)
                 continue;
             
             // We have a new best match!
