@@ -1164,8 +1164,12 @@ void LTFlightDataAcMaintenance()
         {
             LTFlightData& fd = i->second;
 
+            // Remove invalid data
+            if (!fd.IsValid()) {
+                i = mapFd.erase(i);
+            }
             // If we have an a/c and can't create one anyway
-            if (fd.hasAc() || (fd.GetPosDeque().size() < 2) ) {
+            else if (fd.hasAc() || (fd.GetPosDeque().size() < 2) ) {
                 // do the maintenance, remove aircraft if that's the verdict
                 if ( fd.AircraftMaintenance(simTime) )
                     i = mapFd.erase(i);

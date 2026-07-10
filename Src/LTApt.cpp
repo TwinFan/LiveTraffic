@@ -1215,16 +1215,15 @@ public:
             pPrevPos = &(fd.pAc->GetToPos());
 
         // 1. --- Try to match pos with a startup location
-        double distStartup = NAN;
-        const StartupLoc* pStartLoc = FindStartupLoc(pos,
-                                                     dataRefs.GetFdSnapTaxiDist_m() * 3,
-                                                     &distStartup);
-        if (pStartLoc)
+        if (const StartupLoc* pStartLoc = FindStartupLoc(pos,
+                                                         dataRefs.GetFdSnapTaxiDist_m() * 3))
         {
-            // pos is close to a startup location, so we definitely set
-            // and keep the startup location's heading
-            pos.heading() = pStartLoc->heading;
-            pos.f.bHeadFixed = true;
+            // Then move onto the path leading away from the startup location
+            ProjectPosOnStartupPath(pos, *pStartLoc);
+            if (dataRefs.GetDebugAcPos(fd.key()))
+                LOG_MSG(logDEBUG, "Snapped to startup location path from (%.5f, %.5f) to (%.5f, %.5f)",
+                        old_lat, old_lon, pos.lat(), pos.lon());
+            return true;
         }
         
         // 2. --- Find any edge ---
@@ -1242,7 +1241,7 @@ public:
         // tracking data heading (because after exiting a rwy it is not
         // uncommon to turn around 180°), otherwise we trust our average heading.
         positionTy posForSearching = pos;
-        if (!pStartLoc && pPrevPos && pPrevPos->f.specialPos == SPOS_RWY)
+        if (pPrevPos && pPrevPos->f.specialPos == SPOS_RWY)
         {
             LTFlightData::FDDynamicData *pDynDat = nullptr, *pDynAfter = nullptr;
             bool bSimilar = false;
@@ -1254,26 +1253,9 @@ public:
                                                 dataRefs.GetFdSnapTaxiDist_m(),
                                                 ART_EDGE_ANGLE_TOLERANCE,
                                                 ART_EDGE_ANGLE_TOLERANCE_EXT);
-        
-        // specialPos might have been set to SPOS_TAXI,
-        // but for startup positions we do want it to be:
-        if (pStartLoc)
-            pos.f.specialPos = SPOS_STARTUP;
-        
+                
         // Nothing found?
         if (!pEdge) {
-            
-            // No edge found, but a startup location?
-            if (pStartLoc)
-            {
-                // Then we should move onto the path leading away from the location
-                ProjectPosOnStartupPath(pos, *pStartLoc);
-                if (dataRefs.GetDebugAcPos(fd.key()))
-                    LOG_MSG(logDEBUG, "Snapped to startup location path from (%.5f, %.5f) to (%.5f, %.5f)",
-                            old_lat, old_lon, pos.lat(), pos.lon());
-                return true;
-            }
-            
             // --- Test for Black Hole Horizon problem:
             //     When planes briefly wait on taxiways then it can happen
             //     that the previous pos was close enough to a taxiway and

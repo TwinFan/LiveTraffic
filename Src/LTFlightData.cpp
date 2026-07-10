@@ -871,8 +871,13 @@ void LTFlightData::SnapToTaxiways (bool& bChanged)
     // wobble at worst, no waypoint procession). When the aircraft genuinely
     // begins to taxi, AddNewPos's GND_HOLDING_EXIT_CONSEC counter clears
     // bGroundHolding and snap-to-taxiway resumes for subsequent slots.
-    if (bGroundHolding)
-        return;
+
+// Disabled this code. It prevents parked aircraft from being snapped to a Startup Position,
+// so they don't actually _appear_ as parked.
+// (The "glitch" argument above shouldn't be true: The algorithm doesn't
+//  add long paths via taxiways if the resulting speed would be too high.)
+//    if (bGroundHolding)
+//        return;
     
     // Loop over position in the deque
     dequePositionTy::iterator iter = posDeque.begin();
@@ -2649,14 +2654,10 @@ void LTFlightData::AddNewPos ( positionTy& pos )
         std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
 
         // We only consider data that is newer than what we have already
-        const positionTy* pLatestPos =
-        !posToAdd.empty() ? &(posToAdd.back()) :
-        !posDeque.empty() ? &(posDeque.back()) :
-        hasAc()           ? &(pAc->GetToPos()) : nullptr;
-        
-        if (pLatestPos) {
+        const positionTy latestPos = GetMostFuturePos();
+        if (latestPos.isNormal()) {
             // pos is before or close to 'to'-position: don't add!
-            if (pos.ts() <= pLatestPos->ts() + SIMILAR_TS_INTVL)
+            if (pos.ts() <= latestPos.ts() + SIMILAR_TS_INTVL)
             {
                 if (dataRefs.GetDebugAcPos(key()))
                     LOG_MSG(logDEBUG,DBG_SKIP_NEW_POS_TS,pos.dbgTxt().c_str());
@@ -2682,11 +2683,11 @@ void LTFlightData::AddNewPos ( positionTy& pos )
             // that way pause/resume and rate-changes in X-Plane don't
             // influence the streak length.
             // --------------------------------------------------------------
-            const bool   bothOnGround = pos.IsOnGnd() && pLatestPos->IsOnGnd();
-            const double dtTs         = pos.ts() - pLatestPos->ts();
-            const double dist_m       = pLatestPos->dist(pos);
+            const bool   bothOnGround = pos.IsOnGnd() && latestPos.IsOnGnd();
+            const double dtTs         = pos.ts() - latestPos.ts();
+            const double dist_m       = latestPos.dist(pos);
             const double gs_kt        = (dtTs > 0)
-                                      ? pLatestPos->speed_kt(pos)
+                                      ? latestPos.speed_kt(pos)
                                       : NAN;
             const bool   isStationary = bothOnGround &&
                                         !std::isnan(gs_kt) &&
@@ -2703,7 +2704,7 @@ void LTFlightData::AddNewPos ( positionTy& pos )
                         "GND_DIAG_ADD %s ts=%.1f dt=%.2fs dist=%.2fm gs=%.2fkt"
                         " hdg_prev=%.1f hdg_in=%.1f holdingSince=%.1f holding=%d",
                         key().c_str(), pos.ts(), dtTs, dist_m, gs_kt,
-                        pLatestPos->heading(), pos.heading(),
+                        latestPos.heading(), pos.heading(),
                         groundHoldingSinceTs, bGroundHolding ? 1 : 0);
             }
 
@@ -2717,7 +2718,7 @@ void LTFlightData::AddNewPos ( positionTy& pos )
                 // known position so the elapsed time below is "how long has
                 // the aircraft been frozen at this point in space".
                 if (groundHoldingSinceTs <= 0.0)
-                    groundHoldingSinceTs = pLatestPos->ts();
+                    groundHoldingSinceTs = latestPos.ts();
 
                 // Promote to holding once the streak exceeds the timeout.
                 // Threshold lives in `Constants.h` (`GND_HOLDING_TIMEOUT_S`).
@@ -2836,46 +2837,16 @@ void LTFlightData::AddNewPos ( positionTy& pos )
                     }
                 }
 
-                // While in holding, drop trivial jitter outright. We still
-                // allow through anything that moves more than the trivial
-                // distance, because that may signal a genuine push-back or
-                // taxi start that we must not miss.
-                //
-                // EXCEPTION: never drop a position flagged SPOS_STARTUP.
-                // Those are not feed jitter — they are *intentional*
-                // placements: the RealTraffic parked-feed bootstrap seeds
-                // (4 identical positions used to bring a parked aircraft
-                // into existence) and the Synthetic channel's keep-alive
-                // re-feeds (which hold an adopted parked aircraft alive).
-                // Both arrive at dist≈0 from the held position, so the
-                // plain trivial-drop would eat them — starving the parked
-                // aircraft of the very positions it needs to exist and to
-                // persist, which is exactly the "no parked traffic at all"
-                // symptom. Raw jittery LIVE-feed positions are NOT
-                // SPOS_STARTUP at this point (taxiway snapping runs later
-                // in the pipeline), so genuine jitter is still suppressed.
-                if (bGroundHolding && dist_m < GND_HOLDING_TRIVIAL_DIST_M &&
-                    pos.f.specialPos != SPOS_STARTUP)
+                // While in holding, merge trivial jitter onto the current
+                // position. I.e. pass through an update, but on the same spot.
+                // Keeps the plane alive and avoids STOPPED ON RWY state,
+                // but non-moving.
+                if (bGroundHolding && dist_m < GND_HOLDING_TRIVIAL_DIST_M)
                 {
-                    if (dataRefs.ShallLogDiagnostics()) {
-                        LOG_MSG(logDEBUG,
-                                "GND_DIAG_DROP %s dropping trivial update"
-                                " (dist=%.2fm, gs=%.2fkt)",
-                                key().c_str(), dist_m, gs_kt);
-                    }
-                    // Update `youngestTS` to the dropped slot's feed ts.
-                    // Without this, an aircraft that sits at the gate
-                    // receiving valid feed updates (all trivial-dropped)
-                    // looks "stale" to the outdate check at the bottom
-                    // of CalcNextPos — `youngestTS + GetAcOutdatedIntvl()
-                    // < simTime` fires after ~180 s and the aircraft is
-                    // removed even though the feed is alive. We keep the
-                    // deque content unchanged (the drop is the whole
-                    // point) but advance the freshness timestamp so the
-                    // outdate check sees the aircraft as live.
-                    if (pos.ts() > youngestTS)
-                        youngestTS = pos.ts();
-                    return;
+                    // effectively overwrite with latest position but current timestamp
+                    const double currTs = pos.ts();
+                    pos = latestPos;
+                    pos.ts() = currTs;
                 }
             } else {
                 // Non-stationary slot: increment the consecutive counter.
@@ -2936,26 +2907,13 @@ void LTFlightData::AddNewPos ( positionTy& pos )
             // has entered PB_ACTIVE/PB_PAUSED we are committed to the
             // push and must let every slot through (including pause
             // slots that would otherwise be filtered).
-            //
-            // `SPOS_STARTUP` exempt — same rationale as the trivial-drop
-            // above (intentional placements).
-            if (bGateParked && pbState == PB_NONE &&
-                pos.f.specialPos != SPOS_STARTUP)
+            if (bGateParked && pbState == PB_NONE)
             {
                 if (dist_m < GATE_HOLD_MIN_ACCEPT_M) {
-                    if (dataRefs.ShallLogDiagnostics()) {
-                        LOG_MSG(logDEBUG,
-                                "GND_DIAG_GATE_HOLD %s dropping motion at gate"
-                                " (dist=%.2fm/%.0fm, gs=%.2fkt, isStat=%d)",
-                                key().c_str(), dist_m,
-                                GATE_HOLD_MIN_ACCEPT_M, gs_kt,
-                                isStationary ? 1 : 0);
-                    }
-                    // Advance freshness timestamp even on drop — see the
-                    // matching update in the trivial-drop branch above.
-                    if (pos.ts() > youngestTS)
-                        youngestTS = pos.ts();
-                    return;
+                    // effectively overwrite with latest position but current timestamp
+                    const double currTs = pos.ts();
+                    pos = latestPos;
+                    pos.ts() = currTs;
                 }
                 // Slot is far enough from the held position to be real
                 // motion. Accept it AND release bGroundHolding so the
@@ -2963,7 +2921,7 @@ void LTFlightData::AddNewPos ( positionTy& pos )
                 // 3-6 m from the previous accepted slot, and would
                 // therefore be trivial-dropped if holding stayed true)
                 // can flow through and continue the rendered push.
-                if (bGroundHolding) {
+                else if (bGroundHolding) {
                     bGroundHolding = false;
                     groundHoldingSinceTs = pos.ts();
                     if (dataRefs.ShallLogDiagnostics()) {
@@ -3269,6 +3227,29 @@ LTFlightData::tryResult LTFlightData::TryFetchNewPos (dequePositionTy& acPosList
     
     // Caught some error
     return TRY_TECH_ERROR;
+}
+
+
+/// @brief Get the most future position available (can still be invalid)
+/// @details Is the last pos to add, last pos in queue, or aircraft's to-pos
+positionTy LTFlightData::GetMostFuturePos () const
+{
+    std::unique_lock<std::recursive_mutex> lock (dataAccessMutex);
+
+    // Invalid!
+    if (!IsValid())
+        return positionTy();
+    // Anything to be added?
+    if (!posToAdd.empty())
+        return posToAdd.back();
+    // Anything in the posDeque?
+    if (!posDeque.empty())
+        return posDeque.back();
+    // Has an aircraft?
+    if (hasAc())
+        return GetAircraft()->GetToPos();
+    // Nothing found!
+    return positionTy();
 }
 
 
@@ -4204,3 +4185,63 @@ LTFlightData* mapFdAc (const LTFlightData::FDKeyTy& key,
     {}
     return nullptr;
 }
+
+/// @brief Remove a duplicate placeholder (0xFF....) plane
+/// @note Was originally implemented in LTRealTraffic, but definitely applies to Synthetic, too,
+///       given that Synthetic is fed also by RealTraffic. May in the future be even apply globally.
+bool mapRemoveDupPlaceholder (const LTFlightData::FDKeyTy& fdKey,
+                              const std::string& _call)
+{
+    std::string idLiveAc;
+    
+    // Lambda: does the hex key start with "FF" (case-insensitive)?
+    // FDKeyTy::key is the canonical uppercase hex string per
+    // SetKey()'s normalization, but we tolerate either case here
+    // for robustness.
+    auto isPlaceholderHex = [](const std::string& hex) -> bool {
+        return hex.length() == 6 &&
+        (hex[0] == 'F' || hex[0] == 'f') &&
+        (hex[1] == 'F' || hex[1] == 'f');
+    };
+    
+    // Is this a placeholder plane at all?
+    if (!isPlaceholderHex(fdKey.key) ||
+        _call.empty())                      // or doesn't have a call sign to match
+        return false;
+    
+    // Prepare the call sign...it often has a trailing underscope, which hampers later comparison
+    std::string call = _call;
+    if (call.back() == '_') call.pop_back();
+    
+    try {
+        // Check for a duplicate non-placeholder plane
+        std::lock_guard<std::mutex> lock (mapFdMutex);
+        for (const auto& fdPair : mapFd) {
+            if (isPlaceholderHex(fdPair.first.key))
+                continue;
+            if (fdPair.second.GetUnsafeStat().call == call &&       // call sign must match
+                fdPair.second.hasAc())                              // must have an actual shown aircraft
+            {
+                idLiveAc = fdPair.first.key;                        // remember its key for logging purposes
+                break;
+            }
+        }
+    } catch(const std::system_error& e) {
+        LOG_MSG(logERR, ERR_LOCK_ERROR, "mapFd", e.what());
+    }
+    
+    // Did we find a live aircraft with our call sign?
+    if (!idLiveAc.empty()) {
+        // If _we_ exist already in the FlightData, remove us right away in favour of the live data
+        if (LTFlightData* pFd = mapFdAc(fdKey)) {                   // warning: this requires mapFdMutex, too, which is why we can't move the call into the above loop
+            LOG_MSG(logDEBUG, "Invalidating placeholder aircraft %s in favour of %s for call sign %s",
+                    fdKey.c_str(), idLiveAc.c_str(), call.c_str());
+            pFd->SetInvalid();
+        }
+        // and return 'true' to indicate _this_ is a placeholder to be skipped
+        return true;
+    }
+    
+    return false;
+}
+

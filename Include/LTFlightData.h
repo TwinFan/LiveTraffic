@@ -456,6 +456,8 @@ public:
     tryResult TryFetchNewPos ( dequePositionTy& posList, positionTy& posNext, double& rotateTS );
     // const access to posDeque
     const dequePositionTy& GetPosDeque() const { return posDeque; }
+    /// Get the most future position available (can still be invalid)
+    positionTy GetMostFuturePos () const;
     
     // determine Ground-status based on dynDataDeque, requires lock for access, so may fail if locked
     bool TryDeriveGrndStatus (positionTy& pos);
@@ -587,5 +589,9 @@ LTFlightData* mapFdAc (const LTFlightData::FDKeyTy& key,
 inline bool mapFdHasAc (const LTFlightData::FDKeyTy& key,
                  bool bMustHaveAc = false)
 { return mapFdAc(key,bMustHaveAc) != nullptr; }
+
+/// Remove a duplicate placeholder (0xFF....) plane
+bool mapRemoveDupPlaceholder (const LTFlightData::FDKeyTy& fdKey,
+                              const std::string& _call);
 
 #endif /* LTFlightData_h */

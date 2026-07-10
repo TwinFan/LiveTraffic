@@ -808,7 +808,7 @@ bool RealTrafficConnection::ProcessTrafficBuffer (const JSON_Object* pBuf)
         stat.slug               = GetSlug(fdKey.num);
         
         // Skip placeholder aircraft, for which proper data is available
-        if (IsPlacehoderAndDuplicate(fdKey, stat.call))
+        if (mapRemoveDupPlaceholder(fdKey, stat.call))
             continue;
         
         // RealTraffic often sends ASW20 when it should be AS20, a glider
@@ -1082,59 +1082,6 @@ bool RealTrafficConnection::ProcessParkedAcBuffer (const JSON_Object* pData)
         if (SyntheticConnection::WasEvicted(fdKey.num))
             continue;
 
-        // position
-        positionTy pos (dat.lat, dat.lon);
-        pos.heading() = 0.0;
-        pos.f.onGrnd = GND_ON;                          // parked aircraft are by definition on the ground
-        // see later how TS is used: we send 3 instances to make the a/c appear immediately
-        pos.ts() = dataRefs.GetSimTime() - 0.5 * double(dataRefs.GetFdBufPeriod());
-
-        // Defence-in-depth: if this hex id is *already* being live
-        // tracked by another channel, and that live aircraft has
-        // either left the ground or moved meaningfully away from the
-        // gate, do NOT inject the stale parked seed (TFL3NA-class
-        // bug). Symptom we are blocking: TFL3NA was taxiing out and
-        // then airborne when the 5-minute parked re-fetch fired,
-        // silently appending an SPOS_STARTUP GND_ON seed at the
-        // original gate to the deque with a timestamp *later* than
-        // the live airborne positions. The render clock eventually
-        // walked into the seed and the aircraft visually teleported
-        // back to the gate before snapping forward again. The
-        // GATE_REFEED_MAX_DIST_M (= 50 m) test means "still inside
-        // the stand footprint"; anything beyond that is no longer at
-        // the gate, regardless of what RT's parked DB still believes.
-        {
-            std::unique_lock<std::mutex> mapFdLock (mapFdMutex);
-            auto it = mapFd.find(fdKey);
-            if (it != mapFd.end()) {
-                std::lock_guard<std::recursive_mutex> fdLock (it->second.dataAccessMutex);
-                if (it->second.IsValid() && it->second.hasAc()) {
-                    const LTAircraft* pAc = it->second.GetAircraft();
-                    if (pAc) {
-                        // Released both locks via scope exit before
-                        // the `continue` below — they are inside this
-                        // inner block.
-                        if (!pAc->IsOnGrnd()) {
-                            mapFdLock.unlock();         // be explicit
-                            continue;                   // already airborne — never re-seed
-                        }
-                        const positionTy gatePos (dat.lat, dat.lon);
-                        if (pAc->GetPPos().dist(gatePos) > GATE_REFEED_MAX_DIST_M) {
-                            mapFdLock.unlock();
-                            continue;                   // taxied away from the gate
-                        }
-                    }
-                }
-            }
-        }
-
-        // position is rather important, we check for validity
-        // (we do allow alt=NAN if on ground)
-        if ( !pos.isNormal(true) ) {
-            LOG_MSG(logDEBUG,ERR_POS_UNNORMAL,fdKey.c_str(),pos.dbgTxt().c_str());
-            continue;
-        }
-        
         // Static data
         LTFlightData::FDStaticData stat;
         stat.acTypeIcao         = std::move(dat.acType);
@@ -1142,50 +1089,24 @@ bool RealTrafficConnection::ProcessParkedAcBuffer (const JSON_Object* pData)
         stat.reg                = std::move(dat.reg);
 
         // Skip placeholder aircraft, for which proper data is available
-        if (IsPlacehoderAndDuplicate(fdKey, stat.call))
+        if (mapRemoveDupPlaceholder(fdKey, stat.call))
             continue;
         
         // RealTraffic often sends ASW20 when it should be AS20, a glider
         if (stat.acTypeIcao == "ASW20") stat.acTypeIcao = "AS20";
         
-        // Dynamic data
-        LTFlightData::FDDynamicData dyn;
-        dyn.radar.mode          = xpmpTransponderMode_Off;
-        dyn.gnd                 = true;
-        dyn.heading             = pos.heading();
-        dyn.ts                  = pos.ts();
-        dyn.spd                 = 0.0;
-        dyn.vsi                 = 0.0;
-        dyn.pChannel            = this;
+        // position
+        positionTy pos (dat.lat, dat.lon, NAN, NAN, 0.0);
+        pos.f.onGrnd = GND_ON;                          // parked aircraft are by definition on the ground
         
         // Try to find a matching "startup position" to perfectly put the
         // aircraft in place — a real apt.dat gate/stand with a known
-        // heading. Pass maxDist = NAN so the search uses the generous
-        // internal default (3 × the taxi-snap distance): RT's parked
-        // coordinates are not always precise to the metre, and the old
-        // 1 × radius missed many stands.
-        double startupDist = NAN;
-        positionTy startupPos = LTAptFindStartupLoc(pos, NAN, &startupDist);
-        // A startup location was matched iff startupDist is a real number
-        // (LTAptFindStartupLoc / FindStartupLoc set it to NAN when nothing
-        // is found, to the metre distance when found).
-        //
-        // Do NOT test startupPos.isNormal() here: LTAptFindStartupLoc
-        // returns the matched location with a NaN timestamp — it is a
-        // static apt.dat coordinate, not a tracked position — and
-        // positionTy::isNormal() rejects a NaN ts. So isNormal() would
-        // report "not found" for EVERY successful match, which is exactly
-        // why parked aircraft were all left at the placeholder 0° heading,
-        // facing north. startupDist is the reliable signal.
-        const bool bFoundStartup = !std::isnan(startupDist);
-        if (bFoundStartup) {
-            // Snap exactly onto the apt.dat startup location and adopt
-            // its known heading.
-            pos.lat()       = startupPos.lat();
-            pos.lon()       = startupPos.lon();
-            pos.heading()   = startupPos.heading();
-        }
-
+        // heading.
+        positionTy startupPos = LTAptFindStartupLoc(pos);
+        if (startupPos.hasPosHeading())
+            // take over the startup pos, including all flags
+            pos = startupPos;
+        
         // Flag the position as a startup/parked placement UNCONDITIONALLY
         // — whether or not an apt.dat stand was matched. This is
         // essential, not cosmetic:
@@ -1204,13 +1125,27 @@ bool RealTrafficConnection::ProcessParkedAcBuffer (const JSON_Object* pData)
         // (RT's parked feed carries no heading field, so heading stays
         // at the 0° set above).
         pos.f.specialPos = SPOS_STARTUP;
+        pos.f.flightPhase = FPH_PARKED;
         pos.f.bHeadFixed = true;
+        // see later how TS is used: we send 3 instances to make the a/c appear immediately
+        pos.ts() = dataRefs.GetSimTime() - 0.5 * double(dataRefs.GetFdBufPeriod());
 
-        // Sync the dynamic-data heading with the (possibly startup-loc
-        // corrected) position heading. dyn.heading was captured above
-        // before the startup-location lookup, so without this it would
-        // still hold the placeholder 0°.
-        dyn.heading = pos.heading();
+        // position is rather important, we check for validity
+        // (we do allow alt=NAN if on ground)
+        if ( !pos.isNormal(true) ) {
+            LOG_MSG(logDEBUG,ERR_POS_UNNORMAL,fdKey.c_str(),pos.dbgTxt().c_str());
+            continue;
+        }
+        
+        // Dynamic data
+        LTFlightData::FDDynamicData dyn;
+        dyn.radar.mode          = xpmpTransponderMode_Off;
+        dyn.gnd                 = true;
+        dyn.heading             = pos.heading();
+        dyn.ts                  = pos.ts();
+        dyn.spd                 = 0.0;
+        dyn.vsi                 = 0.0;
+        dyn.pChannel            = this;
         
         try {
             // from here on access to fdMap guarded by a mutex
@@ -1230,6 +1165,15 @@ bool RealTrafficConnection::ProcessParkedAcBuffer (const JSON_Object* pData)
             // completely new? fill key fields
             if ( fd.empty() )
                 fd.SetKey(fdKey);
+            // If plane already exists test if it is flying/taxiing.
+            // Parking positions can be stale and shall never override moving planes.
+            else {
+                const positionTy futPos = fd.GetMostFuturePos();
+                if (futPos.hasPos() &&
+                    pos.distRoughSqr(futPos) > GATE_REFEED_MAX_DIST_M * GATE_REFEED_MAX_DIST_M)
+                    // That flight has positions away from the gate, so do NOT put it back there -> skip
+                    continue;
+            }
             
             // add the static data
             fd.UpdateData(std::move(stat), pos.dist(posView));
@@ -2314,7 +2258,7 @@ bool RealTrafficConnection::ProcessRTTFC (LTFlightData::FDKeyTy& fdKey,
         stat.catDescr       = GetADSBEmitterCat(sCat);
         
         // Skip placeholder aircraft silently, for which proper data is available
-        if (IsPlacehoderAndDuplicate(fdKey, stat.call))
+        if (mapRemoveDupPlaceholder(fdKey, stat.call))
             return true;
         
         // RealTraffic often sends ASW20 when it should be AS20, a glider
@@ -2510,7 +2454,7 @@ bool RealTrafficConnection::ProcessAITFC (LTFlightData::FDKeyTy& fdKey,
         stat.slug               = GetSlug(fdKey.num);
 
         // Skip placeholder aircraft silently, for which proper data is available
-        if (IsPlacehoderAndDuplicate(fdKey, stat.call))
+        if (mapRemoveDupPlaceholder(fdKey, stat.call))
             return true;
         
         // RealTraffic often sends ASW20 when it should be AS20, a glider
@@ -2593,50 +2537,6 @@ std::string RealTrafficConnection::GetSlug (unsigned long hex) const
     return std::string(buf);
 }
 
-
-/// For placeholder planes with an "FF" hex id check for duplicates based on call sign
-bool RealTrafficConnection::IsPlacehoderAndDuplicate (const LTFlightData::FDKeyTy& fdKey,
-                                                      const std::string& _call) const
-{
-    // Lambda: does the hex key start with "FF" (case-insensitive)?
-    // FDKeyTy::key is the canonical uppercase hex string per
-    // SetKey()'s normalization, but we tolerate either case here
-    // for robustness.
-    auto isPlaceholderHex = [](const std::string& hex) -> bool {
-        return hex.length() == 6 &&
-        (hex[0] == 'F' || hex[0] == 'f') &&
-        (hex[1] == 'F' || hex[1] == 'f');
-    };
-    
-    // Is this a placeholder plane at all?
-    if (!isPlaceholderHex(fdKey.key) ||
-        _call.empty())                      // or doesn't have a call sign to match
-        return false;
-    
-    // Prepare the call sign...it often has a trailing underscope, which hampers later comparison
-    std::string call = _call;
-    if (call.back() == '_') call.pop_back();
-    
-    try {
-        // Hold the map mutex for the whole pass: we both read and
-        // potentially SetInvalid entries within it, and any concurrent
-        // erase from the cleanup pipeline must not race with our
-        // iteration.
-        std::lock_guard<std::mutex> lock (mapFdMutex);
-        
-        // Pass 1: collect callsigns from real-hex (non-FF) entries.
-        // Skip entries with empty callsigns — they cannot be matched.
-        for (const auto& fdPair : mapFd) {
-            if (isPlaceholderHex(fdPair.first.key))
-                continue;
-            if (fdPair.second.GetUnsafeStat().call == call)
-                return true;
-        }
-    } catch(const std::system_error& e) {
-        LOG_MSG(logERR, ERR_LOCK_ERROR, "mapFd", e.what());
-    }
-    return false;
-}
 
 // Determine timestamp adjustment necessary in case of historic data
 void RealTrafficConnection::AdjustTimestamp (double& ts, int nBuffer)

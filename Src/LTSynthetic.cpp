@@ -253,8 +253,16 @@ bool SyntheticConnection::ProcessFetchedData ()
         SynDataTy& parkDat = i->second;
 
         // not matching a/c filter? -> skip it
-        if ((!acFilter.empty() && (key != acFilter)) )
+        if ((!acFilter.empty() && (key != acFilter)) ) {
+            ++i;
             continue;
+        }
+        
+        // Remove a duplicate placeholder?
+        if (mapRemoveDupPlaceholder(key, i->second.stat.call)) {
+            i = mapSynData.erase(i);
+            continue;
+        }
         
         // Only process planes in search distance
         // We keep the data in memory, just in case we come back, but we don't feed data for unneeded planes
