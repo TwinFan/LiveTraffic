@@ -113,6 +113,7 @@ positionTy CoordPlusVector (const positionTy& p, const vectorTy& vec)
     using namespace std;
     positionTy ret(pos);        // init with pos=p to save other values
     ret.mergeCount = 1;         // only reset merge count
+    ret.edgeIdx = EDGE_UNKNOWN; // and edge idx
     
     // altitude changes by: vsi * flight-time
     // timestamp changes by:      flight-time

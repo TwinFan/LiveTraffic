@@ -269,8 +269,8 @@ protected:
 protected:
     // DYNAMIC DATA (protected, access will be mutex-controlled for thread-safety)
     // buffered positions / dynamic data as deque, sorted by timestamp
-    // first element is oldest and current (the 'from' position/data)
-    // second is pos a/c is currently headed for, and the others then further on into the future
+    // deques are filled at the back and read from the font,
+    // so front() is the one with the lowest timestamp.
     dequePositionTy         posDeque, posToAdd;
     dequeFDDynDataTy        dynDataDeque;
     double                  rotateTS;

@@ -256,6 +256,12 @@ public:
     { return std::abs(HeadingDiff(heading, angle)) < 90.0 ? b : a; }
     
     size_t otherNode(size_t n) const { return n == a ? b : a; } ///< returns the "other" node (`n` should be TaxiEdge::a or TaxiEdge::b)
+    
+    /// @brief Finds the "relevant" node for path algorithms
+    /// @details Usually the one in direction of heading,
+    ///          but the other of very close to provided position
+    size_t relevantNode (const positionTy& pos, const Apt& apt,
+                         bool* pbReversed = nullptr) const;
 
     /// sets a new end node, usually when splitting edges
     void SetEndNode (size_t _b, double _angle, double _dist_m)
@@ -412,6 +418,34 @@ public:
                 return idxE;
         }
         return EDGE_UNAVAIL;
+    }
+    
+    /// @brief Returns the center point of an edge
+    /// @param eIdx The edge in question
+    /// @param posFrom The position from which the aircraft is to get to that edge, important to return the correct heading on the edge
+    /// @returns the center point on the edge, configured as ground special position with fixed heading. No timestamp!
+    positionTy GetEdgeCenterPt (size_t eIdx, const positionTy& posFrom)
+    {
+        const TaxiEdge& e = vecTaxiEdges.at(eIdx);
+        const TaxiNode &a = e.GetA(*this), &b = e.GetB(*this);
+        // We take the mathematic average here. Distances are so short that everything else is overengineered
+        // It will break if an edge would cross the 180° meridian, but as no airport sits directly on that line (NGFU coming closest) we take the risk.
+        const double lat = (a.lat + b.lat)/2.0;
+        const double lon = (a.lon + b.lon)/2.0;
+        return positionTy
+        (
+            lat, lon, NAN, NAN,                                             // lat, lon, alt, ts
+            e.GetAngleByHead(CoordAngle(posFrom.lat(), posFrom.lon(),       // heading
+                                        lat, lon)),
+            0.0, 0.0,                                                       // pitch, roll
+            {
+                e.GetType() == TaxiEdge::RUN_WAY ? FPH_UNKNOWN : FPH_TAXI,  // flightPhase
+                true, GND_ON, UNIT_WORLD, UNIT_DEG,                         // heading fixed
+                e.GetType() == TaxiEdge::RUN_WAY ? SPOS_RWY : SPOS_TAXI,    // specialPos
+                false                                                       // cut corner
+             },
+            eIdx
+         );
     }
 
     /// return index of closest taxi node within a "close-by" distance (or ULONG_MAX if none close enough)
@@ -691,6 +725,68 @@ public:
     }
     
     
+    ///  Get a TaxiEdge by its index, returns `nullptr` if invalid
+    const TaxiEdge* GetEdge (size_t edgeIdx)
+    {
+        if (edgeIdx == EDGE_UNAVAIL) return nullptr;
+        try { return &vecTaxiEdges.at(edgeIdx); }
+        catch (...) { return nullptr; }
+    }
+    
+    /// Get type of TaxiEdge by its index, handling non-existing indexes transparently
+    TaxiEdge::edgeTy GetEdgeType (size_t edgeIdx)
+    {
+        if (const TaxiEdge* pEdge = GetEdge(edgeIdx))
+            return pEdge->GetType();
+        else
+            return TaxiEdge::UNKNOWN_WAY;
+    }
+    
+    /// Get the edge idx that leads from one to the other node, or `ULONG_MAX` if none
+    size_t GetEdgeBetween (size_t fromN, size_t toN)
+    {
+        const TaxiNode& from = vecTaxiNodes.at(fromN);
+        for (size_t eIdx: from.vecEdges) {
+            const TaxiEdge& e = this->vecTaxiEdges.at(eIdx);
+            if (e.startNode() == toN || e.endNode() == toN)
+                return eIdx;
+        }
+        return ULONG_MAX;
+    }
+    
+    /// Helper function to FindClosestEdge for computing the real world coordinates of the base point on the found edge
+    positionTy ComputeBasePt(const positionTy &_pos,
+                             const distToLineTy &bestDist, size_t bestEdgeIdx,
+                             double best_from_x, double best_from_y,
+                             double best_to_x, double best_to_y) const
+    {
+        const TaxiEdge& e = vecTaxiEdges.at(bestEdgeIdx);
+        double base_x = NAN, base_y = NAN;
+        DistResultToBaseLoc(best_from_x, best_from_y,   // edge's starting point
+                            best_to_x, best_to_y,       // edge's end point
+                            bestDist,
+                            base_x, base_y);            // base point's local coordinates
+        
+        // Now only convert back from our local pos-based coordinate system
+        // to geographic world coordinates
+        return positionTy
+        (
+           _pos.lat() + (std::isnan(base_y) ? 0.0 : Dist2Lat(base_y)),              // lat
+           _pos.lon() + (std::isnan(base_x) ? 0.0 : Dist2Lon(base_x, _pos.lat())),  // lon
+           NAN, NAN,                                                                // alt, ts
+           e.GetAngleByHead(_pos.heading()),                                        // heading
+           0.0, 0.0,                                                                // pitch, roll
+           {
+                e.GetType() == TaxiEdge::RUN_WAY ? FPH_UNKNOWN : FPH_TAXI,          // flightPhase
+                true, GND_ON, UNIT_WORLD, UNIT_DEG,                                 // heading fixed
+                e.GetType() == TaxiEdge::RUN_WAY ? SPOS_RWY : SPOS_TAXI,            // specialPos
+                false                                                               // cut corner
+           },
+           bestEdgeIdx
+        );
+    }
+
+    
     /// @brief Find closest taxi edge matching the passed position including its heading
     /// @details Calculations are done based on approximate  distances between
     ///          geographic world coordinates, measured in meter.
@@ -704,13 +800,15 @@ public:
     /// @param _angleTolerance Maximum difference between `pos.heading()` and TaxiEdge::angle to be considered a match
     /// @param _angleToleranceExt Second priority tolerance, considered only if such a node is more than 5m closer than one that better fits angle
     /// @param _vecSkipEIdx (optional) Do not return any of these edge
+    /// @param _pAllBasePts (optional) If provided, function returns _all_ edges in reach, specifically their base points, with positionTy::edgeIdx set
     /// @return Pointer to closest taxiway edge or `nullptr` if no match was found
     const TaxiEdge* FindClosestEdge (const positionTy& _pos,
                                      positionTy& _basePt,
                                      double _maxDist_m,
                                      double _angleTolerance,
                                      double _angleToleranceExt,
-                                     const vecIdxTy& _vecSkipEIdx = vecIdxTy()) const
+                                     const vecIdxTy& _vecSkipEIdx = vecIdxTy(),
+                                     dequePositionTy* _pAllBasePts = nullptr) const
     {
         const TaxiEdge* bestEdge = nullptr;
         size_t bestEdgeIdx = EDGE_UNKNOWN;
@@ -809,12 +907,24 @@ public:
             // e now is an edge that could be chosen.
             // We absolutely prefer RWY edges. If there is a potential RWY edge we pick that.
             if (e.GetType() == TaxiEdge::RUN_WAY) {
-                // from now on we only need to consider runways
-                bRwyPhase = true;
-                
-                // current best edge is not a RWY? -> Override
-                if (bestEdge && bestEdge->GetType() != TaxiEdge::RUN_WAY)
-                    bestPrioDist = NAN;
+                // If previously we have considered non-rwys
+                if (!bRwyPhase) {
+                    // then we now need no longer and can throw away all findings (which can only be non-rwys)
+                    bRwyPhase = true;                           // from now on, only consider rwy edges
+                    if (_pAllBasePts) _pAllBasePts->clear();    // clear any return positions collected so far
+                    bestPrioDist = NAN;                         // this ensures that the current rwy edge becomes "the best"
+                }
+            }
+            
+            // If all edges are wanted, then compute base point on edge and add that to the return queue
+            if (_pAllBasePts) {
+                positionTy ptBase = ComputeBasePt(_pos, dist, eIdx,
+                                                  from_x, from_y,
+                                                  to_x, to_y);
+                if (prioDist >= bestPrioDist)
+                    _pAllBasePts->emplace_back(ptBase);
+                else    // this gurantess for the best position to end up at the front of the deque
+                    _pAllBasePts->emplace_front(ptBase);
             }
             
             // If priorized distance is farther than best we know: skip
@@ -836,61 +946,30 @@ public:
         if (!bestEdge)
             return nullptr;
         
-        // Compute base point on the line,
-        // ie. the point on the line with shortest distance
-        // to pos
-        double base_x = NAN, base_y = NAN;
-        DistResultToBaseLoc(best_from_x, best_from_y,   // edge's starting point
-                            best_to_x, best_to_y,       // edge's end point
-                            bestDist,
-                            base_x, base_y);            // base point's local coordinates
+        // Determine base point on the matching edge
+        // ie. the point on the line with shortest distance to pos
+        positionTy ptBase;
 
-        // Now only convert back from our local pos-based coordinate system
-        // to geographic world coordinates
-        _basePt.lon() = _pos.lon() + (std::isnan(base_x) ? 0.0 : Dist2Lon(base_x, _pos.lat()));
-        _basePt.lat() = _pos.lat() + (std::isnan(base_y) ? 0.0 : Dist2Lat(base_y));
-        _basePt.heading() = bestEdge->GetAngleByHead(_pos.heading());
-        _basePt.f.bHeadFixed = true;                    // We want the plane to head exactly as the line does!
-        _basePt.f.specialPos = bestEdge->GetType() == TaxiEdge::RUN_WAY ? SPOS_RWY : SPOS_TAXI;
-        _basePt.edgeIdx = bestEdgeIdx;
+        // If we kept track of all candidates then find the best match in the list
+        if (_pAllBasePts)
+            ptBase = _pAllBasePts->front();
+        else
+            ptBase = ComputeBasePt(_pos, bestDist, bestEdgeIdx, best_from_x, best_from_y, best_to_x, best_to_y);
+        
+        // We guarantee to override only some elements of _basePt:
+        _basePt.lat()           = ptBase.lat();
+        _basePt.lon()           = ptBase.lon();
+        _basePt.heading()       = ptBase.heading();
+        _basePt.f.bHeadFixed    = ptBase.f.bHeadFixed;
+        _basePt.edgeIdx         = ptBase.edgeIdx;
+        // If we can get "better" we do
+        if (_basePt.f.specialPos == SPOS_NONE)      _basePt.f.specialPos = ptBase.f.specialPos;
+        if (_basePt.f.flightPhase == FPH_UNKNOWN)   _basePt.f.flightPhase = ptBase.f.flightPhase;
         
         // return the found egde
         return bestEdge;
     }
     
-    /// @brief Return the type of edge the given position is on
-    /// @param _pos Position to analyse
-    /// @param[out] _pIdxE Optionally receives the edge's index
-    TaxiEdge::edgeTy GetPosEdgeType (const positionTy& _pos, size_t* _pIdxE = nullptr) const
-    {
-        // Haven't yet analysed this position?
-        size_t idxE = _pos.edgeIdx;
-        if (idxE == EDGE_UNKNOWN) {
-            // Find the closest edge and update idxE
-            positionTy basePos = _pos;
-            FindClosestEdge(_pos, basePos,
-                            dataRefs.GetFdSnapTaxiDist_m(),
-                            ART_EDGE_ANGLE_TOLERANCE,
-                            ART_EDGE_ANGLE_TOLERANCE_EXT);
-            idxE = basePos.edgeIdx;
-        }
-        
-        // return the edge's index if requested
-        if (_pIdxE) *_pIdxE = idxE;
-        
-        // position is analyzed, but no edge found?
-        if (idxE == EDGE_UNAVAIL)
-            return TaxiEdge::UNKNOWN_WAY;
-        
-        // return the edge's type
-        return vecTaxiEdges.at(idxE).GetType();
-    }
-    
-    /// @brief Return the type of edge the given position is on
-    /// @param[in,out] _pos Position to analyse; will set positionTy.edgeIdx if yet unknown
-    TaxiEdge::edgeTy GetPosEdgeType (positionTy& _pos) const
-    { return GetPosEdgeType(_pos, &_pos.edgeIdx); }
-
     /// @brief Processes the temporary map/list of nodes/edges and transforms them to permanent ones,
     /// @details thereby keeping joints (positions where edges meet) but streamlining other nodes,
     ///          so we don't add all nodes
@@ -1013,7 +1092,7 @@ public:
             if (!pJoinE)
                 continue;
             
-            if (std::isnan(pos.lat()) || std::isnan(pos.lon()))
+            if (!pos.hasPos())
                 continue;
             
             // We found just another taxi edge, which we combine:
@@ -1071,16 +1150,16 @@ public:
     /// @param _maxLen Maximum path length, no longer paths will be pursued or returned
     /// @param _headingAtStart The current heading at the start node, affects how the start leg may be picked to avoid sharp turns
     /// @param _headingAtEnd The expected heading at the end node, affects how the final leg to the endN may be picked
-    /// @return List of node indexes _including_ `_end` and `_start` in _reverse_ order,
-    ///         or an empty list if no path of suitable length was found
-    vecIdxTy ShortestPath (size_t _startN, size_t _endN, double _maxLen,
-                           double _headingAtStart,
-                           double _headingAtEnd)
+    /// @param[out] pVecEPath (optional) receives the list of edge indexes to travel from `_startN` to `_endN`,
+    /// @return path length, `0.0` if `_startN==_endN`, `NAN` if no valid path is found
+    double ShortestPath (size_t _startN, size_t _endN, double _maxLen,
+                         double _headingAtStart,
+                         double _headingAtEnd,
+                         vecIdxTy* pVecEPath = nullptr)
     {
         // Sanity check: _start and _end should differ
         if (_startN == _endN)
-            return vecIdxTy();
-
+            return 0.0;
 
         // Initialize the Dijkstra values in the nodes array
         for (TaxiNode& n: vecTaxiNodes)
@@ -1184,18 +1263,29 @@ public:
         
         // Found nothing? -> return empty list
         if (endN.prevIdx == ULONG_MAX)
-            return vecIdxTy();
+            return NAN;
         
-        // put together the nodes from _start through _end in the right order
-        vecVisit.clear();
-        for (size_t nIdx = _endN;
-             nIdx < ULONG_MAX-1;                    // until nIdx becomes invalid
-             nIdx = vecTaxiNodes.at(nIdx).prevIdx)     // move on to _previous_ node on shortest path
-        {
-            LOG_ASSERT(nIdx < vecTaxiNodes.size());
-            vecVisit.push_back(nIdx);
+        // --- Prepare the resulting edges, if requested ---
+        if (pVecEPath) {
+            // Loop nodes in reverse order, and store the edges between them
+            pVecEPath->clear();
+            for (size_t prevN = _endN,                  // begin at the end node
+                 nIdx = vecTaxiNodes.at(_endN).prevIdx; // and the node from where to get to the end node
+                 nIdx < ULONG_MAX-1;                    // until nIdx becomes invalid
+                 prevN = nIdx,
+                 nIdx = vecTaxiNodes.at(nIdx).prevIdx)  // move on to _previous_ node on shortest path
+            {
+                // find the edge that goes FROM the current TO the previous node
+                size_t eIdx = GetEdgeBetween(prevN, nIdx);
+                LOG_ASSERT(eIdx != ULONG_MAX);
+                pVecEPath->push_back(eIdx);
+            }
+            // reverse the entire list, so that we have the edges in the correct travel order
+            std::reverse(pVecEPath->begin(), pVecEPath->end());
         }
-        return vecVisit;
+        
+        // the total path len is stored in the end nodes
+        return endN.pathLen;
     }
     
     /// @brief Find best matching taxi edge based on passed-in position/heading info
@@ -1205,7 +1295,7 @@ public:
         // The position we consider and that we potentially change
         // by snapping to a taxiway
         positionTy& pos = *posIter;
-        const double old_lat = pos.lat(), old_lon = pos.lon();
+        const positionTy oldPos = pos;
         
         // Previous position, could be NULL!
         const positionTy* pPrevPos = nullptr;
@@ -1222,13 +1312,14 @@ public:
             ProjectPosOnStartupPath(pos, *pStartLoc);
             if (dataRefs.GetDebugAcPos(fd.key()))
                 LOG_MSG(logDEBUG, "Snapped to startup location path from (%.5f, %.5f) to (%.5f, %.5f)",
-                        old_lat, old_lon, pos.lat(), pos.lon());
+                        oldPos.lat(), oldPos.lon(), pos.lat(), pos.lon());
             return true;
         }
         
-        // 2. --- Find any edge ---
-        // Find the closest edge and right away move pos there
-        // Heading (at the edge):
+        // 2. --- Find all close edge ---
+        // Find all closest edges, a set of potential snapping positions.
+        // (We'll later decide which one to use by testing against shortest paths.)
+        
         // On the ground it is quite possible to do tight turns.
         // Using the direct vector between last and next location
         // might not point the right way, especially if both positions
@@ -1249,13 +1340,18 @@ public:
             if (bSimilar && pDynDat)
                 posForSearching.heading() = pDynDat->heading;
         }
-        const TaxiEdge* pEdge = FindClosestEdge(posForSearching, pos,
-                                                dataRefs.GetFdSnapTaxiDist_m(),
-                                                ART_EDGE_ANGLE_TOLERANCE,
-                                                ART_EDGE_ANGLE_TOLERANCE_EXT);
+        
+        // Collect all closest edges
+        dequePositionTy basePts;
+        const TaxiEdge* pClosestEdge = FindClosestEdge(posForSearching, pos,
+                                                       dataRefs.GetFdSnapTaxiDist_m(),
+                                                       ART_EDGE_ANGLE_TOLERANCE,
+                                                       ART_EDGE_ANGLE_TOLERANCE_EXT,
+                                                       vecIdxTy(),
+                                                       &basePts);
                 
         // Nothing found?
-        if (!pEdge) {
+        if (!pClosestEdge) {
             // --- Test for Black Hole Horizon problem:
             //     When planes briefly wait on taxiways then it can happen
             //     that the previous pos was close enough to a taxiway and
@@ -1295,39 +1391,54 @@ public:
                 pos.f           = pPrevPos->f;
                 if (dataRefs.GetDebugAcPos(fd.key()))
                     LOG_MSG(logDEBUG, "Snapped to taxiway from (%.5f, %.5f) to (%.5f, %.5f; edge %lu) based on previously snapped position",
-                            old_lat, old_lon, pos.lat(), pos.lon(), (long unsigned)pos.edgeIdx);
+                            oldPos.lat(), oldPos.lon(), pos.lat(), pos.lon(), (long unsigned)pos.edgeIdx);
                 return true;
             }
             
             return false;
         }
         
-        // --- found a match, say hurray ---
-        if (dataRefs.GetDebugAcPos(fd.key())) {
-            LOG_MSG(logDEBUG, "Snapped to taxiway from (%.5f, %.5f) to (%.5f, %.5f; edge %lu)",
-                    old_lat, old_lon, pos.lat(), pos.lon(), (long unsigned)pos.edgeIdx);
-        }
-            
-        // this is now an artificially moved position, don't touch any further
-        // (we don't mark positions on a runway yet...would be take off or rollout to be distinguished)
-        if (pEdge->GetType() != TaxiEdge::RUN_WAY)
-            pos.f.flightPhase = FPH_TAXI;
-        
         // --- Insert shortest path along taxiways ---
-        // if wanted, that is, and if there is a previous position
-        if (!bInsertTaxiTurns || !pPrevPos)
+        // if a shortest path is not wanted or not possible (need a previous pos to compute a 'path') return here
+        if (!bInsertTaxiTurns ||                                        // don't _want_ shortest path
+            !pPrevPos ||                                                // don't have a previous position
+            !pPrevPos->HasTaxiEdge() ||                                 // ...on an actual edge
+            (pos.edgeIdx == pPrevPos->edgeIdx) ||                       // previous and best pos are on the same dge
+            (GetEdgeType(pos.edgeIdx) == TaxiEdge::RUN_WAY &&           // previous and best pos are both on a runway
+             GetEdgeType(pPrevPos->edgeIdx) == TaxiEdge::RUN_WAY))
+        {
+            if (dataRefs.GetDebugAcPos(fd.key())) {
+                LOG_MSG(logDEBUG, "Snapped to taxiway from (%.5f, %.5f) to (%.5f, %.5f; edge %lu)",
+                        oldPos.lat(), oldPos.lon(), pos.lat(), pos.lon(), (long unsigned)pos.edgeIdx);
+            }
             return true;
+        }
+        // So we know now:
+        // We have a pPrevPos on an edge that is different from pos.edgeIdx,
+        // and at least one of those edges is not a rwy.
         
-        // Direct distance from pos to *pPrevPos, used in some sanity checks
-        const double distPrevPosPos = pPrevPos->dist(pos);
+        // 3. --- Find edge with overall shortest path from prev to next ---
+        //    Especially around taxiway junctions it is difficult to decide
+        //    which taxi way edge to take if not also considering where
+        //    the plane moves in the future.
+        //    Here now, for all candidates in basePts, we compute
+        //    shortest paths from the previous and to the next pos
+        //    and will eventually pick the candidate with the overall
+        //    shortest path from previous via candidate to next.
+        //    In absence of an actual next, we use an artifical point
+        //    that mirrors prev on oldPos, in other words:
+        //    We _assume_ we move straight ahead.
         
-        // That pos must be on an edge, too
-        if (!pPrevPos->HasTaxiEdge() ||
-            // That previous edge isn't by chance the same we just now found? Then the shortest path is to go straight...
-            (pos.edgeIdx == pPrevPos->edgeIdx) ||
-            // Also, we don't search for path between any two rwy nodes
-            (GetPosEdgeType(pos) == TaxiEdge::RUN_WAY && GetPosEdgeType(*pPrevPos) == TaxiEdge::RUN_WAY))
-            return true;
+        // Direct vector from *pPrevPos to pos, used in some sanity checks
+        // (pos has been changed by FindClosestEdge, and we keep that
+        //  in case we don't find shortest paths...so here we use `oldPos` instead of `pos`)
+        const vectorTy vecFirst = pPrevPos->between(oldPos);
+
+        const positionTy& posPrev = *pPrevPos;
+        positionTy posNext =        // next is the next in the fd.posDeque if available, otherwise a projection assume going straight ahead
+            std::next(posIter) != fd.posDeque.end() ? *std::next(posIter) :
+            oldPos + vecFirst;      // this also advances timestamp!
+        
 
         // - relevant nodes: usually the ones away from (prev)pos,
         //                   but if we are very close to a joint node,
@@ -1339,209 +1450,161 @@ public:
         
         // previous edge's relevant node
         bool bSkipStart = false;
-        const TaxiEdge& prevE = vecTaxiEdges.at(pPrevPos->edgeIdx);
-        size_t prevErelN = prevE.endByHeading(pPrevPos->heading());
-        {
-            const TaxiNode& othN = vecTaxiNodes.at(prevE.otherNode(prevErelN));
-            if (DistLatLonSqr(othN.lat, othN.lon, pPrevPos->lat(), pPrevPos->lon()) <= sqr(2*APT_MAX_SIMILAR_NODE_DIST_M)) {
-                prevErelN = prevE.otherNode(prevErelN);
-                bSkipStart = true;      // this node is now _before_ prevPos, don't add that to the deque!
-            }
-            else
-            {
-                // Sanity check: if the distance to reaching the first node
-                // is more than we shall travel in total we're making a mistake
-                const TaxiNode& prevErelNode = vecTaxiNodes.at(prevErelN);
-                if (DistLatLon(pPrevPos->lat(), pPrevPos->lon(),
-                               prevErelNode.lat, prevErelNode.lon) > distPrevPosPos)
-                    // Then it is simpler to just go straight without any taxiway path
-                    return true;
-            }
-        }
+        const TaxiEdge & prevE = vecTaxiEdges.at(posPrev.edgeIdx);
+        const size_t prevErelN = prevE.relevantNode(posPrev, *this, &bSkipStart);
+        const double prevEHead = prevE.GetAngleByHead(pPrevPos->heading());
         
-        // current edge's relevant node
-        bool bSkipEnd = false;
-        size_t currEstartN = pEdge->startByHeading(pos.heading());
-        {
-            const TaxiNode& othN = vecTaxiNodes.at(pEdge->otherNode(currEstartN));
-            if (DistLatLonSqr(othN.lat, othN.lon, pos.lat(), pos.lon()) <= sqr(2*APT_MAX_SIMILAR_NODE_DIST_M)) {
-                currEstartN = pEdge->otherNode(currEstartN);
-                bSkipEnd = true;      // this node is now _beyond_ pos, don't add that to the deque!
-            }
-            else
-            {
-                // Sanity check: if the distance to reaching the last node
-                // is more than we shall travel in total we're making a mistake
-                const TaxiNode& currErelNode = vecTaxiNodes.at(currEstartN);
-                if (DistLatLon(pos.lat(), pos.lon(),
-                               currErelNode.lat, currErelNode.lon) > distPrevPosPos)
-                    // Then it is simpler to just go straight without any taxiway path
-                    return true;
-            }
-        }
+        // Next position's edge is hopefully already in the position, otherwise we have to search for it
+        const TaxiEdge* pNextE =
+            posNext.HasTaxiEdge() ? &vecTaxiEdges.at(posNext.edgeIdx) :
+            FindClosestEdge(posNext, posNext,
+                            dataRefs.GetFdSnapTaxiDist_m(),
+                            ART_EDGE_ANGLE_TOLERANCE,
+                            ART_EDGE_ANGLE_TOLERANCE_EXT);
+        // Direct vector from pos to posNext, used in some sanity checks
+        const vectorTy vecSecond = oldPos.between(posNext);
+        // Next edge's relevant node
+        const size_t nextErelN = pNextE ? pNextE->startByHeading(vecSecond.angle) : ULONG_MAX;
+        const double nextEHead = pNextE ? pNextE->GetAngleByHead(vecSecond.angle) : NAN;
         
         // for the maximum allowed path length let's consider taxiing speed,
         // but allow 3x taxiing speed if beginning leg is still on a rwy
         // (consider high-speed exits!).
         const LTAircraft::FlightModel& mdl = LTAircraft::FlightModel::FindFlightModel(fd);
-        const double maxLen =
-        (pos.ts() - pPrevPos->ts()) * mdl.MAX_TAXI_SPEED / KT_per_M_per_S *
-        (prevE.GetType() == TaxiEdge::RUN_WAY ? 3.0 : 1.0);     // allow much more length in case we are turning off a rwy, might still have high speed
+        const double maxSpd_ms = mdl.MAX_TAXI_SPEED / KT_per_M_per_S *
+                                 (prevE.GetType() == TaxiEdge::RUN_WAY ? 3.0 : 1.0);
+        const double maxLen = (posNext.ts() - posPrev.ts()) * maxSpd_ms;
         
-        // let's try finding a shortest path
-        vecIdxTy vecPath = ShortestPath(prevErelN,
-                                        currEstartN,
-                                        maxLen,
-                                        prevE.GetAngleByHead(pPrevPos->heading()),
-                                        pEdge->GetAngleByHead(pos.heading()));
-        
-        // We might skip front/start nodes, remove them now if so
-        if (vecPath.size() >= 2 && bSkipEnd)
-            vecPath.erase(vecPath.begin());             // vecPath is in reverse order, so last element is at begin
-        if (vecPath.size() >= 2 && bSkipStart)
-            vecPath.pop_back();                         // vecPath is in reverse order!
-        
-        // Special handling for rwy nodes at beginning of path:
-        // We don't need several rwy nodes, a rwy is a straight line anyway,
-        // and without intermediate nodes calculation of proper decelaration
-        // becomes possible
-        while (vecPath.size() >= 2)
+        //    --- Loop candidate (edges) and apply shortest path search
+        //        to find the overall best edge to pick ---
+        const positionTy* pBestPos = nullptr;           // receives the best matching candidate
+        vecIdxTy vecEBest;                              // receives the best matching path from posPrev to pos
+        double lenBest = maxLen;                        // receives the length of that path
+        for (const positionTy& posCandidate: basePts)
         {
-            // vecPath is in reverse order, so use reverse iterator
-            // edge between the first two nodes
-            size_t eIdx = GetEdgeBetweenNodes(*vecPath.crbegin(), *std::next(vecPath.crbegin()));
-            LOG_ASSERT(eIdx != EDGE_UNAVAIL);
-            // stop processing if not a rwy
-            if (vecTaxiEdges[eIdx].GetType() != TaxiEdge::RUN_WAY)
-                break;
-            // it is a runway, so remove the first node (which, as vecPath is in reverse order, happens to be the back node)
-            vecPath.pop_back();
+            // the candidate edge
+            const TaxiEdge& e = vecTaxiEdges.at(posCandidate.edgeIdx);
+            const size_t posErelN = e.startByHeading(posCandidate.heading());
+            // Shortes path from posPrev to candidate
+            vecIdxTy vecEFirst;
+            const double lenFirst = ShortestPath(prevErelN, posErelN,
+                                                 lenBest,       // don't need to find longer paths than the best one we have already
+                                                 prevEHead,
+                                                 posCandidate.heading(),
+                                                 &vecEFirst);
+            if (std::isnan(lenFirst))                           // not found any path -> skip candidate
+                continue;
+            // Shortest path from candidate to posNext
+            double lenSecond = 0.0;
+            if (pNextE && lenFirst < lenBest) {
+                lenSecond = ShortestPath(posErelN, nextErelN,
+                                         lenBest - lenFirst,    // first part took up some distance already, here only this remains to turn out better than the current best
+                                         posCandidate.heading(),
+                                         nextEHead);
+                if (std::isnan(lenSecond))                      // not found any path -> skip candidate
+                    continue;
+            }
+            // Do we have a new best candidate?
+            if (lenFirst + lenSecond < lenBest) {
+                pBestPos = &posCandidate;
+                lenBest = lenFirst + lenSecond;
+                vecEBest = std::move(vecEFirst);
+            }
         }
         
-        // if we removed nodes from the start of the path then we need to adjust path len in the nodes now:
-        // The start node has to have pathLen == 0.0
-        if (vecPath.size() >= 2 && vecTaxiNodes.at(vecPath.back()).pathLen > 0.0) {
-            const double adjust = vecTaxiNodes.at(vecPath.back()).pathLen;
-            for (size_t nIdx: vecPath)
-                vecTaxiNodes.at(nIdx).pathLen -= adjust;
+        // If we include a start edge before pos, remove it now, and also reduce path length by its length
+        if (!vecEBest.empty() && bSkipStart) {
+            lenBest -= vecTaxiEdges.at(vecEBest.front()).dist_m;
+            vecEBest.erase(vecEBest.begin());
         }
 
-        // Some path left?
-        if (vecPath.size() >= 2)
+        // Now we most likely found a best position by comparing shortest paths,
+        // but if not we still have the closest edge. And that's base point is
+        // stored at the very front of basePts
+        
+        // 4. --- Insert resulting shortest path ---
+        //    Need to assign timestamps in a way that we keep
+        //    a constant average speed
+        // Did we get a shortest path?
+        if (pBestPos)
         {
-            const TaxiNode& endN = vecTaxiNodes.at(vecPath.front());   // end of path
-            const TaxiNode& startN = vecTaxiNodes.at(vecPath.back());  // start of path
-
-            // distance from prevPos to path's start
-            const double distToStart = DistLatLon(pPrevPos->lat(), pPrevPos->lon(), startN.lat, startN.lon);
-            // length of total path as defined in vecPath
-            const double pathLen = endN.pathLen;
-            // distane from path's end to pos
-            const double distFromEnd = DistLatLon(endN.lat, endN.lon, pos.lat(), pos.lon());
-            // end-2-end distance including all segments
-            const double distE2E = distToStart + pathLen + distFromEnd;
+            // Overwrite relevant elements of the position that was passed in
+            pos.lat()           = pBestPos->lat();
+            pos.lon()           = pBestPos->lon();
+            if (!pos.IsOnGnd()) {
+                pos.f.onGrnd    = GND_ON;
+                pos.alt_m()     = NAN;
+            }
+            pos.heading()       = pBestPos->heading();
+            pos.f.bHeadFixed    = pBestPos->f.bHeadFixed;
+            pos.f.specialPos    = pBestPos->f.specialPos;
+            if (oldPos.f.flightPhase == FPH_UNKNOWN)
+                pos.f.flightPhase = pBestPos->f.flightPhase;
+            pos.edgeIdx         = pBestPos->edgeIdx;
             
-            // average speed for the complete end-2-end distance
-            double speed = distE2E / (pos.ts() - pPrevPos->ts());
-            // ts for first path node: Allow for some time to go from prevPos to start of path:
-            double startTS = pPrevPos->ts() + distToStart / speed;
-
-            // Special handling if we are coming from a rwy:
-            // We allow for high speed on the path from prevPos to the start of
-            // the path, which supposingly is the point turning off from the rwy
-            // (we had removed all other rwy nodes just a few lines above)
-            if (prevE.GetType() == TaxiEdge::RUN_WAY &&
-                speed > mdl.MAX_TAXI_SPEED * 0.60 / KT_per_M_per_S)
-            {
-                // Average speed was higher than what we would taxi with,
-                // so we reduce the speed to reasonable taxiing speed
-                // and make sure that all the path is executed with taxiing speed,
-                // which allows for higher speed from prevPos to the start of the path:
-                const double taxiSpeed = mdl.MAX_TAXI_SPEED * 0.60 / KT_per_M_per_S;
-                const double newStartTaxiTS = pos.ts() - (pathLen + distFromEnd) / taxiSpeed;
-                const double rwySpeed = distToStart / (newStartTaxiTS - pPrevPos->ts());
-                // Validate the above new values otherwise we might start the
-                // new path before pPrevPos, which would be bad...
-                if (newStartTaxiTS > pPrevPos->ts() &&      // taxiing must start after pPrevPos (on rwy)
-                    rwySpeed <= mdl.SPEED_INIT_CLIMB * 1.5) // speed on rwy must still be reasonable
-                {
-                    speed = taxiSpeed;
-                    startTS = newStartTaxiTS;
-                }
-            }
-
-            // remaining time from first path's node to pos
-            const double timeStartToPos = pos.ts() - startTS;
-            // remaining distance from first path's node to pos
-            const double distStartToPos = pathLen + distFromEnd;
-
-            // path is returned in reverse order, so work on it reversely
-            size_t prevIdxN = ULONG_MAX;
-            bool bFirstNode = true;
-            double segmLen = 0.0;           // length of the inserted segment if combined from several shortest path segments
-            for (vecIdxTy::const_reverse_iterator iter = vecPath.crbegin();
-                 iter != vecPath.crend();
-                 ++iter)
-            {
-                // Is this (going to be) the last node?
-                const bool bLastNode = std::next(iter) == vecPath.crend();
-
-                // create a proper position and insert it into fd's posDeque
-                const TaxiNode& n = vecTaxiNodes.at(*iter);
-                positionTy insPos (n.lat, n.lon, NAN,   // lat, lon, altitude
-                                   startTS + timeStartToPos * n.pathLen / distStartToPos,
-                                   NAN,                 // heading will be populated later
-                                   0.0, 0.0,            // on the ground no pitch/roll
-                                   GND_ON,
-                                   UNIT_WORLD,
-                                   UNIT_DEG,
-                                   FPH_TAXI);
+            // If we also got a taxi path, then insert that now
+            if (!vecEBest.empty() && lenBest >= 0.1) {
+                // The time we have is simply pos.ts() - posPrev.ts(),
+                // but it needs to be distribute across
+                // a) The leg from posPrev to the first edge
+                // b) all legs between the edges, complicated by the fact that we will be inserting edge centerpoints
+                // c) the last leg from the last edge to pos
+                double totalTime = pos.ts() - posPrev.ts();
                 
-                // Which edge is this pos on? (Or, as it is a node: one of the edges it is connected to)
-                if (prevIdxN == ULONG_MAX)
-                    insPos.edgeIdx = pPrevPos->edgeIdx;
-                else {
-                    insPos.edgeIdx = GetEdgeBetweenNodes(*iter, prevIdxN);
-                    segmLen += vecTaxiEdges[insPos.edgeIdx].dist_m;
-                }
-                prevIdxN = *iter;
+                // lenBest currently has the total length of all edges.
+                // Remove half the start/end edge, instead add the actual distance from posPrev/to pos
+                lenBest -= vecTaxiEdges[vecEBest.front()].dist_m/2.0;
+                double lenPrevHalf = GetEdgeCenterPt(vecEBest.front(), posPrev).dist(posPrev);
+                lenBest += lenPrevHalf;
                 
-                // insPos is now either on a taxiway or a runway
-                insPos.f.specialPos =
-                vecTaxiEdges[insPos.edgeIdx].GetType() == TaxiEdge::RUN_WAY ?
-                SPOS_RWY : SPOS_TAXI;
+                lenBest -= vecTaxiEdges[vecEBest.back()].dist_m/2.0;
+                lenBest += GetEdgeCenterPt(vecEBest.back(), pos).dist(pos);
                 
-                // A few short segments might be combined into one
-                if (bFirstNode || bLastNode                     ||  // we always add first and last nodes
-                    insPos.f.specialPos == SPOS_RWY             ||  // we always add RWY nodes
-                    segmLen >= APT_PATH_MIN_SEGM_LEN)               // we add once the segment length is long enough
-                {
-                    // Insert before the position that was passed in
-                    posIter = fd.posDeque.insert(posIter, insPos);  // posIter now points to inserted element
-                    ++posIter;                                      // posIter points to originally passed in element again
-                    segmLen = 0.0;
-                    bFirstNode = false;
+                // Time in seconds per meter distance
+                const double sPerM = totalTime / lenBest;
+                
+                // Insert between posPrev and pos the edges of the shortest path,
+                // so that the plane follows the found taxi way from posPrev to pos.
+                // The positions inserted are the center points of each edge.
+                // TODO: Consider removing consecutive RWY edges
+                
+                // Loop all edges of the shortest path, they are in order of travel
+                positionTy posFrom = posPrev;               // the previous position last inserted into the deque, to derive heading
+                lenPrevHalf -= vecTaxiEdges[vecEBest.front()].dist_m/2.0;   // hack: lenPrevHalf is computed as the _full_ length from posPrev to the first edges centerpoint, but within the following loop, we add half an edge lengths again
+                for (size_t eIdx: vecEBest) {
+                    const TaxiEdge& e = vecTaxiEdges[eIdx];
+                    positionTy posIns = GetEdgeCenterPt(eIdx, posFrom);
+                    // Timestamp is half the previous edge, plus half this edge, multiplied by the time per meter:
+                    posIns.ts() = posFrom.ts() + (lenPrevHalf + e.dist_m/2.0)*sPerM;
+                    // save the values for the next iteration
+                    posFrom = posIns;
+                    lenPrevHalf = e.dist_m/2.0;
+                    // Insert the taxiway position, always right in front of pos
+                    posIter = fd.posDeque.insert(posIter, std::move(posIns));
+                    posIter++;                      // and set `posIter` back to point to `pos`
                 }
-            }
+                
+                // Log output about what we just did
+                if (dataRefs.GetDebugAcPos(fd.key())) {
+                    LOG_MSG(logDEBUG, "Inserted %zu taxiway edge centerpoints", vecEBest.size());
+                }
             
-            if (dataRefs.GetDebugAcPos(fd.key())) {
-                LOG_MSG(logDEBUG, "Inserted %lu taxiway nodes",
-                        (long unsigned)(vecPath.size() - (size_t)bSkipStart - (size_t)bSkipEnd));
+                // posDeque should still be sorted, i.e. no two adjacent positions a,b should be a > b
+                LOG_ASSERT_FD(fd,
+                              std::adjacent_find(fd.posDeque.cbegin(), fd.posDeque.cend(),
+                                                 [](const positionTy& a, const positionTy& b)
+                                                 {return a > b;}
+                                                 ) == fd.posDeque.cend());
             }
-
-            // posDeque should still be sorted, i.e. no two adjacent positions a,b should be a > b
-            LOG_ASSERT_FD(fd,
-                          std::adjacent_find(fd.posDeque.cbegin(), fd.posDeque.cend(),
-                                             [](const positionTy& a, const positionTy& b)
-                                             {return a > b;}
-                                             ) == fd.posDeque.cend());
-        } // if found a shortest path
+        }
+        
         // Not found a shortest path -> try finding edges' intersection
         else
         {
+            // TODO: This (and positionTy::f.bCutCorner) should no longer be necessary when we have splines drive on ground movement
             // Let's try finding the intersection point of the 2 edges we are on
-            const TaxiNode& currA = pEdge->GetA(*this);
-            const TaxiNode& currB = pEdge->GetB(*this);
+            const TaxiNode& currA = pClosestEdge->GetA(*this);
+            const TaxiNode& currB = pClosestEdge->GetB(*this);
             const TaxiNode& prevA = prevE.GetA(*this);
             const TaxiNode& prevB = prevE.GetB(*this);
             positionTy intersec =
@@ -1598,6 +1661,10 @@ public:
         }
 
         // snapping successful
+        if (dataRefs.GetDebugAcPos(fd.key())) {
+            LOG_MSG(logDEBUG, "Snapped to taxiway from (%.5f, %.5f) to (%.5f, %.5f; edge %lu)",
+                    oldPos.lat(), oldPos.lon(), pos.lat(), pos.lon(), (long unsigned)pos.edgeIdx);
+        }
         return true;
     }
     
@@ -1963,15 +2030,30 @@ void Apt::AddApt (Apt&& apt)
 /// Return the a node, ie. the starting point of the edge
 const TaxiNode& TaxiEdge::GetA (const Apt& apt) const
 {
-    return apt.GetTaxiNodesVec()[a];
+    return apt.GetTaxiNodesVec().at(a);
 }
 
 /// Return the b node, ie. the ending point of the edge
 const TaxiNode& TaxiEdge::GetB (const Apt& apt) const
 {
-    return apt.GetTaxiNodesVec()[b];
+    return apt.GetTaxiNodesVec().at(b);
 }
 
+// Finds the "relevant" node for path algorithms
+size_t TaxiEdge::relevantNode (const positionTy& pos, const Apt& apt,
+                               bool* pbReversed) const
+{
+    const size_t fwdNIdx = endByHeading(pos.heading());
+    const size_t revNIdx = otherNode(fwdNIdx);
+    const TaxiNode& revNode = apt.GetTaxiNodesVec().at(revNIdx);
+    if (DistLatLonSqr(revNode.lat, revNode.lon, pos.lat(), pos.lon()) <= sqr(2*APT_MAX_SIMILAR_NODE_DIST_M)) {
+        if (pbReversed) *pbReversed = true;
+        return revNIdx;
+    } else {
+        if (pbReversed) *pbReversed = false;
+        return fwdNIdx;
+    }
+}
 
 //
 // MARK: File Reading Thread
@@ -2796,21 +2878,11 @@ positionTy LTAptFindStartupLoc (const positionTy& pos,
 bool LTAptSnap (LTFlightData& fd, dequePositionTy::iterator& posIter,
                 bool bInsertTaxiTurns)
 {
-    // Configured off?
-    if (dataRefs.GetFdSnapTaxiDist_m() <= 0)
-        return false;
+    if (dataRefs.GetFdSnapTaxiDist_m() <= 0 ||          // Configured off?
+        !LTAptAvailable())                              // Airport data not fully loaded?
+        return false;                                   // -> don't snap
 
-    // Airport layout not (yet / currently) loaded?
-    // `AsyncReadApt` first PURGES airports from gmapApt and then re-adds
-    // them one at a time, releasing the lock between each — so while a
-    // load is in progress the map is half-built. Snapping against that
-    // matches positions to the wrong taxiway/startup location (or none),
-    // and the wrong heading then sticks. `bAptAvailable` is false for the
-    // whole load window; refuse to snap until it is reliably back.
-    if (!LTAptAvailable())
-        return false;
-
-    // Access to the list of airports is guarded by a lock
+    // Access to the list of airports is guarded by a lock, but we are careful how long we wait for it
     std::unique_lock<std::recursive_timed_mutex> lock(mtxGMapApt,
                                                       dataRefs.IsXPThread() ?
                                                       std::chrono::milliseconds(100) :

@@ -839,91 +839,54 @@ void LTFlightData::DataSmoothing (bool& bChanged)
 // shift ground positions to taxiways, insert positions at taxiway nodes
 void LTFlightData::SnapToTaxiways (bool& bChanged)
 {
-    // access guarded by a mutex
-    std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
-
     // Skip processing if not reasonable:
     if (dataRefs.GetFdSnapTaxiDist_m() <= 0 ||      // Snap-to-taxiway not enabled
         posDeque.empty() ||                         // no aircraft positions available to process
         statData.isGrndVehicle() ||                 // ground vehicle
         (pAc && pAc->IsGroundVehicle()))
         return;
-
-    // Skip snap-to-taxiway entirely while the aircraft is in ground-holding.
-    //
-    // bGroundHolding is set by AddNewPos after a sustained stationary streak
-    // (see GND_HOLDING_TIMEOUT_S). It is our positive assertion that this
-    // aircraft is parked. Real-feed data for parked aircraft can occasionally
-    // produce isolated large position jumps (observed: ACA34 at YSSY, 105 m
-    // jump while the RT app showed the aircraft stationary). Such jumps
-    // exceed our 15 m trivial-drop threshold and end up in posDeque, but
-    // they are almost always feed glitches rather than real motion.
-    //
-    // If we let SnapToTaxiways run on a glitched 100m+ jump, it computes a
-    // shortest path through the airport's taxi graph and inserts a sequence
-    // of intermediate waypoints with NaN heading. CalcHeading then derives
-    // heading from the vector between those synthesized waypoints — which
-    // reflects the taxiway geometry, not the aircraft's nose direction —
-    // and the rendered aircraft visually dances through the phantom path.
-    //
-    // By suppressing snap during holding, we let the glitched jump pass
-    // through the deque as a single linear interpolation (a one-time visual
-    // wobble at worst, no waypoint procession). When the aircraft genuinely
-    // begins to taxi, AddNewPos's GND_HOLDING_EXIT_CONSEC counter clears
-    // bGroundHolding and snap-to-taxiway resumes for subsequent slots.
-
-// Disabled this code. It prevents parked aircraft from being snapped to a Startup Position,
-// so they don't actually _appear_ as parked.
-// (The "glitch" argument above shouldn't be true: The algorithm doesn't
-//  add long paths via taxiways if the resulting speed would be too high.)
-//    if (bGroundHolding)
-//        return;
     
-    // Loop over position in the deque
+    // access guarded by a mutex
+    std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
+    
+    // Only snap the very first position, if not done already
+    // Only act on positions on the ground,
+    // which have (not yet) been artificially added
     dequePositionTy::iterator iter = posDeque.begin();
-    while (iter != posDeque.end())
-    {
-        // Only act on positions on the ground,
-        // which have (not yet) been artificially added
-        positionTy& pos = *iter;
-        if (pos.IsOnGnd() && !pos.IsPostProcessed())
-        {
-            // Run the EHS-staleness cross-check (and the rest of the
-            // on-ground heading filter chain) on this slot BEFORE
-            // handing it to LTAptSnap.
-            //
-            // Why: `LTAptSnap` uses `pos.heading()` to decide which
-            // direction along a taxi edge to route the aircraft (see
-            // TaxiEdge::startByHeading / endByHeading in LTApt.cpp).
-            // The feed-supplied heading comes from Mode S Enhanced
-            // Surveillance, which updates roughly every 10 s and lags
-            // during turns. If snap reads a stale value the synthesised
-            // taxi path can be routed BACKWARD along the edge — the
-            // rendered aircraft visibly moves the wrong way along its
-            // taxiway between feed samples. Observed for DAL973 and
-            // RPA5716 at YSSY.
-            //
-            // `CalcHeading` (since commit d861869) applies the feed-vs-
-            // track cross-check that catches exactly this case: if the
-            // feed heading disagrees with the actual motion track by
-            // 30-150° it falls through to the track-derived value
-            // instead. Running it here means snap sees the corrected
-            // heading and routes the right way.
-            //
-            // The existing post-snap CalcHeading loop in CalcNextPos
-            // remains responsible for filling in the heading of the
-            // intermediate waypoints that snap itself synthesises
-            // (those are inserted with heading=NaN).
-            CalcHeading(iter);
+    if (!iter->IsOnGnd() || iter->IsPostProcessed())
+        return;
+    
+    // Run the EHS-staleness cross-check (and the rest of the
+    // on-ground heading filter chain) on this slot BEFORE
+    // handing it to LTAptSnap.
+    //
+    // Why: `LTAptSnap` uses `pos.heading()` to decide which
+    // direction along a taxi edge to route the aircraft (see
+    // TaxiEdge::startByHeading / endByHeading in LTApt.cpp).
+    // The feed-supplied heading comes from Mode S Enhanced
+    // Surveillance, which updates roughly every 10 s and lags
+    // during turns. If snap reads a stale value the synthesised
+    // taxi path can be routed BACKWARD along the edge — the
+    // rendered aircraft visibly moves the wrong way along its
+    // taxiway between feed samples. Observed for DAL973 and
+    // RPA5716 at YSSY.
+    //
+    // `CalcHeading` (since commit d861869) applies the feed-vs-
+    // track cross-check that catches exactly this case: if the
+    // feed heading disagrees with the actual motion track by
+    // 30-150° it falls through to the track-derived value
+    // instead. Running it here means snap sees the corrected
+    // heading and routes the right way.
+    //
+    // The existing post-snap CalcHeading loop in CalcNextPos
+    // remains responsible for filling in the heading of the
+    // intermediate waypoints that snap itself synthesises
+    // (those are inserted with heading=NaN).
+    CalcHeading(iter);
 
-            // Try snapping to a rwy or taxiway
-            if (LTAptSnap(*this, iter, true))
-                bChanged = true;
-        } // non-artificial ground position
-
-        // move on to next
-        ++iter;
-    } // while all posDeque positions
+    // Try snapping to a rwy or taxiway
+    if (LTAptSnap(*this, iter, true))
+        bChanged = true;
 }
 
 
@@ -952,6 +915,11 @@ bool LTFlightData::CalcNextPos ( double simTime )
             else
                 simTime = dataRefs.GetSimTime();
         }
+        
+        // Will the active aircraft request a new position soon?
+        const bool bAcNeedsData =
+            !pAc ? false :
+            pAc->GetToPos().ts() <= dataRefs.GetSimTime() + 2*TIME_REQU_POS;
 
         // remove from front until [0] <= simTime < [1] (or just one element left)
         while (dynDataDeque.size() >= 2 && dynDataDeque[1].ts <= simTime)
@@ -1134,7 +1102,10 @@ bool LTFlightData::CalcNextPos ( double simTime )
         DataCleansing(bChanged);
         
         // *** Snap to taxiways ***
-        SnapToTaxiways(bChanged);
+        // As late as possible, so we hopefully have enough data in the queue
+        // for a perfect taxiway routing
+        if (bAcNeedsData)
+            SnapToTaxiways(bChanged);
 
 #ifdef DEBUG
         std::string deb0   ( !posDeque.empty() ? posDeque.front().dbgTxt() : "<none>" );
@@ -1195,19 +1166,6 @@ bool LTFlightData::CalcNextPos ( double simTime )
                     // output debug info on request
                     if (dataRefs.GetDebugAcPos(key())) {
                         LOG_MSG(logDEBUG,DBG_INVENTED_TD_POS,touchDownPos.dbgTxt().c_str());
-                    }
-                    
-                    // If the touch-down point snapped to a rwy AND
-                    // the next position in the deque is a TAXI position (and not also a RWY)
-                    // then snap the TXI position again so that the (shortest)
-                    // path from touch-down to taxi pos is inserted along
-                    // proper taxi routes
-                    if (iter->f.specialPos == SPOS_RWY &&
-                        std::next(iter) != posDeque.end() &&
-                        std::next(iter)->f.specialPos == SPOS_TAXI)
-                    {
-                        dequePositionTy::iterator txiIter = std::next(iter);
-                        LTAptSnap(*this, txiIter, true);
                     }
                 }
                 else
@@ -1415,7 +1373,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
         } // (has a/c and do landing / take-off detection)
         
         // *** Snap any newly inserted positions to taxiways ***
-        if (bChanged)
+        if (bChanged && bAcNeedsData)
             SnapToTaxiways(bChanged);
         
         // A lot might have changed now, even added.

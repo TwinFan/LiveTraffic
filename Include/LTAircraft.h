@@ -220,7 +220,7 @@ public:
         double AGL_GEAR_DOWN =    1600;   // height AGL at which to lower the gear during approach
         double AGL_GEAR_UP =      100;    // height AGL at which to raise the gear during take off
         double AGL_FLARE =        25;     // [ft] height AGL to start flare in artifical pos mode
-        double MAX_TAXI_SPEED =   45;     // below that: taxi, above that: take-off/roll-out
+        double MAX_TAXI_SPEED =   30;     // below that: taxi, above that: take-off/roll-out
         double MIN_REVERS_SPEED = 80;     // [kn] User reversers down to this speed
         double TAXI_TURN_TIME =   30;     // seconds for a 360° turn on the ground
         double FLIGHT_TURN_TIME = 120;    ///< seconds for a typical 360° turn in flight

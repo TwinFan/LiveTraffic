@@ -498,9 +498,11 @@ public:
     /// The taxiway network's edge this pos is on, index into Apt::vecTaxiEdges
     size_t edgeIdx = EDGE_UNKNOWN;
 public:
+    /// Default Constructor, everything to NAN / defaults
     positionTy () : _lat(NAN), _lon(NAN), _alt(NAN), _ts(NAN), _head(NAN), _pitch(NAN), _roll(NAN),
     f{FPH_UNKNOWN,false,GND_UNKNOWN,UNIT_WORLD,UNIT_DEG,SPOS_NONE,false}
     {}
+    /// Most used constructor, requires position, defaults the rest
     positionTy (double dLat, double dLon, double dAlt_m=NAN,
                 double dTS=NAN, double dHead=NAN, double dPitch=NAN, double dRoll=NAN,
                 onGrndE grnd=GND_UNKNOWN, coordUnitE uCoord=UNIT_WORLD, angleUnitE uAngle=UNIT_DEG,
@@ -508,8 +510,17 @@ public:
         _lat(dLat), _lon(dLon), _alt(dAlt_m), _ts(dTS), _head(dHead), _pitch(dPitch), _roll(dRoll),
         f{fPhase,false,grnd,uCoord,uAngle,SPOS_NONE,false}
     {}
+    /// Complete constructor, requires/allows providing every value
+    positionTy (double dLat, double dLon, double dAlt_m,
+                double dTS, double dHead, double dPitch, double dRoll,
+                posFlagsTy df, size_t dEIdx) :
+    _lat(dLat), _lon(dLon), _alt(dAlt_m), _ts(dTS), _head(dHead),
+    _pitch(dPitch), _roll(dRoll), f(df), edgeIdx(dEIdx)
+    {}
+    /// Position from a Y Probe, which comes in local coordinates
     positionTy ( const XPLMProbeInfo_t& probe ) :
         positionTy ( probe.locationZ, probe.locationX, probe.locationY ) { f.unitCoord=UNIT_LOCAL; }
+    /// Type conversion constructor, takes a ptTy
     positionTy ( const ptTy& _pt) :
         positionTy ( _pt.y, _pt.x ) {}
     
