@@ -57,7 +57,7 @@ constexpr size_t NVGR_AUTH_INTERVAL_DEFAULT = 5;
 // Token Refresh
 #define NVGR_TOKEN_REFRESH_BODY "grant_type=refresh_token&client_id=%s&client_secret=%s&refresh_token=%s"
 
-#define NVGR_AUTH_HEADER        "Authorization: %s %s"     // add token_type, access_token
+#define NVGR_AUTH_HEADER_START  "Authorization: "           // add token_type, access_token
 constexpr long NVGR_AUTH_EXP_DEFAULT = 3600;       ///< default expiration in case we don't find expiration field
 
 #define NVGR_TRAFFIC_URL        "https://api.navigraph.com/v1/real-traffic/positions/nearby?lat=%.3f&lon=%.3f&radiusKm=%d"
@@ -157,6 +157,7 @@ protected:
     void Main () override;          ///< virtual thread main function
 
     bool InitCurl () override;
+    static std::string MakeTokenHeader (const std::string& type, const std::string& token);
     /// Tries to interpret pBuf as JSON and looks for "error" or similar
     static std::string TryExtractErrorMsg (const JSON_Object* pMain);
     static std::string TryExtractErrorMsg (const std::string& resp);
