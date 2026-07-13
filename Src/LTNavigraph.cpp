@@ -191,9 +191,6 @@ void NvgrFR24Connection::Main ()
     while ( shallRun() ) {
         // LiveTraffic Top Level Exception Handling
         try {
-            // when to wake up next?
-            std::chrono::time_point<std::chrono::steady_clock> tNext;
-            
             // where are we right now?
             const positionTy pos (dataRefs.GetViewPos());
             
@@ -204,15 +201,10 @@ void NvgrFR24Connection::Main ()
                         // reduce error count if processed successfully
                         // as a chance to appear OK in the long run
                         DecErrCnt();
-                
-                // If next request is a refresh token request, we can do it immediately,
-                // if is is a traffic request we must wait until valid
-                if (eState == NVGR_STATE_GET_PLANES)
-                    tNext = tNextWakeup;
             }
             else {
                 // Camera position is yet invalid, retry in a second
-                tNext = std::chrono::steady_clock::now() + std::chrono::seconds(1);
+                tNextWakeup = std::chrono::steady_clock::now() + std::chrono::seconds(1);
             }
             
             // sleep until scheduled wakeup or if woken up for termination
@@ -267,6 +259,18 @@ bool NvgrFR24Connection::InitCurl ()
     }
     return true;
 }
+
+// Puts together type and token and returns a proper HTTP header
+std::string NvgrFR24Connection::MakeTokenHeader (const std::string& type, const std::string& token)
+{
+    std::string hdrToken (NVGR_AUTH_HEADER_START);
+    hdrToken.reserve(hdrToken.size() + type.size() + token.size() + 2);
+    hdrToken += type;
+    hdrToken += ' ';
+    hdrToken += token;                                     // Token can become _very_ large, so avoid snprintf here
+    return hdrToken;
+}
+
 
 // put together the URL to fetch based on current view position
 std::string NvgrFR24Connection::GetURL (const positionTy& pos)
@@ -326,8 +330,6 @@ std::string NvgrFR24Connection::TryExtractErrorMsg (const std::string& resp)
 // update shared flight data structures with received flight data
 bool NvgrFR24Connection::ProcessFetchedData ()
 {
-    char buf[1024];
-    
     // Try to interpret response as JSON, might contain error information
     JSONRootPtr pRoot (netData);
     JSON_Object* pObj = pRoot ? json_object(pRoot.get()) : nullptr;
@@ -430,10 +432,8 @@ bool NvgrFR24Connection::ProcessFetchedData ()
         tAccessExpiration = std::chrono::steady_clock::now() + std::chrono::seconds(nTimeout);
         
         // prepare the token with the header string and create the actual header list
-        snprintf(buf, sizeof(buf), NVGR_AUTH_HEADER,
-                 sType.c_str(), sToken.c_str());
         CurlCleanupSlist(pHdrToken);
-        pHdrToken = curl_slist_append(nullptr, buf);
+        pHdrToken = curl_slist_append(nullptr, MakeTokenHeader(sType, sToken).c_str());
         LOG_MSG(logDEBUG, "Successfully refreshed the tokens.");
         
         // Now that we have an access token we can request traffic data
@@ -862,11 +862,9 @@ void NvgrFR24Connection::AuthMain ()
                     if (refreshToken.empty()) { THROW_ERROR(logERR, "Device Authorization response is missing the '" NVGR_TOKEN_REFRESH "' field"); }
                     dataRefs.SetNvgrRefrshToken(refreshToken);
                     // Store the access token in a CURL header
-                    snprintf(szBody, sizeof(szBody), NVGR_AUTH_HEADER,
-                             accessType.c_str(), accessToken.c_str());
                     std::lock_guard<std::recursive_mutex> lk(gAuthMtx);
                     CurlCleanupSlist(pHdrToken);
-                    curl_slist_append(pHdrToken, szBody);
+                    pHdrToken = curl_slist_append(nullptr, MakeTokenHeader(accessType, accessToken).c_str());
                     
                     // We're done!
                     AuthSetState (NVGR_AUTH_WAITING, NVGR_AUTH_SUCCESS);
