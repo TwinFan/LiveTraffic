@@ -1470,16 +1470,20 @@ public:
         // for the maximum allowed path length let's consider taxiing speed,
         // but allow 3x taxiing speed if beginning leg is still on a rwy
         // (consider high-speed exits!).
-        const LTAircraft::FlightModel& mdl = LTAircraft::FlightModel::FindFlightModel(fd);
-        const double maxSpd_ms = mdl.MAX_TAXI_SPEED / KT_per_M_per_S *
-                                 (prevE.GetType() == TaxiEdge::RUN_WAY ? 3.0 : 1.0);
-        const double maxLen = (posNext.ts() - posPrev.ts()) * maxSpd_ms;
+        const double totalDist      = posPrev.dist(pos);
+        const double totalTime      = pos.ts() - posPrev.ts();
+        const double totalAvgSpeed  = totalDist / totalTime;
+        // maximum allowed taxiway length to be inserted is 1.5 x totalDist,
+        // so we do allow for the taxiway to be longer than direct travel, but not too much.
+        // When totalTime increases beyond 20s then we allow for even more travel as we would have time for full 180° turns
+        const double maxLen = totalDist * std::max(1.5 * totalTime / 20.0, 1.5);
         
         //    --- Loop candidate (edges) and apply shortest path search
         //        to find the overall best edge to pick ---
         const positionTy* pBestPos = nullptr;           // receives the best matching candidate
         vecIdxTy vecEBest;                              // receives the best matching path from posPrev to pos
-        double lenBest = maxLen;                        // receives the length of that path
+        double lenBest = maxLen;                        // receives the length of that path, first and second combined
+        double lenBestFirst = NAN;                      // receives the length of that first path only, the one we later insert
         for (const positionTy& posCandidate: basePts)
         {
             // the candidate edge
@@ -1508,13 +1512,14 @@ public:
             if (lenFirst + lenSecond < lenBest) {
                 pBestPos = &posCandidate;
                 lenBest = lenFirst + lenSecond;
+                lenBestFirst = lenFirst;
                 vecEBest = std::move(vecEFirst);
             }
         }
         
         // If we include a start edge before pos, remove it now, and also reduce path length by its length
         if (!vecEBest.empty() && bSkipStart) {
-            lenBest -= vecTaxiEdges.at(vecEBest.front()).dist_m;
+            lenBestFirst -= vecTaxiEdges.at(vecEBest.front()).dist_m;
             vecEBest.erase(vecEBest.begin());
         }
 
@@ -1543,25 +1548,24 @@ public:
             pos.edgeIdx         = pBestPos->edgeIdx;
             
             // If we also got a taxi path, then insert that now
-            if (!vecEBest.empty() && lenBest >= 0.1) {
-                // The time we have is simply pos.ts() - posPrev.ts(),
+            if (!vecEBest.empty() && lenBestFirst >= 0.1) {
+                // The time we have is simply totalTime = pos.ts() - posPrev.ts(),
                 // but it needs to be distribute across
                 // a) The leg from posPrev to the first edge
                 // b) all legs between the edges, complicated by the fact that we will be inserting edge centerpoints
                 // c) the last leg from the last edge to pos
-                double totalTime = pos.ts() - posPrev.ts();
                 
-                // lenBest currently has the total length of all edges.
+                // lenBestFirst currently has the total length of all edges to be inserted.
                 // Remove half the start/end edge, instead add the actual distance from posPrev/to pos
-                lenBest -= vecTaxiEdges[vecEBest.front()].dist_m/2.0;
+                lenBestFirst -= vecTaxiEdges[vecEBest.front()].dist_m/2.0;
                 double lenPrevHalf = GetEdgeCenterPt(vecEBest.front(), posPrev).dist(posPrev);
-                lenBest += lenPrevHalf;
+                lenBestFirst += lenPrevHalf;
                 
-                lenBest -= vecTaxiEdges[vecEBest.back()].dist_m/2.0;
-                lenBest += GetEdgeCenterPt(vecEBest.back(), pos).dist(pos);
+                lenBestFirst -= vecTaxiEdges[vecEBest.back()].dist_m/2.0;
+                lenBestFirst += GetEdgeCenterPt(vecEBest.back(), pos).dist(pos);
                 
                 // Time in seconds per meter distance
-                const double sPerM = totalTime / lenBest;
+                const double sPerM = totalTime / lenBestFirst;
                 
                 // Insert between posPrev and pos the edges of the shortest path,
                 // so that the plane follows the found taxi way from posPrev to pos.
@@ -1625,6 +1629,7 @@ public:
                 // turning angle at intersection must not be too sharp
                 if (std::abs(HeadingDiff(vecPrevInters.angle, vecIntersCurr.angle)) <= APT_MAX_PATH_TURN)
                 {
+                    const LTAircraft::FlightModel& mdl = LTAircraft::FlightModel::FindFlightModel(fd);
                     double avgSpeed = (vecPrevInters.dist + vecIntersCurr.dist) / (pos.ts() - pPrevPos->ts());
                     
                     // Distance needs to be manageable, which means:

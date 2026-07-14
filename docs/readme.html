@@ -148,10 +148,16 @@
     <P>Change log:</P>
     
     <ul>
-        <li>Improved heading of taxiing aircraft.</li>
-        <li>Renamed "Navigraph/FR24" channel to "Navigraph" for compliance reasons.</li>
-        <li>Fixed a but in Navigraph Token handling that could cause you to
-            receive HTTP 401 errors, but no actual Navigraph data.</li>
+        <li>Reimplemented Snap-to-Taxiways, improving the routing of taxxing
+            aircraft along taxiways, runways, and towards stands,
+            reducing sudden heading changes.</li>
+        <li><b>Navigraph</b>:
+            <ul>
+                <li>Renamed "Navigraph/FR24" channel to "Navigraph" for compliance reasons.</li>
+                <li>Fixed a bug in Navigraph Token handling that could cause you to
+                    receive HTTP 401 errors, but no actual Navigraph data.</li>
+            </ul>
+        </li>
     </ul>
 
     <h3>v4.6.0</h3>
