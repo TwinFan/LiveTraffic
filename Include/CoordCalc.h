@@ -108,153 +108,9 @@ positionTy CoordPlusVector (const positionTy& pos, const vectorTy& vec);
 // returns NaN in case of failure
 double YProbe_at_m (const positionTy& posAt, XPLMProbeRef& probeRef);
 
-/// @brief Result of evaluating a Catmull-Rom spline at one parameter
-/// @details All values are expressed in the local meters frame centred at
-///          the spline's `P1` control point (see `CatmullRomEvalCentripetal`):
-///          `x` increases eastward, `y` increases northward. `headingDeg` is
-///          the curve's tangent direction at this parameter, converted to
-///          the same compass convention LiveTraffic uses elsewhere
-///          (0° = north, 90° = east, range [0, 360)).
-struct CatmullRomResult {
-    double xMtr;            ///< east offset from P1 in metres
-    double yMtr;            ///< north offset from P1 in metres
-    double headingDeg;      ///< curve tangent direction [0, 360)
-};
-
-/// @brief Evaluate a centripetal Catmull-Rom spline through four ground
-///        positions at one parameter, returning both the curve point and
-///        the tangent direction at that point.
-///
-/// @details The spline interpolates **exactly through** `P1` and `P2` and
-///          uses `P0` and `P3` as context to determine the tangent at the
-///          endpoints. The centripetal parameterisation (α = 0.5 in
-///          Lee 2009) makes the curve well-behaved at sharp corners — it
-///          never produces the cusps or self-intersecting loops that
-///          uniform Catmull-Rom can generate at a 90° taxi turn.
-///
-///          The curve is fit in a local meters frame centred at `P1`,
-///          using `Lat2Dist` / `Lon2Dist` for the conversion. This keeps
-///          the math Euclidean (avoids cos(lat) accumulating across
-///          control points) and the result is returned in the same local
-///          frame; callers convert back to lat/lon via `Dist2Lat` /
-///          `Dist2Lon` if a geographic position is needed.
-///
-///          The heading is derived from the curve's tangent
-///          (`atan2(dx, dy)`) so the returned heading is by construction
-///          aligned with the rendered direction of motion at this point —
-///          this is the property that eliminates the "sideways during
-///          turn" symptom that linear-chord interpolation produces.
-///
-/// @param P0 Control point before `P1`. May be a degenerate copy of `P1`
-///           (same lat/lon) when no real predecessor is available — the
-///           curve degenerates to a quadratic segment with zero tangent
-///           at `P1`. Caller is responsible for choosing whether to do
-///           this duplication; the function does NOT check for NaN.
-/// @param P1 First interpolated control point — the curve passes through
-///           this exactly at `u = 0`. Origin of the returned local frame.
-/// @param P2 Second interpolated control point — the curve passes through
-///           this exactly at `u = 1`.
-/// @param P3 Control point after `P2`. May be a degenerate copy of `P2`.
-/// @param u  Curve parameter in `[0, 1]`; `u=0` returns `P1` (with the
-///           local frame's origin), `u=1` returns `P2`.
-/// @return   Curve point in local meters frame relative to `P1`, and
-///           tangent-derived heading at that point in degrees.
-///
-/// @note Only the lat/lon of the control points are used. Altitude,
-///       heading, and timestamps are ignored — the spline is purely a
-///       horizontal-plane construction.
-CatmullRomResult CatmullRomEvalCentripetal(const positionTy& P0,
-                                           const positionTy& P1,
-                                           const positionTy& P2,
-                                           const positionTy& P3,
-                                           double u);
-
-/// @brief Cached arc-length lookup table for a Catmull-Rom spline segment,
-///        used to make the rendered animation advance at constant arc-length
-///        speed (rather than constant knot-parameter speed).
-///
-/// @details The native parameter `u ∈ [0, 1]` of `CatmullRomEvalCentripetal`
-///          is NOT proportional to arc length on the curve — the spline's
-///          arc length per unit `u` varies with local curvature. If the
-///          caller advances `u` linearly with time, the rendered position
-///          accelerates and decelerates within the segment (visible as a
-///          "speed up / slow down" pulsation), and the velocity at the start
-///          of leg N+1 does not match the velocity at the end of leg N
-///          (visible as a small velocity pop at every segment boundary).
-///
-///          This LUT subdivides the segment at `N` uniformly-spaced values
-///          of `u`, evaluates the curve at each, and accumulates chord-based
-///          arc length. The mapping s→u is then queried per frame to turn
-///          a time-linear progression (0..1 across the leg duration) into a
-///          curve parameter that advances at constant arc-length-per-time.
-///          Visually the rendered aircraft now moves at the segment's mean
-///          speed (`total_arc / duration`) throughout the segment.
-///
-///          `N = 16` is a deliberate trade-off: the chord error against the
-///          true integral is below 0.1 % on the curvatures we see at airport
-///          ground speeds, the build cost is 16 spline evaluations per
-///          segment switch (~once per 1-5 s of feed), and the per-frame
-///          lookup is a 4-step binary search plus one lerp.
-struct CatmullRomArcLut {
-    static constexpr int N = 16;            ///< number of sample sub-intervals; N+1 entries
-
-    /// Cumulative arc length at each sample. `sAtU[i]` is the arc length
-    /// from `u=0` to `u = i / N`. Always `sAtU[0] == 0`.
-    std::array<double, N + 1> sAtU{};
-    /// Total arc length of the segment (i.e., `sAtU[N]`). Cached for
-    /// quick access in the per-frame lookup.
-    double totalArc = 0.0;
-    /// True once `Build()` has populated the table for the current segment.
-    /// Reset to false when the parent segment switches so the next render
-    /// frame rebuilds with the new control points.
-    bool   valid    = false;
-
-    /// Sample the spline at `N+1` uniformly-spaced `u` values, accumulate
-    /// chord lengths between successive samples, and store the running
-    /// totals in `sAtU`. Must be called whenever the control-point set
-    /// changes (i.e., at every segment switch in `LTAircraft::CalcPPos`).
-    void Build(const positionTy& P0, const positionTy& P1,
-               const positionTy& P2, const positionTy& P3);
-
-    /// Given a time-linear progression `f ∈ [0, 1]` across the segment,
-    /// return the curve parameter `u ∈ [0, 1]` at which the spline has
-    /// covered `f * totalArc` of arc length. The mapping is inverted by
-    /// a short binary search across the LUT plus one linear interpolation.
-    /// If the LUT has zero total arc (e.g., all control points coincided)
-    /// the function returns `f` unchanged — the spline will collapse to
-    /// a point anyway, so the choice of parameter is irrelevant.
-    double UFromArcFraction(double f) const;
-};
-
-/// @brief One-dimensional Cubic Hermite Spline (cSpline)
-/// @see https://en.wikipedia.org/wiki/Cubic_Hermite_spline
-/// @details In this more generic form, the tangents are input parameters
-///          (while in the specific Catmul-Rom-Spline above
-///           the tangents are computed from additional control points).
-///          In some edge cases it can be useful to provide specific tangents.
-struct CSpline {
-    double t0=NAN, dt=NAN;              ///< t0 is the time of the first point, dt is delta-time for the segment
-    double a=NAN, b=NAN, c=NAN, d=NAN;  ///< pre-computed factors of the standard form
-    
-    /// Set the parameters (time, value like altitude, tangent like climb rate)
-    void set (double _t0, double _p0, double _m0,
-              double _t1, double _p1, double _m1);
-    
-    /// Clear, set to unused
-    void clear () { t0 = dt = a = b = c = d = NAN; }
-    
-    /// Valid?
-    operator bool () const { return !std::isnan(t0) && !std::isnan(dt) && !std::isnan(a); }
-    
-    /// Value at t with `_t0 <= t <= _t1`
-    double val (double t) const;
-    
-    /// Slope at t with `_t0 <= t <= _t1` (1st derivative of val())
-    double slope (double t) const;
-};
-
 //
 // MARK: Estimated Functions on coordinates
+//       The avoid some complex operations like square roots for performance reasons
 //
 
 /// @brief Length of one degree latitude
@@ -356,27 +212,6 @@ void DistResultToBaseLoc (double ln_x1, double ln_y1,
 ptTy CoordIntersect (const ptTy& a, const ptTy& b, const ptTy& c, const ptTy& d,
                      double* pT = nullptr,
                      double* pU = nullptr);
-
-/// @brief Calculate a point on a quadratic Bezier curve
-/// @see https://en.wikipedia.org/wiki/B%C3%A9zier_curve#Quadratic_B%C3%A9zier_curves
-/// @param t Range [0..1] defines which point on the curve to be returned, 0 = p0, 1 = p2
-/// @param p0 Start point of curve, reached with t=0.0
-/// @param p1 Control point of curve, usually not actually reached at any value of t
-/// @param p2 End point of curve, reached with t=1.0
-/// @param[out] pAngle If defined, receives the angle of the curve at `t` in degrees
-ptTy Bezier (double t, const ptTy& p0, const ptTy& p1, const ptTy& p2,
-             double* pAngle = nullptr);
-
-/// @brief Calculate a point on a cubic Bezier curve
-/// @see https://en.wikipedia.org/wiki/B%C3%A9zier_curve#Cubic_B%C3%A9zier_curves
-/// @param t Range [0..1] defines which point on the curve to be returned, 0 = p0, 1 = p3
-/// @param p0 Start point of curve, reached with t=0.0
-/// @param p1 1st control point of curve, usually not actually reached at any value of t
-/// @param p2 2nd control point of curve, usually not actually reached at any value of t
-/// @param p3 End point of curve, reached with t=1.0
-/// @param[out] pAngle If defined, receives the angle of the curve at `t` in degrees
-ptTy Bezier (double t, const ptTy& p0, const ptTy& p1, const ptTy& p2, const ptTy& p3,
-             double* pAngle = nullptr);
 
 //
 // MARK: Global enums
@@ -711,6 +546,58 @@ struct boundingBoxTy {
     bool overlap (const boundingBoxTy& o) const;
     /// Do both boxes overlap?
     bool operator & (const boundingBoxTy& o) const { return overlap(o); }
+};
+
+//
+// MARK: Splines
+//
+
+/// @brief Calculate a point on a quadratic Bezier curve
+/// @see https://en.wikipedia.org/wiki/B%C3%A9zier_curve#Quadratic_B%C3%A9zier_curves
+/// @param t Range [0..1] defines which point on the curve to be returned, 0 = p0, 1 = p2
+/// @param p0 Start point of curve, reached with t=0.0
+/// @param p1 Control point of curve, usually not actually reached at any value of t
+/// @param p2 End point of curve, reached with t=1.0
+/// @param[out] pAngle If defined, receives the angle of the curve at `t` in degrees
+ptTy Bezier (double t, const ptTy& p0, const ptTy& p1, const ptTy& p2,
+             double* pAngle = nullptr);
+
+/// @brief Calculate a point on a cubic Bezier curve
+/// @see https://en.wikipedia.org/wiki/B%C3%A9zier_curve#Cubic_B%C3%A9zier_curves
+/// @param t Range [0..1] defines which point on the curve to be returned, 0 = p0, 1 = p3
+/// @param p0 Start point of curve, reached with t=0.0
+/// @param p1 1st control point of curve, usually not actually reached at any value of t
+/// @param p2 2nd control point of curve, usually not actually reached at any value of t
+/// @param p3 End point of curve, reached with t=1.0
+/// @param[out] pAngle If defined, receives the angle of the curve at `t` in degrees
+ptTy Bezier (double t, const ptTy& p0, const ptTy& p1, const ptTy& p2, const ptTy& p3,
+             double* pAngle = nullptr);
+
+/// @brief One-dimensional Cubic Hermite Spline (cSpline)
+/// @see https://en.wikipedia.org/wiki/Cubic_Hermite_spline
+/// @details In this more generic form, the tangents are input parameters
+///          (while in the specific Catmul-Rom-Spline above
+///           the tangents are computed from additional control points).
+///          In some edge cases it can be useful to provide specific tangents.
+struct CSpline {
+    double t0=NAN, dt=NAN;              ///< t0 is the time of the first point, dt is delta-time for the segment
+    double a=NAN, b=NAN, c=NAN, d=NAN;  ///< pre-computed factors of the standard form
+    
+    /// Set the parameters (time, value like altitude, tangent like climb rate)
+    void set (double _t0, double _p0, double _m0,
+              double _t1, double _p1, double _m1);
+    
+    /// Clear, set to unused
+    void clear () { t0 = dt = a = b = c = d = NAN; }
+    
+    /// Valid?
+    operator bool () const { return !std::isnan(t0) && !std::isnan(dt) && !std::isnan(a); }
+    
+    /// Value at t with `_t0 <= t <= _t1`
+    double val (double t) const;
+    
+    /// Slope at t with `_t0 <= t <= _t1` (1st derivative of val())
+    double slope (double t) const;
 };
 
 #endif /* CoordCalc_h */

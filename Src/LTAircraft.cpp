@@ -1620,13 +1620,8 @@ bool LTAircraft::CalcPPos()
     // (Must have reach/passed posDeque[1] and there must be a third position,
     //  which can now serve as 'to')
     while ( posList[1].ts() <= currCycle.simTime && posList.size() >= 3 ) {
-        // Preserve the slot we are about to discard. The Catmull-Rom
-        // spline that renders ground position + heading needs the
-        // *previous* `from` as its P0 control point — the slot that
-        // gave the curve its incoming tangent at P1. Without this
-        // save the spline at the start of each new leg would treat
-        // the leg as the head of the deque and lose its smoothness
-        // at the join.
+        // Preserve the slot we are about to discard.
+        // Use in Spline computations.
         posPrev = posList.front();
 
         // By just removing the first element (current 'from') from the deqeue
@@ -1638,13 +1633,6 @@ bool LTAircraft::CalcPPos()
         // after 'to', to be used as Bezier/spline control point.
         posNext = posNextNext;
 
-        // Invalidate the arc-length LUT. The control points for the new
-        // segment are not yet bound to a numeric value here (we want to
-        // build the LUT only if the spline branch is actually entered —
-        // chord-skip and air legs would not use it). The spline branch
-        // checks `splineLut.valid` and rebuilds on the first render
-        // frame of any segment that needs it.
-        splineLut.valid = false;
         // Now: If running point-to-point, ie. _not_ cutting corners with
         // Bezier curves, then to absolutely ensure we continue seamlessly from current
         // ppos we set posDeque[0] ('from') to ppos. Should be close anyway in normal
@@ -1977,182 +1965,6 @@ bool LTAircraft::CalcPPos()
         // sync the changing heading between Bezier curve and MovingParam
         heading.SetVal(ppos.heading());
     }
-    // No Bezier curve currently active:
-    // ------------------------------------------------------------------
-    // Use centripetal Catmull-Rom spline.
-    //
-    // Spline is used in case of
-    // reasonable large distances (not jitter)
-    // TODO: Splines currently break more than they fix...re-implement based on OpenGL coordinates, not Lat/Lon, and maybe take taxiways better into account
-/*
-    else if (f <= 1.0 && from.IsOnGnd() && to.IsOnGnd() &&
-             !to.f.bCutCorner &&                    // For a cut-corner 'to' position we are going to create a Bezier later
-             vec.dist >= GND_SPLINE_MIN_CHORD_M &&
-             vec.speed_kn() <= GND_SPLINE_MAX_KT &&
-             // use the spline only if having four control points
-             posPrev.isNormal() && posNext.isNormal())
-    {
-        // While both endpoints of the current leg are on the ground we
-        // interpolate position and heading along a smooth curve fit through
-        // four control points: P0 = the previous `from` (preserved in
-        // `posPrev` when the position switch popped it from the deque),
-        // P1 = current from, P2 = current to, and P3 = the slot AFTER `to`
-        // if one is available in `posList`. P0 / P3 set the entry / exit
-        // tangents so adjacent legs join with C¹ continuity.
-        //
-        // P2 (the look-ahead endpoint) is lightly pre-smoothed against its
-        // neighbours before the curve is fit (see GND_SPLINE_SMOOTH_WEIGHT
-        // and the control-point smoothing block below), which turns the
-        // otherwise strictly-interpolating spline into an approximating
-        // one — the rendered path no longer threads exactly through every
-        // noisy feed sample. P1 is left raw so the curve still returns
-        // `from` exactly at u=0, which the segment-switch continuity
-        // mechanism depends on.
-        //
-        // Heading is the tangent direction at the spline parameter — by
-        // construction the rendered nose points the way the rendered
-        // position is moving, which is the property that eliminates the
-        // "sideways through a turn" symptom that linear-chord
-        // interpolation produces.
-        //
-        // Math is performed in a local meters frame centred on P1 (see
-        // `CatmullRomEvalCentripetal`). We convert the returned local
-        // (x, y) back to lat/lon using `Dist2Lat` / `Dist2Lon` on the
-        // same origin. Altitude and pitch stay on the linear path:
-        // altitude is irrelevant on the ground (clamped to terrainAlt
-        // later by the bOnGrnd branch), and pitch is hard-set to
-        // GND_PITCH_DEG by the same later block.
-        //
-        // The Bezier curve `turn` is *not* used while the spline is in
-        // effect — turn.GetPos returned false above, otherwise we
-        // wouldn't be in this branch. The spline supersedes Bezier for
-        // ground rendering because Bezier's end-tangents come from
-        // slot.heading() (subject to EHS lag and channel-side filter
-        // ambiguity) while the spline's tangents come from positions
-        // only, so the spline is robust to a stale or missing feed
-        // heading at the segment endpoints.
-        // ------------------------------------------------------------------
-
-        // Control-point smoothing — LOOK-AHEAD ENDPOINT (P2) ONLY.
-        //
-        // A centripetal Catmull-Rom spline interpolates: the curve
-        // passes exactly through P1 and P2, so a noisy feed sample at
-        // either endpoint becomes a noisy rendered position. We turn
-        // it into an approximating spline by pre-smoothing P2 with a
-        // 3-tap binomial kernel against its neighbours:
-        //   P2' = w·from + (1−2w)·to + w·P3   (w = GND_SPLINE_SMOOTH_WEIGHT)
-        //
-        // P1 is deliberately NOT smoothed. The position-switch loop
-        // above does `posList.front() = ppos` (line ~1631) to make a
-        // new leg continue seamlessly from wherever the renderer
-        // currently is — a mechanism that only works if the renderer
-        // returns posDeque[0] (== `from`) EXACTLY at the start of the
-        // leg. The unmodified Catmull-Rom evaluator does exactly that
-        // (it interpolates P1 at u=0). If we smoothed P1 the evaluator
-        // would instead return P1' ≠ from at u=0, so every segment
-        // switch the rendered position would snap from `ppos` to P1' —
-        // the visible ~6 s forward/backward jump.
-        //
-        // Smoothing only P2 still removes the jitter completely:
-        // every feed sample is reached as the *smoothed* P2' endpoint
-        // of its leg, and is then carried into the next leg as `from`
-        // via the ppos overwrite. So the rendered path threads the
-        // smoothed points {P2'_k} — the raw noisy samples are never
-        // visited — while u=0 still yields `from` exactly, keeping the
-        // segment joins seamless.
-        //
-        // P2 is only smoothed when posNext is a *real* slot; when it
-        // fell back to a duplicated `to` the kernel would just bias
-        // the endpoint toward the segment interior, so we keep `to`
-        // raw in that case. See GND_SPLINE_SMOOTH_WEIGHT in
-        // Constants.h for the corner-cutting trade-off.
-        constexpr double w = GND_SPLINE_SMOOTH_WEIGHT;
-        positionTy P2s = to;                // copy ts/flags/alt/heading
-        if constexpr (w > 0.0) {
-            P2s.lat() = w * from.lat() + (1.0 - 2.0 * w) * to.lat() + w * posNext.lat();
-            P2s.lon() = w * from.lon() + (1.0 - 2.0 * w) * to.lon() + w * posNext.lon();
-        }
-
-        // Arc-length reparameterisation. The spline's native u is
-        // centripetal-knot space, NOT arc length, so feeding `f`
-        // directly to the evaluator would make the rendered position
-        // accelerate and decelerate within the segment (the user-
-        // observed "slow down / speed back up" pulsation). Instead
-        // we (re)build the arc-length LUT on the first frame of the
-        // segment and look up the u that corresponds to having
-        // traversed `f * totalArc` along the curve. Result: the
-        // rendered position advances at constant arc-length-per-
-        // time across the leg, with the visible speed equal to
-        // totalArc / duration. The LUT is built from the SAME
-        // control points (raw `from`, smoothed P2s) used for eval.
-// TODO Remove or fix? Currently heading isn't properly aligned between segments:        if (!splineLut.valid)
-//            splineLut.Build(posPrev, from, P2s, posNext);
-//        const double uArc = splineLut.UFromArcFraction(f); 
-
-        const CatmullRomResult cr =
-            CatmullRomEvalCentripetal(posPrev, from, P2s, posNext, f);
-
-        // Convert spline result (local meters from P1) back to
-        // geographic coordinates. P1 is the raw `from` (NOT smoothed,
-        // see above), so the local-frame origin is from.lat/lon.
-        ppos.lat() = from.lat() + Dist2Lat(cr.yMtr);
-        ppos.lon() = from.lon() + Dist2Lon(cr.xMtr, from.lat());
-
-        // Heading.
-        //
-        // Normally the spline tangent is the heading: the rendered
-        // nose points along the rendered direction of motion, which
-        // is what eliminates the "sideways through a turn" symptom.
-        //
-        // EXCEPTION: if EITHER end of the leg carries `bHeadFixed`,
-        // an upstream stage has deliberately set a heading that must
-        // NOT be overridden — currently that means a pushback leg,
-        // where CalcHeading set the slot heading to the held nose
-        // direction so the nose stays pointed away from the
-        // (backward) direction of travel. The spline tangent here
-        // points along that backward motion, so using it would
-        // render the aircraft tail-first the wrong way. Instead we
-        // interpolate the slot headings across the leg (shortest-
-        // path), preserving the intended nose direction while still
-        // drawing the smooth spline *position*.
-        //
-        // Why both ends, not just `from`: at the PB_NONE→PB_ACTIVE
-        // transition the previous leg's `to` (now `from` here) came
-        // from the parked era and has bHeadFixed=false. Pinning
-        // bHeadFixed retroactively onto the predecessor slot is not
-        // always possible — when posDeque has been drained during a
-        // long stationary period, CalcHeading uses pAc->GetToPos()
-        // as a virtual predecessor and that slot is not writable
-        // from CalcHeading. Honouring `to.f.bHeadFixed` here covers
-        // that case from the destination side: as long as the slot
-        // we are transitioning *into* has its heading fixed (PB
-        // override), interpolate instead of tangent.
-        if (from.f.bHeadFixed || to.f.bHeadFixed) {
-            const double h0 = from.heading();
-            const double hd = HeadingDiff(h0, to.heading());
-            const double h = HeadingNormalize(h0 + hd * f);
-            
-            // output debug info on request
-            if (dataRefs.GetDebugAcPos(key())) {
-                LOG_MSG(logDEBUG,"DEBUG Spline for %s: Setting heading(fixed) from %.1f to %.1f",
-                        key().c_str(), ppos.heading(), h);
-                
-            }
-            heading.SetVal(ppos.heading() = h);
-        } else {
-            // Sync the MovingParam so any downstream code that reads
-            // `heading.get()` sees the spline-derived value as the
-            // current state.;
-
-            // output debug info on request
-            if (dataRefs.GetDebugAcPos(key())) {
-                LOG_MSG(logDEBUG,"DEBUG Spline for %s: Setting heading from %.1f to %.1f",
-                        key().c_str(), ppos.heading(), cr.headingDeg);
-                
-            }
-            heading.SetVal(ppos.heading() = cr.headingDeg);
-        }
-    } */
     // No bezier, no spline...just linear interpolation,
     // heading comes from the moving parameter define during pos switch
     else {
@@ -2298,6 +2110,7 @@ bool LTAircraft::CalcPPos()
                                 tireRpm.defMax));
 
         // ------------------------------------------------------------------
+        // TODO: Reconsider...the world isn't flat everywhere. Properly done, pitch should come from altitude difference, always
         // Hard-set ground attitude every frame to defeat feed-driven jitter.
         //
         // Why this exists: data feeds and the position-interpolation code

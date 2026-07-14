@@ -1104,6 +1104,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
         // *** Snap to taxiways ***
         // As late as possible, so we hopefully have enough data in the queue
         // for a perfect taxiway routing
+        // TODO: LTAircraft also takes the 'next' pos into consideration for curves. Reconsider when to snap...we should not use an un-snapped position as 'next', not only because it moves a little but because taxi paths could be inserted before
         if (bAcNeedsData)
             SnapToTaxiways(bChanged);
 
