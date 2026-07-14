@@ -289,20 +289,20 @@ public:
     
     // absolute positions (max 3: last, current destination, next)
     // as basis for calculating ppos per frame
-    dequePositionTy      posList;
+    dequePositionTy     posList;
     /// Most-recently-retired `from` position. When `posList.pop_front()` is
     /// called during the position switch in CalcPPos, the slot being removed
     /// is copied here first so it remains available as Spline control point.
-    positionTy           posPrev;
+    positionTy          posPrev;
     /// Snapshot of the slot AFTER the current `to`, captured at segment
     /// switch and held fixed for the duration of the current leg.
     /// Used in Spline computations. Can still change
-    positionTy           posNext;
+    positionTy          posNext;
     /// Next Position after Next, only a buffer for the 0.5s
     /// between the call to TriggerCalcNewPos() and position switch
-    positionTy           posNextNext;
+    positionTy          posNextNext;
     /// cSpline for altitude
-    CSpline             altSpline;
+    CSpline<double>     altSpline;
     
     std::string         labelInternal;  // internal label, e.g. for error messages
 protected:

@@ -76,12 +76,16 @@ struct ptTy {
     ptTy (double _x, double _y) : x(_x), y(_y) {}
     ptTy operator + (const ptTy& _o) const { return ptTy ( x+_o.x, y+_o.y); }   ///< scalar sum
     ptTy operator - (const ptTy& _o) const { return ptTy ( x-_o.x, y-_o.y); }   ///< scalar difference
+    ptTy operator * (const double d) const { return ptTy ( d*x, d*y); }         ///< scalar product
     bool operator== (const ptTy& _o) const;                                     ///< equality based on dequal() (ie. 'nearly' equal)
     bool operator!= (const ptTy& _o) const { return !operator==(_o); }          ///< unequality bases on `not equal`
     bool isValid() const { return !std::isnan(x) && !std::isnan(y); }           ///< valid if both `x` and `y` are not `NAN`
     void clear() { x = y = NAN; }                                               ///< set both `x` and `y` to `NAN`
     ptTy mirrorAt (const ptTy& _o) const                                        ///< return a point of `this` mirrored at `_o`
     { return ptTy (2*_o.x - x, 2*_o.y - y); }
+    double length2() const { return sqr(x) + sqr(y); }                          ///< squared length(magnitude,notm) of the vector
+    double length() const  { return sqr(length2()); }                           ///< length(magnitude,notm) of the vector
+    double angle() const   { return rad2deg360(atan2(y, x)); }                  ///< angle of the vector, assuming y = ∆lat, x = ∆lon
     
     std::string dbgTxt () const;                                                ///< returns a string "y, x" for the point/position
 };
@@ -573,31 +577,37 @@ ptTy Bezier (double t, const ptTy& p0, const ptTy& p1, const ptTy& p2,
 ptTy Bezier (double t, const ptTy& p0, const ptTy& p1, const ptTy& p2, const ptTy& p3,
              double* pAngle = nullptr);
 
-/// @brief One-dimensional Cubic Hermite Spline (cSpline)
+/// @brief Cubic Hermite Spline (cSpline)
 /// @see https://en.wikipedia.org/wiki/Cubic_Hermite_spline
-/// @details In this more generic form, the tangents are input parameters
-///          (while in the specific Catmul-Rom-Spline above
-///           the tangents are computed from additional control points).
-///          In some edge cases it can be useful to provide specific tangents.
+/// @details Tangents are input parameters m0/m1
+///          In some edge cases (e.g. altitude during take-off/landing)
+///          it can be useful to provide specific tangents.
+/// @note By using `ptTy` as template type `T`, this turns into a 2d Hermite Spline.
+template<typename T>
 struct CSpline {
-    double t0=NAN, dt=NAN;              ///< t0 is the time of the first point, dt is delta-time for the segment
-    double a=NAN, b=NAN, c=NAN, d=NAN;  ///< pre-computed factors of the standard form
+    double t0, dt;                      ///< t0 is the time of the first point, dt is delta-time for the segment
+    T a, b, c, d;                       ///< pre-computed factors of the standard form
+    
+    /// Default Constructor
+    CSpline () : t0(NAN), dt(NAN), a(), b(), c(), d() {}
     
     /// Set the parameters (time, value like altitude, tangent like climb rate)
-    void set (double _t0, double _p0, double _m0,
-              double _t1, double _p1, double _m1);
+    void set (double _t0, const T& _p0, const T& _m0,
+              double _t1, const T& _p1, const T& _m1);
     
-    /// Clear, set to unused
-    void clear () { t0 = dt = a = b = c = d = NAN; }
+    /// Clear, set to unused (pass to default constructor)
+    void clear () { *this = CSpline(); }
     
     /// Valid?
-    operator bool () const { return !std::isnan(t0) && !std::isnan(dt) && !std::isnan(a); }
+    operator bool () const { return !std::isnan(t0) && !std::isnan(dt); }
     
     /// Value at t with `_t0 <= t <= _t1`
-    double val (double t) const;
+    T val (double t) const;
     
     /// Slope at t with `_t0 <= t <= _t1` (1st derivative of val())
-    double slope (double t) const;
+    T slope (double t) const;
+    
+    ///
 };
 
 #endif /* CoordCalc_h */

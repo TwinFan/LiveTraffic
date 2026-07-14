@@ -845,8 +845,9 @@ ptTy Bezier (double t, const ptTy& p0, const ptTy& p1, const ptTy& p2, const ptT
 }
 
 /// Set the parameters (time, value like altitude, tangent like climb rate)
-void CSpline::set (double _t0, double _p0, double _m0,
-                   double _t1, double _p1, double _m1)
+template<typename T>
+void CSpline<T>::set (double _t0, const T& _p0, const T& _m0,
+                      double _t1, const T& _p1, const T& _m1)
 {
     t0 = _t0;                                       // beginning timestamp
     dt = _t1 - _t0;                                 // delta-t, the time of the segment
@@ -858,7 +859,8 @@ void CSpline::set (double _t0, double _p0, double _m0,
 
 /// Value at t with `_t0 <= t <= _t1`
 /// @returns `au^3 + bu^2 + cu + d` with `u = (t - t0)/dt`
-double CSpline::val (double t) const
+template<typename T>
+T CSpline<T>::val (double t) const
 {
     const double u = (t - t0) / dt;
     return ((a*u + b)*u + c)*u + d;
@@ -866,9 +868,13 @@ double CSpline::val (double t) const
 
 /// Slope at t with `_t0 <= t <= _t1` (1st derivative of val())
 /// @returns `1/dt * (3au^2 + 2bu + c)`
-double CSpline::slope (double t) const
+template<typename T>
+T CSpline<T>::slope (double t) const
 {
     const double u = (t - t0) / dt;
     return ((3*a*u + 2*b)*u + c) / dt;
 }
 
+// Force compilation of the following:
+template struct CSpline<double>;        // 1D Hermite Spline
+template struct CSpline<ptTy>;          // 2D Hermite Spline
