@@ -200,7 +200,6 @@ constexpr double MAX_HOVER_AGL      = 2000;     // [ft] max hovering altitude fo
 constexpr double KEEP_ABOVE_MAX_ALT    = 18000.0 * M_per_FT;///< [m] Maximum altitude to which the "keep above 2.5° glidescope" algorithm is applied (highest airports are below 15,000ft + 3,000 for approach)
 constexpr double KEEP_ABOVE_MAX_AGL    =  3000.0 * M_per_FT;///< [m] Maximum height above ground to which the "keep above 2.5° glidescope" algorithm is applied (highest airports are below 15,000ft + 3,000 for approach)
 constexpr double KEEP_ABOVE_RATIO      = 0.043495397807572; ///< = tan(2.5°), slope ratio for keeping a plane above the approach to a runway
-constexpr double BEZIER_MIN_HEAD_DIFF = 2.5;    ///< [°] turns of less than this will not be modeled with Bezier curves
 constexpr float  EXPORT_USER_AC_PERIOD = 15.0f; ///< [s] how often to write user's aircraft data into the export file
 constexpr const char* EXPORT_USER_CALL = "USER";///< call sign used for user's plabe
 
@@ -491,17 +490,6 @@ constexpr double GND_ROLL_DEG                   = 0.0;
 /// 90° splits the half-planes cleanly: anything moving forward of the
 /// aircraft's beam is taxi, anything moving aft is push.
 constexpr double PB_EXIT_FORWARD_DIFF_DEG       = 90.0;
-
-/// [°] minimum heading change at which a Bezier curve is constructed for a
-/// ground leg. The general airborne threshold (`BEZIER_MIN_HEAD_DIFF`, 2.5°)
-/// is too coarse for taxi where slow-but-real turns of 1–2° per leg still
-/// benefit visually from being rendered as a curve with tangent-derived
-/// heading rather than a polyline with the heading walking via the linear
-/// MovingParam fallback. We pick 1° so that genuinely tiny noise-driven
-/// "turns" are still ignored (they'll be absorbed by the hysteresis filter
-/// in `LTFlightData::CalcHeading` or by the per-frame rate limit) but any
-/// turn of clear visual significance gets the Bezier treatment.
-constexpr double GND_BEZIER_MIN_HEAD_DIFF       = 1.0;
 
 /// [s] duration over which the rendered altitude is blended from terrain
 /// level up to the interpolated value at lift-off.

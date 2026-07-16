@@ -135,68 +135,6 @@ public:
     inline double getTargetDeltaDist() const    { return targetDeltaDist; }
 };
 
-/// @brief Handles a quadratic Bezier curve based on flight data positions
-/// @details Only using quadratic curves because in higher-level Bezier curves the parameter `t`
-///          does no longer correspond well to distance and planes would appear slowing down
-///          at beginning and end.
-/// @details The constructors take positions from flight data,
-///          the necessary end and control points of a Bezier Curve
-///          are computed from that input.
-/// @see https://en.wikipedia.org/wiki/B%C3%A9zier_curve#Constructing_B%C3%A9zier_curves
-struct BezierCurve
-{
-protected:
-    positionTy start;           ///< start point of the actual Bezier curve
-    positionTy end;             ///< end point of the actual Bezier curve
-    ptTy ptCtrl;                ///< Control point of the curve
-public:
-    BezierCurve () {}           ///< Standard constructor does nothing
-    
-    /// @brief Define a quadratic Bezier Curve based on the given flight data positions
-    /// @param _start Start position of the Bezier curve
-    /// @param _mid Mid position, current leg's end and next leg's starting point, the turning point, used as Bezier control point, ie. will not be reached
-    /// @param _end End position of the curve
-    void Define (const positionTy& _start,
-                 const positionTy& _mid,
-                 const positionTy& _end);
-    
-    /// @brief Define a quadratic Bezier Curve based on the given flight data positions, with the mid point being the intersection of the vectors
-    /// @param _start Start position of the Bezier curve
-    /// @param _end End position of the curve
-    /// @return Could a reasonable mid point be derived and hence a Bezier curve be set up?
-    bool Define (const positionTy& _start,
-                 const positionTy& _end);
-    
-    /// Convert the geographic coordinates to meters, with `start` being the origin (0|0) point
-    /// This is needed for accurate angle calculations
-    void ConvertToMeter ();
-    /// Convert the given geographic coordinates to meters
-    void ConvertToMeter (ptTy& pt) const;
-
-    /// Convert the given position back to geographic coordinates
-    void ConvertToGeographic (ptTy& pt) const;
-    
-    /// Clear the definition, so that BezierCurve::isDefined() will return `false`
-    void Clear ();
-    /// Is a curve defined?
-    bool isDefined () const { return ptCtrl.isValid(); }
-    /// is defined and the given timestamp between start's and end's timestamp?
-    bool isTsInbetween (double _ts) const
-    { return isDefined() && start.ts() <= _ts && _ts <= end.ts(); }
-    /// is defined and the given timestamp before end's timestamp?
-    bool isTsBeforeEnd (double _ts) const
-    { return isDefined() && _ts <= end.ts(); }
-
-    /// Return the position as per given timestamp, if the timestamp is between `start` and `end`
-    /// @param[in,out] pos Current position, to be overwritten with new position
-    /// @param _calcTs Timestamp for the position we look for, used to calculate factor `f`
-    /// @return if the position was adjusted
-    bool GetPos (positionTy& pos, double _calcTs);
-
-    /// Debug text output
-    std::string dbgTxt() const;
-};
-
 //
 //MARK: LTAircraft
 //      Represents an aircraft as displayed in XP by use of the
@@ -303,6 +241,8 @@ public:
     positionTy          posNextNext;
     /// cSpline for altitude
     CSpline<double>     altSpline;
+    /// 2D cSpline for position
+    CSpline<ptTy>       locSpline;
     
     std::string         labelInternal;  // internal label, e.g. for error messages
 protected:
@@ -327,10 +267,8 @@ protected:
     double              touchdownTs = NAN;
     bool                bArtificalPos;  // running on artifical positions for roll-out?
     bool                bNeedSpeed = false;     ///< need speed calculation?
-    bool                bNeedCCBezier = false;  ///< need Bezier calculation due to cut-corner case?
     AccelParam          speed;          // current speed [m/s] and acceleration control
-    BezierCurve         turn;           ///< position, heading, roll while flying a turn
-    MovingParam         heading;        ///< heading movement if not using a Bezier curve
+    MovingParam         heading;        ///< heading movement
     MovingParam         corrAngle;      ///< correction angle for cross wind
     MovingParam         gear;
     MovingParam         flaps;

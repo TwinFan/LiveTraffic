@@ -296,7 +296,6 @@ positionTy& positionTy::operator |= (const positionTy& pos)
     // Special Pos and other location flags need to be re-evaluated
     f.bHeadFixed = false;
     f.specialPos = SPOS_NONE;
-    f.bCutCorner = false;
     edgeIdx      = EDGE_UNKNOWN;
     
     return normalize();
@@ -340,13 +339,12 @@ const char* positionTy::GrndE2String (onGrndE grnd)
 std::string positionTy::dbgTxt () const
 {
     char buf[200];
-    snprintf(buf, sizeof(buf), "%.1f: (%7.5f, %7.5f) %7.1fft %8.8s %3.3s %2.2s %-13.13s %4.*zu {h %3.0f%c, p %3.0f, r %3.0f}",
+    snprintf(buf, sizeof(buf), "%.1f: (%7.5f, %7.5f) %7.1fft %8.8s %3.3s %-13.13s %4.*zu {h %3.0f%c, p %3.0f, r %3.0f}",
              ts(),
              lat(), lon(),
              alt_ft(),
              GrndE2String(f.onGrnd),
              SpecialPosE2String(f.specialPos),
-             f.bCutCorner ? "CT" : "  ",
              f.flightPhase ? (LTAircraft::FlightPhase2String(f.flightPhase)).c_str() : "",
              HasTaxiEdge() ? 1 : 0,
              HasTaxiEdge() ? edgeIdx : 0,
@@ -816,7 +814,7 @@ ptTy Bezier (double t, const ptTy& p0, const ptTy& p1, const ptTy& p2,
     // B(t) = (1-t)^2 p0 + 2(1+t)t p1 + t^2 p2
     return
     (oneMt*oneMt)   * p0 +              // (1-t)^2 p0 +
-    (2 * oneMt * t) * p1 +              // 2(1+t)t p1 +
+    (2 * oneMt * t) * p1 +              // 2(1-t)t p1 +
     (t*t)           * p2;               // t^2     p2
 }
 

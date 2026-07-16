@@ -331,7 +331,6 @@ public:
         coordUnitE   unitCoord   : 1;   ///< world or local coordinates?
         angleUnitE   unitAngle   : 1;   ///< heading in degree or radians?
         specialPosE  specialPos  : 2;   ///< position is somehow special`
-        bool         bCutCorner  : 1;   ///< is this an (inserted) position, that can be cut short? (-> use quadratic Bezier instead of cubic)
     } f;
     
     /// The taxiway network's edge this pos is on, index into Apt::vecTaxiEdges
@@ -339,7 +338,7 @@ public:
 public:
     /// Default Constructor, everything to NAN / defaults
     positionTy () : _lat(NAN), _lon(NAN), _alt(NAN), _ts(NAN), _head(NAN), _pitch(NAN), _roll(NAN),
-    f{FPH_UNKNOWN,false,GND_UNKNOWN,UNIT_WORLD,UNIT_DEG,SPOS_NONE,false}
+    f{FPH_UNKNOWN,false,GND_UNKNOWN,UNIT_WORLD,UNIT_DEG,SPOS_NONE}
     {}
     /// Most used constructor, requires position, defaults the rest
     positionTy (double dLat, double dLon, double dAlt_m=NAN,
@@ -347,7 +346,7 @@ public:
                 onGrndE grnd=GND_UNKNOWN, coordUnitE uCoord=UNIT_WORLD, angleUnitE uAngle=UNIT_DEG,
                 flightPhaseE fPhase = FPH_UNKNOWN) :
         _lat(dLat), _lon(dLon), _alt(dAlt_m), _ts(dTS), _head(dHead), _pitch(dPitch), _roll(dRoll),
-        f{fPhase,false,grnd,uCoord,uAngle,SPOS_NONE,false}
+        f{fPhase,false,grnd,uCoord,uAngle,SPOS_NONE}
     {}
     /// Complete constructor, requires/allows providing every value
     positionTy (double dLat, double dLon, double dAlt_m,
@@ -403,8 +402,7 @@ public:
     bool HasTaxiEdge () const { return edgeIdx < EDGE_UNAVAIL; }
     /// Has position been post-processed by some optimization (like snap to taxiway)?
     bool IsPostProcessed () const { return
-        f.bHeadFixed || f.bCutCorner || f.specialPos != SPOS_NONE ||
-        edgeIdx != EDGE_UNKNOWN;
+        f.bHeadFixed || f.specialPos != SPOS_NONE || edgeIdx != EDGE_UNKNOWN;
     }
     
     // rad/deg conversion (only affects lat and lon)

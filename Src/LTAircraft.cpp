@@ -612,168 +612,6 @@ double AccelParam::getRatio (double deltaTS ) const
     return getDeltaDist(deltaTS) / targetDeltaDist;
 }
 
-//
-// MARK: Bezier Curves
-//
-
-// Define a quadratic Bezier Curve based on the given flight data positions
-void BezierCurve::Define (const positionTy& _start,
-                          const positionTy& _mid,
-                          const positionTy& _end)
-{
-    // init
-    start   = _start;
-    ptCtrl  = _mid;
-    end     = _end;
-    
-#ifdef DEBUG
-    if (gSelAcCalc)
-        LOG_MSG(logDEBUG, "Quadratic Bezier defined:\n%s",
-                dbgTxt().c_str());
-#endif
-
-    // Convert all coordinates to meter
-    ConvertToMeter();
-}
-
-// Define a quadratic Bezier Curve based on the given flight data positions, with the mid point being the intersection of the vectors
-bool BezierCurve::Define (const positionTy& _start,
-                          const positionTy& _end)
-{
-    // Find the mid point as the intersection of the vectors
-    // defined by the two positions and their headings
-    start = _start;                     // A = start = (0|0)
-    const positionTy posB = _start.destPos(vectorTy(_start.heading(), 1000.0));
-    ptTy b (posB.lon(), posB.lat());    // B = A + vector along A-heading
-    ConvertToMeter(b);
-    
-    // End point and its vector
-    ptTy c (_end.lon(), _end.lat());    // C = _end
-    const positionTy posD = _end.destPos(vectorTy(_end.heading(), 1000.0));
-    ptTy d (posD.lon(), posD.lat());    // D = _end + vector along C-heading
-    ConvertToMeter(c);
-    ConvertToMeter(d);
-
-    // find the intersection
-    ptTy mid = CoordIntersect(ptTy(0,0), b, c, d);
-    ConvertToGeographic(mid);
-    
-    // This intersection serves our Bezier curve purposes only if a few conditions
-    // are met:
-    Clear();                            // reset, just in case we bail
-    // 1. Must be in start-heading direction relative to start
-    if (std::abs(HeadingDiff(_start.angle(mid), _start.heading())) > 15.0)
-        return false;
-    // 2. Must be in reverse end-heading direction relative to end
-    if (std::abs(HeadingDiff(_end.angle(mid), _end.heading())) < 165.0)
-        return false;
-    // 3. Each leg (distance from _start/_end to mid) should be longer than, say,
-    //    twice the direct distance _start/_end
-    const double dist = _start.dist(_end);
-    const double startDist = _start.dist(mid);
-    const double endDist = _end.dist(mid);
-    if (startDist > 2.0*dist || endDist > 2.0*dist)
-        return false;
-    // Not too short legs either, otherwise progress along the line is too non-linear
-    if (startDist < 0.25*dist || endDist < 0.25*dist)
-        return false;
-    
-    // Define the Bezier curve
-    Define(_start, mid, _end);
-    return true;
-}
-
-// Convert the geographic coordinates to meters, with `start` being the origin (0|0) point
-/// @details The `start` point serves as origin and is - by definition - (0|0).
-///          The content of `start` will not be overwritten, it is necessary for reverse conversion.
-///          The other points are overwritten with the distance - in meters - to `start`.
-void BezierCurve::ConvertToMeter ()
-{
-    end.lat() = Lat2Dist(end.lat() - start.lat());
-    end.lon() = Lon2Dist(end.lon() - start.lon(), start.lat());
-    ConvertToMeter(ptCtrl);
-}
-
-/// Convert the given geographic coordinates to meters
-void BezierCurve::ConvertToMeter (ptTy& pt) const
-{
-    if (pt.isValid()) {
-        pt.y = Lat2Dist(pt.y - start.lat());
-        pt.x = Lon2Dist(pt.x - start.lon(), start.lat());
-    }
-}
-
-// Convert the given position back to geographic coordinates
-void BezierCurve::ConvertToGeographic (ptTy& pt) const
-{
-    if (pt.isValid()) {
-        pt.y = start.lat() + Dist2Lat(pt.y);
-        pt.x = start.lon() + Dist2Lon(pt.x, start.lat());
-    }
-}
-
-// Clear the definition, so that BezierCurve::isDefined() will return `false`
-void BezierCurve::Clear ()
-{
-    start.ts() = NAN;
-    end.ts() = NAN;
-    ptCtrl.clear();
-}
-
-// Return the position as per given timestamp, if the timestamp is between `start` and `end`
-bool BezierCurve::GetPos (positionTy& pos, double _calcTs)
-{
-    // not defined or not in the time range of this curve?
-    if (!isTsInbetween(_calcTs))
-        return false;
-    
-    // Calculate f between [0.0..1.0]
-    const double myF = (_calcTs - start.ts()) / (end.ts() - start.ts());
-    if (myF < 0.0 || myF > 1.0)
-        return false;
-    
-    // The position to return
-    double angle = NAN;
-    ptTy p = Bezier(myF, {0.0,0.0}, ptCtrl, end, &angle);
-    LOG_ASSERT(p.isValid());
-    
-    // Convert the result back into geographic coordinated
-    ConvertToGeographic(p);
-/*
-#ifdef DEBUG
-    if (gSelAcCalc) {
- //       if (std::abs(pos.heading()-angle) > 1.5)
-            LOG_MSG(logDEBUG, "_calcTs=%.1f, myF=%.4f, p={%s}, head=%.1f -> %.1f",
-                    _calcTs, myF, p.dbgTxt().c_str(), pos.heading(), angle);
-    }
-#endif
-*/
-    // Update pos
-    pos.lat() = p.y;
-    pos.lon() = p.x;
-    pos.alt_m() = start.alt_m() * (1-myF) + end.alt_m() * myF;
-    pos.heading() = angle;
-    
-    // We've updated the position
-    return true;
-}
-
-
-// Debug text output
-std::string BezierCurve::dbgTxt() const
-{
-    if (isDefined()) {
-        char s[250];
-        snprintf(s, sizeof(s), "(%.5f / %.5f / %.1f @ %.1f) {%.5f %.5f} (%.5f / %.5f / %.1f @ %.1f)",
-                 start.lat(), start.lon(), start.heading(), start.ts(),
-                 ptCtrl.y, ptCtrl.x,
-                 end.lat(), end.lon(), end.heading(), end.ts());
-        return s;
-    } else {
-        return "<undefined>";
-    }
-}
-
 
 //
 //MARK: LTAircraft::FlightModel
@@ -1401,9 +1239,9 @@ void LTAircraft::CalcLabelInternal (const LTFlightData::FDStaticData& statDat)
 LTAircraft::operator std::string() const
 {
     char buf[1024];
-    snprintf(buf,sizeof(buf),"a/c %s\nturn: %s\nheading: %s\n%s Y: %.1fft %.0fkn %.0fft/m Phase: %02d %s\nposList:\n",
+    snprintf(buf,sizeof(buf),"a/c %s\ncSpline: %s\nheading: %s\n%s Y: %.1fft %.0fkn %.0fft/m Phase: %02d %s\nposList:\n",
              labelInternal.c_str(),
-             turn.dbgTxt().c_str(),
+             "...",                         // TODO: cSpline Debug output
              heading.dbgTxt().c_str(),
              ppos.dbgTxt().c_str(), GetTerrainAlt_ft(),
              GetSpeed_kt(),
@@ -1630,25 +1468,19 @@ bool LTAircraft::CalcPPos()
 
         // Snapshot the spline's exit-tangent control point (P3)
         // That is the _likely_ (though not _guaranteed_) position to be reached
-        // after 'to', to be used as Bezier/spline control point.
+        // after 'to', to be used as Spline control point.
         posNext = posNextNext;
 
-        // Now: If running point-to-point, ie. _not_ cutting corners with
-        // Bezier curves, then to absolutely ensure we continue seamlessly from current
+        // Now: To absolutely ensure we continue seamlessly from current
         // ppos we set posDeque[0] ('from') to ppos. Should be close anyway in normal
         // situations. (It's not if the simulation was halted while feeding live
         // data, then posList got completely outdated and ppos might jump beyond the entire list.)
         if ( ppos < posList[1]) {
             // Save some flags needed for later calculations
             ppos.f.specialPos = posList.front().f.specialPos;
-            ppos.f.bCutCorner = posList.front().f.bCutCorner;
             ppos.edgeIdx      = posList.front().edgeIdx;
-            // Then overwrite posDeque[0] if not currently turning using a Bezier
-            if (!turn.isTsInbetween(currCycle.simTime))
-                posList.front() = ppos;
-            // but even if turning by Bezier save the current heading
-            else
-                posList.front().heading() = ppos.heading();
+            // Then overwrite posDeque[0]
+            posList.front() = ppos;
         }
         // flag: switched positions
         bPosSwitch = true;
@@ -1747,79 +1579,56 @@ bool LTAircraft::CalcPPos()
         bNeedSpeed = from.IsOnGnd() || !to.IsOnGnd();
         if (!bNeedSpeed)
             speed.SetSpeed(vec.speed);
-
-        // Not already controlled by a cut-corner Bezier curve
-        if (!turn.isTsInbetween(currCycle.simTime)) {
-            // Clear an outdated turn
-            turn.Clear();
         
-            // *** Heading ***
-            
-            // Try a Bezier curve first, if that doesn't work...
-            //
-            // On the ground we use the lower `GND_BEZIER_MIN_HEAD_DIFF`
-            // threshold so that 1–2° taxi turns also get curve-tangent
-            // heading and are visually rendered as a smooth arc rather than
-            // as a heading walked via the linear MovingParam fallback. In
-            // the air we keep the original 2.5° threshold so en-route course
-            // corrections don't constantly enter/exit Bezier mode.
-            const double minHeadDiff = IsOnGrnd() ? GND_BEZIER_MIN_HEAD_DIFF
-                                                  : BEZIER_MIN_HEAD_DIFF;
-            // At high ground speed (landing rollout, takeoff roll, fast taxi)
-            // we deliberately skip Bezier and use straight-line interpolation
-            // instead. The Bezier's end-tangent comes from `to.heading()` which
-            // is the next slot's reported heading — when that next slot is on
-            // a turn-off taxiway and the current slot is on the runway, the
-            // Bezier arcs the path across the runway corner and the rendered
-            // aircraft visually slides off the runway with its nose pointing
-            // away from its direction of motion. Linear interpolation makes
-            // the renderer walk heading toward `vec.angle` (the motion vector
-            // — see the moveQuickestToBy call below) which is what an aircraft
-            // physically does on the ground at speed: nose along the track.
-            // See `GND_TRACK_HEADING_MIN_KT` in Constants.h for the rationale.
-            //
-            // We use the leg's AVERAGE speed (`vec.speed_kn()` = dist/dt) and
-            // NOT the current rendered speed. The rendered speed at leg-setup
-            // is the speed the aircraft is *coming into* the leg — so for a
-            // taxi-to-runway-entry leg where the aircraft taxis in slowly and
-            // exits at runway-roll speed (e.g., gs 5 kn → 12 kn over 47 m in
-            // 7.84 s, leg-average ~12 kn), the rendered start speed is 5 kn
-            // and would fail this threshold even though the leg is the very
-            // transition we want to handle straight-line. Using leg-average
-            // catches all legs whose endpoint speed crosses the threshold,
-            // which is what aligns the rendered nose with the runway from
-            // the moment the aircraft starts accelerating onto it.
-            const bool bGndFast = IsOnGrnd() &&
-                                  !std::isnan(vec.speed) &&
-                                  vec.speed_kn() >= GND_TRACK_HEADING_MIN_KT;
-            if (to.f.bCutCorner ||                                      // next position is to use a cut-corner curve?
-                vec.dist <= SIMILAR_POS_DIST ||                         // no reasonable leg distance and turn amount?
-                std::abs(HeadingDiff(ppos.heading(), to.heading())) < minHeadDiff ||
-                bGndFast ||                                             // high-speed ground motion: never Bezier
-                !turn.Define(ppos, to))                                 // or defining the Bezier failed for some other reason?
-            {
-                // ...start the turn from the initial heading to the vector heading
-                heading.defDuration = IsOnGrnd() ? pMdl->TAXI_TURN_TIME : pMdl->FLIGHT_TURN_TIME;
-                // Target heading...defaults to vector heading, i.e. point to where we go to
-                double h = vec.angle;
-                // only potentially override in low speed situations
-                if (!bGndFast) {
-                    // long leg: typically we stick to default vector heading
-                    if (vec.dist > SIMILAR_POS_DIST) {
-                        // Except:  to-heading points backwards? Might be push-back, so go backwards
-                        if (to.f.bHeadFixed && std::abs(HeadingDiff(vec.angle, to.heading())) > 90.0)
-                            h = HeadingNormalize(vec.angle + 180.0);
-                    }
-                    // short leg: turn half-way to to-heading
-                    else {
-                        h = HeadingAvg(ppos.heading(),to.heading());
-                    }
-                }
-                heading.moveQuickestToBy(ppos.heading(), h,
-                                         NAN, from.ts()+duration/2,     // by half the vector flight time
-                                         true);                         // start immediately
+        // *** Heading ***
+        
+        // At high ground speed (landing rollout, takeoff roll, fast taxi)
+        // we deliberately skip Bezier and use straight-line interpolation
+        // instead. The Bezier's end-tangent comes from `to.heading()` which
+        // is the next slot's reported heading — when that next slot is on
+        // a turn-off taxiway and the current slot is on the runway, the
+        // Bezier arcs the path across the runway corner and the rendered
+        // aircraft visually slides off the runway with its nose pointing
+        // away from its direction of motion. Linear interpolation makes
+        // the renderer walk heading toward `vec.angle` (the motion vector
+        // — see the moveQuickestToBy call below) which is what an aircraft
+        // physically does on the ground at speed: nose along the track.
+        // See `GND_TRACK_HEADING_MIN_KT` in Constants.h for the rationale.
+        //
+        // We use the leg's AVERAGE speed (`vec.speed_kn()` = dist/dt) and
+        // NOT the current rendered speed. The rendered speed at leg-setup
+        // is the speed the aircraft is *coming into* the leg — so for a
+        // taxi-to-runway-entry leg where the aircraft taxis in slowly and
+        // exits at runway-roll speed (e.g., gs 5 kn → 12 kn over 47 m in
+        // 7.84 s, leg-average ~12 kn), the rendered start speed is 5 kn
+        // and would fail this threshold even though the leg is the very
+        // transition we want to handle straight-line. Using leg-average
+        // catches all legs whose endpoint speed crosses the threshold,
+        // which is what aligns the rendered nose with the runway from
+        // the moment the aircraft starts accelerating onto it.
+        const bool bGndFast = IsOnGrnd() &&
+                              !std::isnan(vec.speed) &&
+                              vec.speed_kn() >= GND_TRACK_HEADING_MIN_KT;
+        // ...start the turn from the initial heading to the vector heading
+        heading.defDuration = IsOnGrnd() ? pMdl->TAXI_TURN_TIME : pMdl->FLIGHT_TURN_TIME;
+        // Target heading...defaults to vector heading, i.e. point to where we go to
+        double h = vec.angle;
+        // only potentially override in low speed situations
+        if (!bGndFast) {
+            // long leg: typically we stick to default vector heading
+            if (vec.dist > SIMILAR_POS_DIST) {
+                // Except:  to-heading points backwards? Might be push-back, so go backwards
+                if (to.f.bHeadFixed && std::abs(HeadingDiff(vec.angle, to.heading())) > 90.0)
+                    h = HeadingNormalize(vec.angle + 180.0);
+            }
+            // short leg: turn half-way to to-heading
+            else {
+                h = HeadingAvg(ppos.heading(),to.heading());
             }
         }
+        heading.moveQuickestToBy(ppos.heading(), h,
+                                 NAN, from.ts()+duration/2,     // by half the vector flight time
+                                 true);                         // start immediately
         
         // *** Correction Angle for crosswind ***
         CalcCorrAngle();
@@ -1832,55 +1641,24 @@ bool LTAircraft::CalcPPos()
     
     // Further computations make only sense if 'to' is still in the future
     // (there seem to be case when this is not the case, and if only because the user pauses or changes time)
-    if ((bNeedSpeed || bNeedCCBezier) && to.ts() < currCycle.simTime) {
+    if (bNeedSpeed && to.ts() < currCycle.simTime) {
         if (bNeedSpeed) speed.SetSpeed(vec.speed);
-        bNeedSpeed = bNeedCCBezier = false;
-    }
-    
-    // Need next position for speed or Bezier determination?
-    // (We don't need a next position if the next is "STOPPED", because then we know the target speed is zero.)
-    positionTy nextPos;
-    vectorTy nextVec;
-    if ((bNeedSpeed || bNeedCCBezier) && to.f.flightPhase != FPH_STOPPED_ON_RWY)
-    {
-        // Do we happen to have a next vector already in posList?
-        if (nextPos.isNormal()) {
-            nextVec = to.between(nextPos);
-        }
-        else {
-            // need to check with LTFlightData's posDeque:
-            switch ( fd.TryGetNextPos(to.ts()+1.0, nextPos) ) {
-                case LTFlightData::TRY_SUCCESS:
-                    // got the next position!
-                    // But it's from flight data's queue, so potentially doesn't yet have an altitude, we need one now
-                    if (nextPos.IsOnGnd() && std::isnan(nextPos.alt_m()))
-                        nextPos.alt_m() = fd.YProbe_at_m(nextPos);
-                    // Compute vector to it
-                    nextVec = to.between(nextPos);
-                    break;
-                case LTFlightData::TRY_NO_LOCK:
-                    // try again next frame (bNeedSpeed || bNeedBezier stays true)
-                    break;
-                case LTFlightData::TRY_NO_DATA:
-                case LTFlightData::TRY_TECH_ERROR:
-                    // no data or errors...well...then we just fly straight
-                    if (bNeedSpeed) speed.SetSpeed(vec.speed);
-                    bNeedSpeed = bNeedCCBezier = false;
-                    break;
-            }
-        }
+        bNeedSpeed = false;
     }
     
     // *** acceleration / deceleration ***
-    if (bNeedSpeed && (nextVec.isValid() || to.f.flightPhase == FPH_STOPPED_ON_RWY))
+    if (bNeedSpeed && (posNext.hasPosAlt() || to.f.flightPhase == FPH_STOPPED_ON_RWY))
     {
         // Target speed: Weighted average of current and next vector
-        const double toSpeed =
-            to.f.flightPhase == FPH_STOPPED_ON_RWY ? 0.0 :              // if we are to STOP, then target speed is zero
-            (vec.speed * nextVec.dist + nextVec.speed * vec.dist) /     // otherwise we consider this and the next leg
-            (vec.dist + nextVec.dist);
+        double toSpeed = 0.0;                                                   // if we are to STOP, then target speed is zero
+        if (to.f.flightPhase != FPH_STOPPED_ON_RWY) {
+            // otherwise we consider this and the next leg
+            const vectorTy nextVec = to.between(posNext);
+            toSpeed = (vec.speed * nextVec.dist + nextVec.speed * vec.dist) /
+                      (vec.dist + nextVec.dist);
+        }
         
-        // initiate speed control (if speed valid, could be NAN if both distances ae zero)
+        // initiate speed control (if speed valid, could be NAN if both distances are zero)
         if (!std::isnan(toSpeed)) {
             speed.StartSpeedControl(speed.m_s(),
                                     toSpeed,
@@ -1895,25 +1673,6 @@ bool LTAircraft::CalcPPos()
     // Update correction angle
     corrAngle.get();
     
-    // *** Cut Corner Bezier Curve ***
-    // We define them only if both legs are long enough.
-    // (Very short legs indicate a plane standing still waiting,
-    // we don't want such a plane to turn at all.)
-    if (bNeedCCBezier && nextVec.isValid())
-    {
-        bNeedCCBezier = false;
-
-        // Legs long enough?
-        if (vec.dist > SIMILAR_POS_DIST && nextVec.dist > SIMILAR_POS_DIST) {
-            positionTy _end = to;
-            _end.mergeCount = nextPos.mergeCount = 1;
-            _end |= nextPos;                        // effectively calculates mid-point between to and nextPos, taking care of proper heading, too
-            turn.Define(ppos,                       // start is right here and now
-                        to,                         // mid-point is end of current leg
-                        _end);                      // end-point is the mid between to and nextPos
-        }
-    }
-
     // *** The Factor ***
     
     // How far have we traveled (in time) between from and to?
@@ -1953,32 +1712,24 @@ bool LTAircraft::CalcPPos()
         stopPoint.ts() = speed.getTargetTime();
         stopPoint.f.flightPhase = FPH_STOPPED_ON_RWY;
         bArtificalPos = true;                   // flag: we are working with an artifical position now
-        turn.Clear();                           // (and certainly not with a Bezier curve)
         if (dataRefs.GetDebugAcPos(key())) {
             LOG_MSG(logDEBUG,DBG_INVENTED_STOP_POS,stopPoint.dbgTxt().c_str());
         }
     }
     
-    // Try getting our current position from the Bezier curve
-    const double _calcTs = from.ts() * (1-f) + to.ts() * f;
-    if (f <= 1.0 && turn.GetPos(ppos, _calcTs)) {
-        // sync the changing heading between Bezier curve and MovingParam
-        heading.SetVal(ppos.heading());
-    }
-    // No bezier, no spline...just linear interpolation,
+    // Linear interpolation
     // heading comes from the moving parameter define during pos switch
-    else {
-        // Now we apply the factor so that with time we move from 'from' to 'to'.
-        // Note that this calculation also works if we passed 'to' already
-        // (due to no newer 'to' available): we just keep going the same way.
-        // This is effectively a scaled vector sum, broken down into its components:
-        ppos.lat()   = from.lat()   * (1 - f) + to.lat() * f;
-        ppos.lon()   = from.lon()   * (1 - f) + to.lon() * f;
-        // we handle roll later separately
+    // TODO: cSpline, at least for f <= 1.0
+    // Now we apply the factor so that with time we move from 'from' to 'to'.
+    // Note that this calculation also works if we passed 'to' already
+    // (due to no newer 'to' available): we just keep going the same way.
+    // This is effectively a scaled vector sum, broken down into its components:
+    ppos.lat()   = from.lat()   * (1 - f) + to.lat() * f;
+    ppos.lon()   = from.lon()   * (1 - f) + to.lon() * f;
+    // we handle roll later separately
 
-        // Get heading from moving param
-        ppos.heading() = heading.get();
-    }
+    // Get heading from moving param
+    ppos.heading() = heading.get();
     
     // Altitude, VSI, and pitch follow the Altitude cSpline, if defined, otherwise linear
     if (altSpline) {
@@ -2038,47 +1789,13 @@ bool LTAircraft::CalcPPos()
     // *** Half-way through preparations ***
     if (f >= 0.5 && f < 1.0)
     {
-        // Cut Corner: half-way through prepare a quadratic curve to cut the corner...if needed
-        if (to.f.bCutCorner &&                             // only for cut-corner positions
-            !bNeedCCBezier &&                              // flag not already set?
-            !turn.isTsBeforeEnd(currCycle.simTime) &&      // Bezier not already defined?
-            vec.dist > SIMILAR_POS_DIST &&                 // reasonable leg distance and turn amount?
-            std::abs(HeadingDiff(ppos.heading(), to.heading())) >= BEZIER_MIN_HEAD_DIFF)
-        {
-            // set the flag to fetch the next leg. All the rest is done above
-            bNeedCCBezier = true;
-        }
         // otherwise prepare turning heading to final heading (if not done already).
-        //
-        // On the ground at high leg-average speed (rollout, takeoff,
-        // fast taxi) we deliberately do NOT retarget heading to
-        // `to.heading()` here. The linear path set up at the start of
-        // the leg already aimed heading at `vec.angle` (the motion
-        // direction), which is the visually correct nose direction
-        // during high-speed ground travel. Retargeting to the next
-        // slot's reported heading would restart the same problem the
-        // Bezier-skip above is trying to avoid: rendered nose pointing
-        // away from the direction of motion. Once leg-average speed
-        // drops below `GND_TRACK_HEADING_MIN_KT`, this branch is
-        // allowed to fire and the aircraft can begin converging on
-        // the slot's reported orientation for the upcoming turn-off,
-        // gate manoeuvre, or other slow-speed activity.
-        //
-        // The condition uses `vec.speed_kn()` (leg-average) to match
-        // the bGndFast check at leg-setup above. Using the current
-        // rendered `GetSpeed_kt()` here would let the retarget fire
-        // during the acceleration phase of a takeoff leg before the
-        // rendered speed has caught up to the leg average, undoing
-        // the Bezier-skip choice for the very legs that need it most.
-        else if (!dequal(heading.toVal(), to.heading()) /* TODO: Really need this? We're now missing turns that we would have needed. Proper way is to make sure that to.heading is correct &&
-                 !(IsOnGrnd() &&
-                   !std::isnan(vec.speed) &&
-                   vec.speed_kn() >= GND_TRACK_HEADING_MIN_KT)*/)
+        if (!dequal(heading.toVal(), to.heading()))
         {
             heading.defDuration = IsOnGrnd() ? pMdl->TAXI_TURN_TIME : pMdl->FLIGHT_TURN_TIME;
-            heading.moveQuickestToBy(ppos.heading(), to.heading(), // target heading
-                                     NAN, to.ts(),      // by target timestamp
-                                     false);            // start as late as possible
+            heading.moveQuickestToBy(ppos.heading(), to.heading(),  // target heading
+                                     NAN, to.ts(),                  // by target timestamp
+                                     false);                        // start as late as possible
         }
     }
 

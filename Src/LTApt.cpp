@@ -441,8 +441,7 @@ public:
             {
                 e.GetType() == TaxiEdge::RUN_WAY ? FPH_UNKNOWN : FPH_TAXI,  // flightPhase
                 true, GND_ON, UNIT_WORLD, UNIT_DEG,                         // heading fixed
-                e.GetType() == TaxiEdge::RUN_WAY ? SPOS_RWY : SPOS_TAXI,    // specialPos
-                false                                                       // cut corner
+                e.GetType() == TaxiEdge::RUN_WAY ? SPOS_RWY : SPOS_TAXI     // specialPos
              },
             eIdx
          );
@@ -779,8 +778,7 @@ public:
            {
                 e.GetType() == TaxiEdge::RUN_WAY ? FPH_UNKNOWN : FPH_TAXI,          // flightPhase
                 true, GND_ON, UNIT_WORLD, UNIT_DEG,                                 // heading fixed
-                e.GetType() == TaxiEdge::RUN_WAY ? SPOS_RWY : SPOS_TAXI,            // specialPos
-                false                                                               // cut corner
+                e.GetType() == TaxiEdge::RUN_WAY ? SPOS_RWY : SPOS_TAXI             // specialPos
            },
            bestEdgeIdx
         );
@@ -1599,69 +1597,6 @@ public:
                                                  [](const positionTy& a, const positionTy& b)
                                                  {return a > b;}
                                                  ) == fd.posDeque.cend());
-            }
-        }
-        
-        // Not found a shortest path -> try finding edges' intersection
-        else
-        {
-            // TODO: This (and positionTy::f.bCutCorner) should no longer be necessary when we have splines drive on ground movement
-            // Let's try finding the intersection point of the 2 edges we are on
-            const TaxiNode& currA = pClosestEdge->GetA(*this);
-            const TaxiNode& currB = pClosestEdge->GetB(*this);
-            const TaxiNode& prevA = prevE.GetA(*this);
-            const TaxiNode& prevB = prevE.GetB(*this);
-            positionTy intersec =
-            CoordIntersect({prevA.lon, prevA.lat}, {prevB.lon, prevB.lat},
-                           {currA.lon, currA.lat}, {currB.lon, currB.lat});
-            intersec.pitch() = 0.0;
-            intersec.roll()  = 0.0;
-            intersec.f.onGrnd  = GND_ON;
-            intersec.f.flightPhase = FPH_TAXI;
-            intersec.f.bCutCorner = true;       // the corner of this position can be cut short
-            
-            // It is essential that the intersection is in front (rather than behind)
-            vectorTy vecPrevInters = pPrevPos->between(intersec);
-            if (std::abs(HeadingDiff(pPrevPos->heading(),vecPrevInters.angle)) < 90.0)
-            {
-                vectorTy vecIntersCurr = intersec.between(pos);
-                
-                // turning angle at intersection must not be too sharp
-                if (std::abs(HeadingDiff(vecPrevInters.angle, vecIntersCurr.angle)) <= APT_MAX_PATH_TURN)
-                {
-                    const LTAircraft::FlightModel& mdl = LTAircraft::FlightModel::FindFlightModel(fd);
-                    double avgSpeed = (vecPrevInters.dist + vecIntersCurr.dist) / (pos.ts() - pPrevPos->ts());
-                    
-                    // Distance needs to be manageable, which means:
-                    // On the ground max MAX_TAXI_SPEED,
-                    // when turning off a rwy then the taxi part is restricted to MAX_TAXI_SPEED
-                    if (prevE.GetType() == TaxiEdge::RUN_WAY &&
-                        avgSpeed > mdl.MAX_TAXI_SPEED)
-                    {
-                        intersec.ts() = pos.ts() - vecIntersCurr.dist/mdl.MAX_TAXI_SPEED;
-                        // intersection moves too close (in terms of time) to previous position?
-                        if (intersec.ts() < pPrevPos->ts() + SIMILAR_TS_INTVL)
-                            intersec.ts() = NAN;        // then we don't use it
-                    }
-                    else if (avgSpeed <= mdl.MAX_TAXI_SPEED)
-                        // define ts so that we run constant speed from prevPos via intersec to pos
-                        intersec.ts() = pPrevPos->ts() + (pos.ts()-pPrevPos->ts()) * vecPrevInters.dist / (vecPrevInters.dist+vecIntersCurr.dist);
-                    
-                    // Did we find a valid timestamp? -> Add the pos into posDeque
-                    if (!std::isnan(intersec.ts())) {
-                        posIter = fd.posDeque.insert(posIter, intersec);// posIter now points to inserted element
-                        ++posIter;                                      // posIter points to originally passed in element again
-                        if (dataRefs.GetDebugAcPos(fd.key()))
-                            LOG_MSG(logDEBUG, "Inserted artificial intersection node");
-                    }
-
-                    // posDeque should still be sorted, i.e. no two adjacent positions a,b should be a > b
-                    LOG_ASSERT_FD(fd,
-                                  std::adjacent_find(fd.posDeque.cbegin(), fd.posDeque.cend(),
-                                                     [](const positionTy& a, const positionTy& b)
-                                                     {return a > b;}
-                                                     ) == fd.posDeque.cend());
-                }
             }
         }
 
