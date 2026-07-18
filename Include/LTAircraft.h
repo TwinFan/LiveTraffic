@@ -99,6 +99,7 @@ public:
 };
 
 // mimics acceleration / deceleration
+// TODO: Remove
 struct AccelParam
 {
 protected:
@@ -125,7 +126,8 @@ public:
                            double startTime, double targetTime,
                            const LTAircraft* pAc);
     
-    inline bool isChanging() const { return !std::isnan(acceleration); }
+    bool isValid() const { return !std::isnan(currSpeed_m_s); }
+    bool isChanging() const { return !std::isnan(acceleration); }
     
     // calculations (ts = timestamp, defaults to current sim time)
     double updateSpeed ( double ts = NAN );
@@ -228,10 +230,12 @@ public:
     // absolute positions (max 3: last, current destination, next)
     // as basis for calculating ppos per frame
     dequePositionTy     posList;
+    // TODO: posPrev shouldn't be needed any longer
     /// Most-recently-retired `from` position. When `posList.pop_front()` is
     /// called during the position switch in CalcPPos, the slot being removed
     /// is copied here first so it remains available as Spline control point.
     positionTy          posPrev;
+    // TODO: posnext shouldn't be needed any longer
     /// Snapshot of the slot AFTER the current `to`, captured at segment
     /// switch and held fixed for the duration of the current leg.
     /// Used in Spline computations. Can still change
@@ -266,8 +270,7 @@ protected:
     /// Cleared back to NAN once the deferred move has fired.
     double              touchdownTs = NAN;
     bool                bArtificalPos;  // running on artifical positions for roll-out?
-    bool                bNeedSpeed = false;     ///< need speed calculation?
-    AccelParam          speed;          // current speed [m/s] and acceleration control
+    double              speed_m;        /// current speed [m/s]
     MovingParam         heading;        ///< heading movement
     MovingParam         corrAngle;      ///< correction angle for cross wind
     MovingParam         gear;
@@ -334,8 +337,9 @@ public:
     inline double GetFlapsPos() const { return flaps.is(); }
     inline double GetGearPos() const { return gear.is(); }
     inline double GetReverserPos() const { return reversers.is(); }
-    inline double GetSpeed_kt() const { return speed.kt(); }                     // kt
-    inline double GetSpeed_m_s() const { return speed.m_s(); }   // m/s
+    inline double GetSpeed_kt() const { return speed_m * KT_per_M_per_S; }  ///< kt
+    inline double GetSpeed_m_s() const { return speed_m; }                  ///< m/s
+    inline bool IsSpeedZero() const { return speed_m < 0.1; }               ///< effectively not moving any longer?
     inline double GetVSI_ft() const { return vsi; }                         // ft/m
     inline double GetVSI_m_s() const { return vsi * Ms_per_FTm; }           // m/s
     inline double GetPitch() const { return ppos.pitch(); }

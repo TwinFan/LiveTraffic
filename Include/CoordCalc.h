@@ -83,10 +83,16 @@ struct ptTy {
     void clear() { x = y = NAN; }                                               ///< set both `x` and `y` to `NAN`
     ptTy mirrorAt (const ptTy& _o) const                                        ///< return a point of `this` mirrored at `_o`
     { return ptTy (2*_o.x - x, 2*_o.y - y); }
+
     double length2() const { return sqr(x) + sqr(y); }                          ///< squared length(magnitude,notm) of the vector
-    double length() const  { return sqr(length2()); }                           ///< length(magnitude,notm) of the vector
-    double angle() const   { return rad2deg360(atan2(y, x)); }                  ///< angle of the vector, assuming y = ∆lat, x = ∆lon
+    double length() const  { return std::sqrt(length2()); }                     ///< length(magnitude,notm) of the vector
+    double angle() const   { return rad2deg360(atan2(x, -y)); }                 ///< angle of the vector, assuming local coordinates (x = east, y = south)
     
+    double& lat()       { return y; }
+    double  lat() const { return y; }
+    double& lon()       { return x; }
+    double  lon() const { return x; }
+
     std::string dbgTxt () const;                                                ///< returns a string "y, x" for the point/position
 };
 inline ptTy operator * (double d, ptTy pt) { return ptTy ( d * pt.x, d * pt.y); }   ///< scalar multiplication
@@ -151,6 +157,46 @@ inline double DistLatLon (double lat1, double lon1,
                           double lat2, double lon2)
 { return std::sqrt(DistLatLonSqr(lat1,lon1,lat2,lon2)); }
 
+/// @brief An _estimated_ distance of a vector of coordinates
+/// @note `lat` is the latitude at which the vector is applied
+double DistLatLonVec (const ptTy& pt, double lat);
+
+//
+// MARK: Heading functions
+//
+
+// return the average of two headings, shorter side, normalized to [0;360)
+double HeadingAvg (double h1, double h2, double f1=1, double f2=1);
+
+/// @brief Difference between two headings
+/// @returns number of degrees to turn from h1 to reach h2
+/// -180 <= HeadingDiff <= 180
+double HeadingDiff (double h1, double h2);
+
+/// Normaize a heading to the value range [0..360)
+double HeadingNormalize (double h);
+
+/// Return point on the unit circle based on heading
+ptTy HeadingToUnitCircle (double h);
+
+/// Return point on the unit circle based on heading
+inline ptTy HeadingSpeedVec (double h, double spd_m)
+{ return HeadingToUnitCircle(h) * spd_m; }
+
+/// Return an abbreviation for a heading, like N, SW
+std::string HeadingText (double h);
+
+//
+// MARK: Speed/acceleration functions
+//
+
+/// @brief Computes a reasonable point where the plane can come to rest after decceleration to zero
+/// @param pos is current pos, also its timestamp and heading are being used
+/// @param speed_m [m/s] is the plane's current speed in direction of `pos.heading()`
+/// @param accel_m [m/s²] is the negative acceleration
+/// @return Stop position, away from `pos` in direction `pos.heading()`
+positionTy AccelCalcStopPoint (const positionTy& pos, double speed_m,
+                               double accel_m);
 
 //
 // MARK: Functions on 2D points, typically in meters
@@ -460,6 +506,9 @@ public:
     // also changes altitude applying vec.vsi
     positionTy& operator += (const vectorTy& vec );
     
+    /// Set location from a ptTy
+    void setLoc (const ptTy& pt) { lat()=pt.y; lon()=pt.x; }
+    
     // convert between World and Local OpenGL coordinates
     positionTy& LocalToWorld ();
     positionTy& WorldToLocal ();
@@ -478,20 +527,6 @@ dequePositionTy::const_iterator positionDequeFindBefore (const dequePositionTy& 
 // pBefore and pAfter can come back NULL!
 void positionDequeFindAdjacentTS (double ts, dequePositionTy& l,
                                   positionTy*& pBefore, positionTy*& pAfter);
-
-// return the average of two headings, shorter side, normalized to [0;360)
-double HeadingAvg (double h1, double h2, double f1=1, double f2=1);
-
-/// @brief Difference between two headings
-/// @returns number of degrees to turn from h1 to reach h2
-/// -180 <= HeadingDiff <= 180
-double HeadingDiff (double h1, double h2);
-
-/// Normaize a heading to the value range [0..360)
-double HeadingNormalize (double h);
-
-/// Return an abbreviation for a heading, like N, SW
-std::string HeadingText (double h);
 
 // a bounding box has a north/west and a south/east corner
 // we use positionTy for convenience...alt is usually not used here
@@ -585,6 +620,10 @@ template<typename T>
 struct CSpline {
     double t0, dt;                      ///< t0 is the time of the first point, dt is delta-time for the segment
     T a, b, c, d;                       ///< pre-computed factors of the standard form
+#ifdef DEBUG
+    T __p0, __p1, __p2, __m0, __m1;
+    double __head0, __speed0;
+#endif
     
     /// Default Constructor
     CSpline () : t0(NAN), dt(NAN), a(), b(), c(), d() {}
@@ -593,11 +632,27 @@ struct CSpline {
     void set (double _t0, const T& _p0, const T& _m0,
               double _t1, const T& _p1, const T& _m1);
     
+    /// @brief Seamlessly continues the current spline to a new end point
+    /// @returns `true` if set, or `false` if Spline wasn't valid
+    bool cont (double tsNow,
+               double _t1, const T& _p1, const T& _m1);
+    
+    /// @brief Define by current pos + speed, next two pos
+    /// @details If Spline is already valid it will seamlessly continue with
+    ///          slope(tsNow) becoming m0.
+    /// @note Only for T = ptTy
+    void set (double tsNow,
+              const positionTy& p0, double speed0_m,
+              const positionTy& p1,
+              const positionTy& p2,
+              double n = 1.0);
+    
     /// Clear, set to unused (pass to default constructor)
     void clear () { *this = CSpline(); }
     
     /// Valid?
-    operator bool () const { return !std::isnan(t0) && !std::isnan(dt); }
+    bool isValid () const { return !std::isnan(t0) && !std::isnan(dt); }
+    operator bool () const { return isValid(); }
     
     /// Value at t with `_t0 <= t <= _t1`
     T val (double t) const;
@@ -605,7 +660,8 @@ struct CSpline {
     /// Slope at t with `_t0 <= t <= _t1` (1st derivative of val())
     T slope (double t) const;
     
-    ///
+    /// Debug output
+    std::string dbgTxt() const;
 };
 
 #endif /* CoordCalc_h */

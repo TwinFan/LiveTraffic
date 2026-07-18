@@ -74,10 +74,10 @@ constexpr double FLIGHT_LOOP_INTVL  = -5.0;     // call ourselves every 5 frames
 constexpr double AC_MAINT_INTVL     = 2.0;      // seconds (calling a/c maintenance periodically)
 constexpr double TIME_REQU_POS      = 0.5;      // seconds before reaching current 'to' position we request calculation of next position
 constexpr double SIMILAR_TS_INTVL = 3;          // seconds: Less than that difference and position-timestamps are considered "similar" -> positions are merged rather than added additionally
-constexpr double SIMILAR_POS_DIST = 7;          // [m] if distance between positions less than this then favor heading from flight data over vector between positions
+constexpr double SIMILAR_POS_DIST = 10;         // [m] if distance between positions less than this then favor heading from flight data over vector between positions
 constexpr double CLOSE_POS_TS_INTVL = 12;       // [s] if two positions are closer to each other than this on a straight line, we remove the middle one as it doesn't add value
 constexpr double CLOSE_POS_HEADING  = 5;        // [deg] "straight" is defined as no more than this many degrees of difference
-constexpr double GND_COLLISION_DIST = 10;       // [m] If another aircraft comes this close to a parked aircraft then the parked aircraft is removed
+constexpr double GND_COLLISION_DIST = 15;       // [m] If another aircraft comes this close to a parked aircraft then the parked aircraft is removed
 constexpr double HIGHEST_AIRPORT_M  = 4411.0;   // [m] Altitude of the world's highest airport, https://en.wikipedia.org/wiki/List_of_highest_airports
 
 /// [m] Maximum distance the rendered (live-tracked) position of an aircraft
