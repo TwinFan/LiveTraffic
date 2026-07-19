@@ -1,9 +1,41 @@
 TODO
 ===
 
+Bug
+-----
+
+Double "Touch Down" positions:
+
+1784491769.4: (51.47754, -0.48330)   107.8ft  GND_OFF     Final              {h  90 , p   2, r  -0} Y: 72.3ft 115kn -439ft/m Phase: 61 Final
+posList:
+1784491737.3: (51.47745, -0.51221)   443.6ft  GND_OFF     Final              {h  90 , p   1, r   0} <h  90,  2036m @ 121kt, -624ft/m>
+1784491770.0: (51.47754, -0.48280)   103.5ft  GND_OFF                        {h  90 , p  -2, r   0} <h  90,  1029m @ 103kt,  -88ft/m>
+1784491789.3: (51.47755, -0.46794)    75.2ft   GND_ON RWY Touch Down    6090 {h  90*, p   0, r   0}
+posDeque:
+<empty>
+posToAdd:
+<empty>
+
+3:42:22.375 LiveTraffic DEBUG LTFlightData.cpp:2904/AddNewPos: DEBUG ADDED   NEW POS: 1784491822.6: (51.47655, -0.46091)     nanft   GND_ON                        {h 143 , p nan, r nan}
+3:42:22.467 LiveTraffic DEBUG LTApt.cpp:1401/SnapToTaxiway: Snapped to taxiway from (51.47655, -0.46091) to (51.47655, -0.46092; edge 3281)
+3:42:22.467 LiveTraffic DEBUG LTFlightData.cpp:1178/CalcNextPos: DEBUG RE-USED TOUCH-DOWN POS: 1784491822.6: (51.47655, -0.46092)    70.7ft   GND_ON TXI Touch Down    3281 {h 145*, p   0, r   0}
+3:42:22.467 LiveTraffic DEBUG LTFlightData.cpp:1407/CalcNextPos: DEBUG POS DATA: a/c 010205 MS779 SimTime: 1784491769.8 - 2026-07-19 20:09:29
+a/c ICAO 010205 (A20N MS779)
+[...]
+heading: nan -> nan by nan | 90.1 | 100% | -
+1784491769.6: (51.47754, -0.48314)   106.4ft  GND_OFF     Final              {h  90 , p   2, r  -0} Y: 72.3ft 115kn -435ft/m Phase: 61 Final
+posList:
+1784491737.3: (51.47745, -0.51221)   443.6ft  GND_OFF     Final              {h  90 , p   1, r   0} <h  90,  2036m @ 121kt, -624ft/m>
+1784491770.0: (51.47754, -0.48280)   103.5ft  GND_OFF                        {h  90 , p  -2, r   0} <h  90,  1029m @ 103kt,  -88ft/m>
+1784491789.3: (51.47755, -0.46794)    75.2ft   GND_ON RWY Touch Down    6090 {h  90*, p   0, r   0} <h 103,   499m @  29kt,   -8ft/m>
+posDeque:
+1784491822.6: (51.47655, -0.46092)    70.7ft   GND_ON TXI Touch Down    3281 {h 145*, p   0, r   0}
+posToAdd:
+<empty>
+
+
 Refactor
 -------
-Remove AccelParam
 Refactor CalcHeading, it should again do just that
 Pushback (might need to go together with CalcHeading refactor)
   Idea: Just set a "ReverseHeading" flag in positionTy, that is only pulled when handing over heading to XPMP2::Aircraft
@@ -12,6 +44,7 @@ Stop on Runway
   LTFlightData and LTAircraft
 LTFlightData::CalcNextPos
   Review, refactor
+
 
 Download History
 ==========

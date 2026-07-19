@@ -1300,13 +1300,20 @@ bool LTAircraft::CalcPPos()
         //     Requires a certain distance for clear vectors,
         //     otherwise planes would turn heading artificially.
         if (vec.dist > SIMILAR_POS_DIST) {
-            locSpline.set(currCycle.simTime, ppos, speed_m,
-                          to, posNext);
+            if (!locSpline.set(currCycle.simTime, ppos, speed_m,
+                               to, posNext))
+            {
+                if (dataRefs.GetDebugAcPos(key())) {
+                    LOG_MSG(logDEBUG,DBG_SPLINE_INVALID, ppos.dbgTxt().c_str(), to.dbgTxt().c_str());
+                }
+            }
         }
         // on short legs used linear interpolation
         else {
             locSpline.clear();
+        }
         
+        if (!locSpline) {
             // *** Speed ***
             //     is constant in case of linear interpolation.
             //     (Otherwise the Spline is going to determine it dynamically.)

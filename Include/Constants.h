@@ -76,7 +76,7 @@ constexpr double TIME_REQU_POS      = 0.5;      // seconds before reaching curre
 constexpr double SIMILAR_TS_INTVL = 6;          // seconds: Less than that difference and position-timestamps are considered "similar" -> positions are merged rather than added additionally
 constexpr double SIMILAR_POS_DIST = 10;         // [m] if distance between positions less than this then favor heading from flight data over vector between positions
 constexpr double CLOSE_POS_TS_INTVL = 12;       // [s] if two positions are closer to each other than this on a straight line, we remove the middle one as it doesn't add value
-constexpr double SNAP_LOOK_AHEAD    = 30;       // [s] Snap-to-taxiways looks ahead this much time for determining 
+constexpr double SNAP_LOOK_AHEAD    = 30;       // [s] Snap-to-taxiways looks ahead this much time for determining
 constexpr double CLOSE_POS_HEADING  = 5;        // [deg] "straight" is defined as no more than this many degrees of difference
 constexpr double GND_COLLISION_DIST = 15;       // [m] If another aircraft comes this close to a parked aircraft then the parked aircraft is removed
 constexpr double HIGHEST_AIRPORT_M  = 4411.0;   // [m] Altitude of the world's highest airport, https://en.wikipedia.org/wiki/List_of_highest_airports
@@ -877,6 +877,7 @@ constexpr int ERR_CFG_FILE_MAXWARN = 10;     // maximum number of warnings while
 #define DBG_ADDED_NEW_POS       "DEBUG ADDED   NEW POS: %s"
 #define DBG_REMOVED_NOK_POS     "DEBUG REMOVED NOK POS: %s"
 #define DBG_REMOVED_CLOSE_POS   "DEBUG REMOVED TOO-CLOSE STRAIGHT POS: %s"
+#define DBG_SPLINE_INVALID      "DEBUG SPLINE INVALID:\nppos: %s\nto:   %s"
 #define DBG_INVENTED_STOP_POS   "DEBUG INVENTED STOP POS: %s"
 #define DBG_INVENTED_TD_POS     "DEBUG INVENTED TOUCH-DOWN POS: %s"
 #define DBG_REUSING_TD_POS      "DEBUG RE-USED TOUCH-DOWN POS: %s"

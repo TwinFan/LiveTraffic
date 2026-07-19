@@ -197,13 +197,27 @@ double HeadingDiff (double head1, double head2)
     return head2 - head1;
 }
 
-// Normaize a heading to the value range [0..360)
+// Normalize a heading to the value range [0..360)
 double HeadingNormalize (double h)
 {
     // Rarely will ever more than one statement be executed:
     while (h < 0.0)    h += 360.0;          // make sure it's non-negative
     while (h >= 360.0) h -= 360.0;          // make sure it's less than 360
     return h;
+}
+
+/// Is h between h1 and h2, with a tolerance of dh degree?
+bool HeadingIsBetween (double h, double h1, double h2, double dh)
+{
+    double hLeft    = std::min(h1, h2);
+    double hRight   = std::max(h1, h2);
+    if (hRight - hLeft > 180) {
+        // Wrap-around North case
+        return hRight-dh <= h && h <= hLeft+dh;
+    } else {
+        // Straight case
+        return hLeft-dh <= h && h <= hRight+dh;
+    }
 }
 
 /// Return point on the unit circle based on heading
@@ -934,21 +948,26 @@ bool CSpline<T>::cont (double tsNow,
 ///             assuming a straight continuous movement like from p0 to p1,
 ///             hence the vector is (p1-p0)/∆ts
 template<>
-void CSpline<ptTy>::set (double tsNow,
+bool CSpline<ptTy>::set (double tsNow,
                          const positionTy& _p0, double speed0_m,
                          const positionTy& _p1,
                          const positionTy& _p2,
                          double n)
 {
-    // Starting point ideally is current value
-    ptTy p0;
-    if (isValid())
-        p0 = val(tsNow);
+    // Starting point / tangent ideally is current value
+    ptTy p0, m0;
+    if (isValid()) {
+        p0 = val(tsNow);                    // continue from current values
+        m0 = slope(tsNow);
+    }
     else {
         positionTy p0convert = _p0;         // otherwise it is the given _p0, converted to local
         p0 = p0convert.WorldToLocal();
         tsNow = _p0.ts();                   // and we calculate with the timestamp given in that position
+        m0 = HeadingSpeedVec(_p0.heading(), std::max(speed0_m, 0.5));
     }
+
+    // End point, and next point
     positionTy p1 = _p1; p1.WorldToLocal();
     positionTy p2 = _p2; if (p2.hasPos()) p2.WorldToLocal();
     
@@ -958,6 +977,7 @@ void CSpline<ptTy>::set (double tsNow,
         (ptTy(p1) - ptTy(p0)) * (n / (p1.ts()-tsNow));
     
     // but if we have a fixed heading, then we may need to turn the tangent in that direction
+    const double m0ang = m0.angle();
     double m1ang = m1.angle();
     double m1len = NAN;
     if (_p1.f.bHeadFixed &&
@@ -966,51 +986,51 @@ void CSpline<ptTy>::set (double tsNow,
         m1 = HeadingSpeedVec(m1ang = _p1.heading(), m1len = m1.length());
     }
     
-    // Now set the spline parameters, ideally and typically _continue_ the previous spline
-    if (!cont(tsNow, _p1.ts(), p1, m1))
-    {
-        // Could not just continue, have to start the spline again.
-        // That happens most often after having stopped briefly.
-        // Also at the beginning of a rwy with high acceleration coming up.
-        // Have to set a relatively fast starting tangent to avoid the plane to turn back first "to take a run-up"
-        if (std::isnan(m1len)) m1len = m1.length();         // target speed at end of segment
-        // What to compare heading against? The averag of start and end,
-        // which again is only reasonable if they aren't more than 120° apart
-        const double avgHead =
-            std::abs(HeadingDiff(_p0.heading(), m1ang)) > 120.0 ? NAN :
-            HeadingAvg(_p0.heading(), _p1.heading());
-        for (double f: {0.0, 0.1, 0.25, 0.5}) {             // trying difference factors of the target speed for the starting speed
-            set (tsNow, p0,
-                 // Starting vector requires some minimum length
-                 HeadingSpeedVec(_p0.heading(), std::max({speed0_m, f * m1len, 0.5})),
-                 _p1.ts(), p1, m1);
+    // Now set the spline parameters
+    set (tsNow, p0, m0, _p1.ts(), p1, m1);
 
-            // the loop would not yield any higher speeds as m0 and m1 are pretty similar? -> will need to work as it is
-            if (speed0_m >= 0.5 * m1len) break;
-            // Have no heading to compare to? -> will need to work as it is
-            if (std::isnan(avgHead)) break;
-            
-            // As a verification for "no loop in spline" look at u=0.5.
-            // If that's not going backwards we're fine
-            if (std::abs(HeadingDiff(avgHead, slope(0.5*dt).angle())) < 90.0)
+    // Verify if spline is good, i.e. does not move too far outside the start/end heading range (like in loops or cusps)
+    bool bSplineGood = HeadingIsBetween(slope(t0+0.5*dt).angle(),   // Mid   point's heading
+                                        m0ang, m1ang, 3.0);         // Start/End point's heading, Tolerance
+    if (!bSplineGood)
+    {
+        // It may help to adjust the starting speed (m0.length) towards m1.length.
+        // That will mean a sudden spead change...but we need to continue somehow:
+        const double m0len = m0.length();
+        if (std::isnan(m1len)) m1len = m1.length();
+        const double lenF = m1len / m0len - 1.0;                        // the full 100% factor to get from m0len to m1len
+        // Try a few variants of m0, with length developing towards m1len
+        for (double f: {0.2, 0.4, 0.66, 0.95})
+        {
+            ptTy m0_ = (f * lenF + 1.0) * m0;
+            set (tsNow, p0, m0_,
+                 _p1.ts(), p1, m1);
+            // Verify if spline is good, i.e. does not move too far outside the start/end heading range (like in loops or cusps)
+            bSplineGood = HeadingIsBetween(slope(t0+0.5*dt).angle(),    // Mid   point's heading
+                                           m0ang, m1ang, 3.0);          // Start/End point's heading, Tolerance
+            if (bSplineGood)
                 break;
-            LOG_MSG(logDEBUG, "Potential loop in spline with f=%.1f", f);
         }
     }
-    
+    // Didn't find a good spline without loops and cusps?
+    if (!bSplineGood)
+        clear();
+
 #ifdef DEBUG
     __head0  = _p0.heading();
     __speed0 = speed0_m;
     __p2     = p2;
 #endif
+    return bSplineGood;
 }
 
 // all other types don't work with this signature
 template<typename T>
-void CSpline<T>::set (double, const positionTy&, double,
+bool CSpline<T>::set (double, const positionTy&, double,
                       const positionTy&, const positionTy&, double)
 {
     static_assert(std::is_same<T,ptTy>::value == false, "Won't work if T is no pyTy");
+    return false;
 }
 
 

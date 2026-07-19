@@ -176,6 +176,9 @@ double HeadingDiff (double h1, double h2);
 /// Normaize a heading to the value range [0..360)
 double HeadingNormalize (double h);
 
+/// @brief Is h between h1 and h2, with a tolerance of dh degree?
+bool HeadingIsBetween (double h, double h1, double h2, double dh = 0.5);
+
 /// Return point on the unit circle based on heading
 ptTy HeadingToUnitCircle (double h);
 
@@ -644,7 +647,8 @@ struct CSpline {
     /// @details If Spline is already valid it will seamlessly continue with
     ///          slope(tsNow) becoming m0.
     /// @note Only for T = ptTy
-    void set (double tsNow,
+    /// @returns if a valid Spline was defined
+    bool set (double tsNow,
               const positionTy& p0, double speed0_m,
               const positionTy& p1,
               const positionTy& p2,
