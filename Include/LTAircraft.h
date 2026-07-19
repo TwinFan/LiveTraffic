@@ -98,45 +98,6 @@ public:
     std::string dbgTxt () const;    ///< debug output
 };
 
-// mimics acceleration / deceleration
-// TODO: Remove
-struct AccelParam
-{
-protected:
-    double startSpeed, targetSpeed, acceleration, targetDeltaDist;
-    double startTime, accelStartTime, targetTime;
-    double currSpeed_m_s, currSpeed_kt;      // set during getSpeed
-public:
-    // default only allows for object init
-    AccelParam();
-    // Set start/target [m/s], but no acceleration
-    void SetSpeed (double speed);
-    
-    // get current value
-    double m_s() const { return currSpeed_m_s; }
-    double kt() const { return currSpeed_kt; }
-    bool isZero() const { return currSpeed_m_s <= 0.01; }
-    
-    // start an acceleration now
-    void StartAccel(double startSpeed, double targetSpeed, double accel,
-                    double startTime=NAN);
-    // reach target Speed by targetTime after deltaDist
-    void StartSpeedControl(double startSpeed, double targetSpeed,
-                           double deltaDist,
-                           double startTime, double targetTime,
-                           const LTAircraft* pAc);
-    
-    bool isValid() const { return !std::isnan(currSpeed_m_s); }
-    bool isChanging() const { return !std::isnan(acceleration); }
-    
-    // calculations (ts = timestamp, defaults to current sim time)
-    double updateSpeed ( double ts = NAN );
-    double getDeltaDist ( double ts = NAN ) const;
-    double getRatio ( double ts = NAN ) const;
-    inline double getTargetTime() const         { return targetTime; }
-    inline double getTargetDeltaDist() const    { return targetDeltaDist; }
-};
-
 //
 //MARK: LTAircraft
 //      Represents an aircraft as displayed in XP by use of the

@@ -320,6 +320,7 @@ enum specialPosE : unsigned char {
     SPOS_STARTUP,                   ///< at startup location (gate, ramp, tie-down...)
     SPOS_TAXI,                      ///< snapped to taxiway
     SPOS_RWY,                       ///< snapped to runway
+    SPOS_REMOVED                    ///< marks an edge that was removed during airport layout post-processing
 };
 
 /// Return a 3 char-string for the special position enums
@@ -328,7 +329,8 @@ inline const char* SpecialPosE2String (specialPosE sp)
     return
     sp == SPOS_STARTUP ? "SUP" :
     sp == SPOS_TAXI    ? "TXI" :
-    sp == SPOS_RWY     ? "RWY" : "   ";
+    sp == SPOS_RWY     ? "RWY" :
+    sp == SPOS_REMOVED ? "-X-" : "   ";
 }
 
 
@@ -373,10 +375,11 @@ public:
     struct posFlagsTy {
         flightPhaseE flightPhase : 7;   ///< start of some special flight phase?
         bool         bHeadFixed  : 1;   ///< heading fixed, not to be recalculated?
+        bool         bPushback   : 1;   ///< being pushed back, i.e. heading reversed?
         onGrndE      onGrnd      : 2;   ///< on ground or not or not known?
         coordUnitE   unitCoord   : 1;   ///< world or local coordinates?
         angleUnitE   unitAngle   : 1;   ///< heading in degree or radians?
-        specialPosE  specialPos  : 2;   ///< position is somehow special`
+        specialPosE  specialPos  : 3;   ///< position is somehow special`
     } f;
     
     /// The taxiway network's edge this pos is on, index into Apt::vecTaxiEdges
@@ -384,7 +387,7 @@ public:
 public:
     /// Default Constructor, everything to NAN / defaults
     positionTy () : _lat(NAN), _lon(NAN), _alt(NAN), _ts(NAN), _head(NAN), _pitch(NAN), _roll(NAN),
-    f{FPH_UNKNOWN,false,GND_UNKNOWN,UNIT_WORLD,UNIT_DEG,SPOS_NONE}
+    f{FPH_UNKNOWN,false,false,GND_UNKNOWN,UNIT_WORLD,UNIT_DEG,SPOS_NONE}
     {}
     /// Most used constructor, requires position, defaults the rest
     positionTy (double dLat, double dLon, double dAlt_m=NAN,
@@ -392,7 +395,7 @@ public:
                 onGrndE grnd=GND_UNKNOWN, coordUnitE uCoord=UNIT_WORLD, angleUnitE uAngle=UNIT_DEG,
                 flightPhaseE fPhase = FPH_UNKNOWN) :
         _lat(dLat), _lon(dLon), _alt(dAlt_m), _ts(dTS), _head(dHead), _pitch(dPitch), _roll(dRoll),
-        f{fPhase,false,grnd,uCoord,uAngle,SPOS_NONE}
+        f{fPhase,false,false,grnd,uCoord,uAngle,SPOS_NONE}
     {}
     /// Complete constructor, requires/allows providing every value
     positionTy (double dLat, double dLon, double dAlt_m,

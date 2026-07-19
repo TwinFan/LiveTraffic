@@ -188,17 +188,8 @@ typedef std::vector<StartupLoc> vecStartupLocTy;
 ///          This also means that some functions otherwise better suited here are now
 ///          moved to Apt as only Apt has access to all vectors.
 class TaxiEdge {
-public:
-    /// Taxiway or runway?
-    enum edgeTy {
-        UNKNOWN_WAY = 0,                ///< edge is of undefined type
-        RUN_WAY = 1,                    ///< edge is for runway
-        TAXI_WAY,                       ///< edge is for taxiway
-        REMOVED_WAY,                    ///< edge has been removed during post-processing
-    };
-    
 protected:
-    edgeTy type = UNKNOWN_WAY;          ///< type of node (runway, taxiway)
+    specialPosE type = SPOS_NONE;       ///< type of node (runway, taxiway)
     size_t      a = UINT_MAX;           ///< from node (index into vecTaxiNodes)
     size_t      b = UINT_MAX;           ///< to node (index into vecTaxiNodes)
 public:
@@ -206,7 +197,7 @@ public:
     double dist_m;                      ///< distance in meters between a and b
 public:
     /// Constructor
-    TaxiEdge (edgeTy _t, size_t _a, size_t _b, double _angle, double _dist_m) :
+    TaxiEdge (specialPosE _t, size_t _a, size_t _b, double _angle, double _dist_m) :
     type(_t), a(_a), b(_b), angle(_angle), dist_m(_dist_m)
     {
         Normalize();
@@ -222,10 +213,10 @@ public:
     }
     
     /// a valid egde to be used?
-    bool isValid () const { return type == RUN_WAY || type == TAXI_WAY; }
+    bool isValid () const { return SPOS_NONE < type && type < SPOS_REMOVED; }
     
     /// Return the node's type
-    edgeTy GetType () const { return type; }
+    specialPosE GetType () const { return type; }
     
     /// Equality is based on type and nodes
     bool operator== (const TaxiEdge& o) const
@@ -281,7 +272,7 @@ public:
             b = newIdxN;
         // if this leads to both nodes being the same then we are removed
         if (a == b) {
-            type = REMOVED_WAY;
+            type = SPOS_REMOVED;
             angle = NAN;
             dist_m = NAN;
         }
@@ -403,7 +394,7 @@ public:
     {
         const TaxiNode& n = vecTaxiNodes.at(idxN);
         for (size_t idxE: n.vecEdges)
-            if (vecTaxiEdges.at(idxE).GetType() == TaxiEdge::RUN_WAY)
+            if (vecTaxiEdges.at(idxE).GetType() == SPOS_RWY)
                 return true;
         return false;
     }
@@ -439,9 +430,9 @@ public:
                                         lat, lon)),
             0.0, 0.0,                                                       // pitch, roll
             {
-                e.GetType() == TaxiEdge::RUN_WAY ? FPH_UNKNOWN : FPH_TAXI,  // flightPhase
-                true, GND_ON, UNIT_WORLD, UNIT_DEG,                         // heading fixed
-                e.GetType() == TaxiEdge::RUN_WAY ? SPOS_RWY : SPOS_TAXI     // specialPos
+                e.GetType() == SPOS_RWY ? FPH_UNKNOWN : FPH_TAXI,           // flightPhase
+                true, false, GND_ON, UNIT_WORLD, UNIT_DEG,                  // heading fixed
+                e.GetType()                                                 // specialPos
              },
             eIdx
          );
@@ -520,7 +511,7 @@ public:
     /// @brief Add a new taxi network edge, which must connect 2 existing nodes
     /// @return Index into Apt::vecTaxiEdges, or ULONG_MAX if unsuccessful
     size_t AddTaxiEdge (size_t n1, size_t n2,
-                        TaxiEdge::edgeTy _type = TaxiEdge::TAXI_WAY)
+                        specialPosE _type = SPOS_TAXI)
     {
         // Actual nodes must be valid, throws exception if not
         TaxiNode& a = vecTaxiNodes.at(n1);
@@ -670,7 +661,7 @@ public:
     bool FindEdgesForHeading (double _headSearch,
                               double _angleTolerance,
                               vecIdxTy& lst,
-                              TaxiEdge::edgeTy _restrictType = TaxiEdge::UNKNOWN_WAY) const
+                              specialPosE _restrictType = SPOS_NONE) const
     {
         // vecTaxiEdges is sorted by heading (see AddApt)
         // and TaxiEdge::heading is normalized to [0..180).
@@ -713,7 +704,7 @@ public:
                  ++iter)
             {
                 // Check for type limitation, then add to `vec`
-                if (_restrictType == TaxiEdge::UNKNOWN_WAY ||
+                if (_restrictType == SPOS_NONE ||
                     _restrictType == vecTaxiEdges.at(*iter).GetType())
                     lst.push_back(*iter);
             }
@@ -733,12 +724,12 @@ public:
     }
     
     /// Get type of TaxiEdge by its index, handling non-existing indexes transparently
-    TaxiEdge::edgeTy GetEdgeType (size_t edgeIdx)
+    specialPosE GetEdgeType (size_t edgeIdx)
     {
         if (const TaxiEdge* pEdge = GetEdge(edgeIdx))
             return pEdge->GetType();
         else
-            return TaxiEdge::UNKNOWN_WAY;
+            return SPOS_NONE;
     }
     
     /// Get the edge idx that leads from one to the other node, or `ULONG_MAX` if none
@@ -776,9 +767,9 @@ public:
            e.GetAngleByHead(_pos.heading()),                                        // heading
            0.0, 0.0,                                                                // pitch, roll
            {
-                e.GetType() == TaxiEdge::RUN_WAY ? FPH_UNKNOWN : FPH_TAXI,          // flightPhase
-                true, GND_ON, UNIT_WORLD, UNIT_DEG,                                 // heading fixed
-                e.GetType() == TaxiEdge::RUN_WAY ? SPOS_RWY : SPOS_TAXI             // specialPos
+                e.GetType() == SPOS_RWY ? FPH_UNKNOWN : FPH_TAXI,                   // flightPhase
+                true, false, GND_ON, UNIT_WORLD, UNIT_DEG,                          // heading fixed
+                e.GetType()                                                         // specialPos
            },
            bestEdgeIdx
         );
@@ -854,7 +845,7 @@ public:
                 continue;
             
             // Skip edge if pos must be on a rwy but edge is not a rwy
-            if (bRwyPhase && e.GetType() != TaxiEdge::RUN_WAY)
+            if (bRwyPhase && e.GetType() != SPOS_RWY)
                 continue;
 
             // Fetch from/to nodes from the edge
@@ -891,7 +882,7 @@ public:
             if (std::abs(HeadingDiff(edgeAngle, headSearch)) > _angleTolerance) {
                 // So this is a second prio match in terms of angle to the edge
                 // For runways, we require first prio!
-                if (e.GetType() == TaxiEdge::RUN_WAY)
+                if (e.GetType() == SPOS_RWY)
                     continue;
                 
                 // For others, we consider this, but with higher calculated distance
@@ -904,7 +895,7 @@ public:
             
             // e now is an edge that could be chosen.
             // We absolutely prefer RWY edges. If there is a potential RWY edge we pick that.
-            if (e.GetType() == TaxiEdge::RUN_WAY) {
+            if (e.GetType() == SPOS_RWY) {
                 // If previously we have considered non-rwys
                 if (!bRwyPhase) {
                     // then we now need no longer and can throw away all findings (which can only be non-rwys)
@@ -1402,8 +1393,8 @@ public:
             !pPrevPos ||                                                // don't have a previous position
             !pPrevPos->HasTaxiEdge() ||                                 // ...on an actual edge
             (pos.edgeIdx == pPrevPos->edgeIdx) ||                       // previous and best pos are on the same dge
-            (GetEdgeType(pos.edgeIdx) == TaxiEdge::RUN_WAY &&           // previous and best pos are both on a runway
-             GetEdgeType(pPrevPos->edgeIdx) == TaxiEdge::RUN_WAY))
+            (GetEdgeType(pos.edgeIdx) == SPOS_RWY &&                    // previous and best pos are both on a runway
+             GetEdgeType(pPrevPos->edgeIdx) == SPOS_RWY))
         {
             if (dataRefs.GetDebugAcPos(fd.key())) {
                 LOG_MSG(logDEBUG, "Snapped to taxiway from (%.5f, %.5f) to (%.5f, %.5f; edge %lu)",
@@ -1470,7 +1461,7 @@ public:
         // (consider high-speed exits!).
         const double totalDist      = posPrev.dist(pos);
         const double totalTime      = pos.ts() - posPrev.ts();
-        const double totalAvgSpeed  = totalDist / totalTime;
+        // const double totalAvgSpeed  = totalDist / totalTime;
         // maximum allowed taxiway length to be inserted is 1.5 x totalDist,
         // so we do allow for the taxiway to be longer than direct travel, but not too much.
         // When totalTime increases beyond 20s then we allow for even more travel as we would have time for full 180° turns
@@ -1696,7 +1687,7 @@ public:
             const TaxiNode& b = *std::next(i);
             const size_t idxA = AddTaxiNode(a.lat, a.lon);
             const size_t idxB = AddTaxiNode(b.lat, b.lon);
-            AddTaxiEdge(idxA, idxB, TaxiEdge::RUN_WAY);
+            AddTaxiEdge(idxA, idxB, SPOS_RWY);
         }
     }
     
@@ -2335,7 +2326,7 @@ static void ReadOneAptFile (std::ifstream& fIn, const boundingBoxTy& box)
                     bool bRunway = (fields.size() >= 5 &&
                                     fields[4] == "runway");
                     apt.AddTaxiEdge(n1, n2,
-                                    bRunway ? TaxiEdge::RUN_WAY : TaxiEdge::TAXI_WAY);
+                                    bRunway ? SPOS_RWY : SPOS_TAXI);
                 }
             }       // not NETW_CENTERLINE
         }           // "120"
@@ -2962,18 +2953,18 @@ bool LTAptDump (const std::string& _aptId)
             
             out
             << "T,1,,"                                  // type, BOT, symbol
-            << (e.GetType() == TaxiEdge::RUN_WAY ? "red," : "blue,")  // color
+            << (e.GetType() == SPOS_RWY ? "red," : "blue,")  // color
             << std::lround(e.angle) << ','              // rotation
             << a.lat << ',' << a.lon << ','             // latitude,longitude
             << ",,"                                     // time,speed
             << std::lround(e.angle) << ','              // course
-            << "Edge " << (i++) << ','                  // name
+            << "Edge " << (i++) << ','                      // name
             << std::lround(e.angle) << "°, nodes " << e.startNode() << '-' << e.endNode() // desc
             << "\n";
 
             out
             << "T,0,,"                                  // type, BOT, symbol
-            << (e.GetType() == TaxiEdge::RUN_WAY ? "red," : "blue,")  // color
+            << (e.GetType() == SPOS_RWY ? "red," : "blue,")  // color
             << std::lround(e.angle) << ','              // rotation
             << b.lat << ',' << b.lon << ','             // latitude,longitude
             << ",,"                                     // time,speed

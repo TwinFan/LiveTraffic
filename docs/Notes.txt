@@ -1,14 +1,17 @@
 TODO
 ===
 
-AutoATC
-https://forums.x-plane.org/messenger/616782/?&tab=comments#comment-1386178
-https://load1.zem-solutions.com/AutoATCPeek?lat=44.8205&lon=20.2917
-Returns
-{"result":"success","data":[{"lat":44.83533988577092,"lon":20.28103695046056,"alt":5000,"h":63,"ground":false,"state":"inflight","ADS-B":"46116337","cs":"air serbia 4139","af":"AT72","icao":"ASL"}],"timestamp":1748714271217}
-
-Actual Time, can replace pulling network time from channels' responses
-https://timeapi.io/api/time/current/zone?timeZone=UTC
+Refactor
+-------
+Remove AccelParam
+Refactor CalcHeading, it should again do just that
+Pushback (might need to go together with CalcHeading refactor)
+  Idea: Just set a "ReverseHeading" flag in positionTy, that is only pulled when handing over heading to XPMP2::Aircraft
+Stop on Runway
+  There are apparently two ways...why? Can't we reduce it to one?
+  LTFlightData and LTAircraft
+LTFlightData::CalcNextPos
+  Review, refactor
 
 Download History
 ==========
