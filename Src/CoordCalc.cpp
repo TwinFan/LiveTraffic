@@ -958,14 +958,45 @@ void CSpline<ptTy>::set (double tsNow,
         (ptTy(p1) - ptTy(p0)) * (n / (p1.ts()-tsNow));
     
     // but if we have a fixed heading, then we may need to turn the tangent in that direction
+    double m1ang = m1.angle();
+    double m1len = NAN;
     if (_p1.f.bHeadFixed &&
-        HeadingDiff(_p1.heading(), m1.angle()) > 1.0)
-        m1 = HeadingSpeedVec(_p1.heading(), m1.length());
+        HeadingDiff(_p1.heading(), m1ang) > 1.0)
+    {
+        m1 = HeadingSpeedVec(m1ang = _p1.heading(), m1len = m1.length());
+    }
     
-    // Now set the spline parameters
+    // Now set the spline parameters, ideally and typically _continue_ the previous spline
     if (!cont(tsNow, _p1.ts(), p1, m1))
-        set (tsNow, p0, HeadingSpeedVec(_p0.heading(), speed0_m),
-             _p1.ts(), p1, m1);
+    {
+        // Could not just continue, have to start the spline again.
+        // That happens most often after having stopped briefly.
+        // Also at the beginning of a rwy with high acceleration coming up.
+        // Have to set a relatively fast starting tangent to avoid the plane to turn back first "to take a run-up"
+        if (std::isnan(m1len)) m1len = m1.length();         // target speed at end of segment
+        // What to compare heading against? The averag of start and end,
+        // which again is only reasonable if they aren't more than 120° apart
+        const double avgHead =
+            std::abs(HeadingDiff(_p0.heading(), m1ang)) > 120.0 ? NAN :
+            HeadingAvg(_p0.heading(), _p1.heading());
+        for (double f: {0.0, 0.1, 0.25, 0.5}) {             // trying difference factors of the target speed for the starting speed
+            set (tsNow, p0,
+                 // Starting vector requires some minimum length
+                 HeadingSpeedVec(_p0.heading(), std::max({speed0_m, f * m1len, 0.5})),
+                 _p1.ts(), p1, m1);
+
+            // the loop would not yield any higher speeds as m0 and m1 are pretty similar? -> will need to work as it is
+            if (speed0_m >= 0.5 * m1len) break;
+            // Have no heading to compare to? -> will need to work as it is
+            if (std::isnan(avgHead)) break;
+            
+            // As a verification for "no loop in spline" look at u=0.5.
+            // If that's not going backwards we're fine
+            if (std::abs(HeadingDiff(avgHead, slope(0.5*dt).angle())) < 90.0)
+                break;
+            LOG_MSG(logDEBUG, "Potential loop in spline with f=%.1f", f);
+        }
+    }
     
 #ifdef DEBUG
     __head0  = _p0.heading();
