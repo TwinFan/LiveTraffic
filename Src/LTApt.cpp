@@ -1424,9 +1424,18 @@ public:
         const vectorTy vecFirst = pPrevPos->between(oldPos);
 
         const positionTy& posPrev = *pPrevPos;
-        positionTy posNext =        // next is the next in the fd.posDeque if available, otherwise a projection assume going straight ahead
-            std::next(posIter) != fd.posDeque.end() ? *std::next(posIter) :
+        positionTy posNext;         // next is the next in the fd.posDeque if available, otherwise a projection assume going straight ahead
+        if (std::next(posIter) == fd.posDeque.end())    // no next in posDeque
             oldPos + vecFirst;      // this also advances timestamp!
+        else {
+            // There is a next in posDeque.
+            // If there are _several_ pos we benefit from looking 30s ahead
+            const double tsLookAhead = pos.ts() + SNAP_LOOK_AHEAD;
+            dequePositionTy::iterator i = std::next(posIter);
+            while (std::next(i) != fd.posDeque.end() && std::next(i)->ts() <= tsLookAhead)
+                i++;
+            posNext = *i;
+        }
         
 
         // - relevant nodes: usually the ones away from (prev)pos,
