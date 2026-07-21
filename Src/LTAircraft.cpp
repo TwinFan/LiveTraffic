@@ -1924,46 +1924,44 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
 }
 
 
-// TODO: Consider using 2nd derivative of locSpline
 // determine roll, based on a previous and a current heading
 /// @details We assume that max bank angle (`pMdl->ROLL_MAX_BANK`) is applied for
 ///          the fastest possible turn (pMdl->MIN_FLIGHT_TURN_TIME).
 ///          If we are turning more slowly then we apply less bank angle.
 void LTAircraft::CalcRoll (double _prevHeading)
 {
+    double newRoll = NAN;
+    
     // How much of a turn did we do since last frame?
     const double partOfCircle = HeadingDiff(_prevHeading, ppos.heading()) / 360.0;
-    const double timeFullCircle = currCycle.diffTime / partOfCircle;  // at current turn rate (if small then we turn _very_ fast!)
+    const double timeFullCircle = std::abs(partOfCircle) < 0.00000001 ? NAN :   // Minuscle heading change, avoids divison by zero
+                                  currCycle.diffTime / partOfCircle;            // at current turn rate (if small then we turn _very_ fast!)
 
     // On the ground we should actually better be levelled, but we turn the nose wheel.
-    // Note: this assignment is "early" — the final ground-attitude clamp in
-    // `CalcAcPos` (the `bOnGrnd` block) will re-assert `GND_ROLL_DEG` after
-    // `CalcFlightModel` has run, so anything we write here is just a sane
-    // intermediate. We still set it explicitly so log output / debug dumps
-    // in between these two points show the correct value.
     if (IsOnGrnd()) {
         // except...if we are a stopped glider ;-)
         if (GetSpeed_m_s() < 0.2 && pMdl->isGlider())
-            ppos.roll() = MDL_GLIDER_STOP_ROLL;
+            newRoll = MDL_GLIDER_STOP_ROLL;
         else
-            ppos.roll() = GND_ROLL_DEG;
+            newRoll = 0.0;
         
         // Nose wheel steering: Hm...we would need to know a lot about the plane's
         // geometry to do that exactly right...so we just guess: 30° for a standard turn:
         SetNoseWheelAngle(std::isnan(timeFullCircle) ? 0.0f :
                           30.0f * float(pMdl->TAXI_TURN_TIME / timeFullCircle));
-        return;
+    }
+    else {
+        // In the air we make sure nose wheel looks straight
+        SetNoseWheelAngle(0.0f);
+        
+        // For the roll we assume that max bank angle is applied for the tightest turn.
+        // If we are turning more slowly then we apply less bank angle.
+        newRoll = (std::isnan(timeFullCircle) ? 0.0 :
+                   std::abs(timeFullCircle) < pMdl->MIN_FLIGHT_TURN_TIME ? std::copysign(pMdl->ROLL_MAX_BANK,timeFullCircle) :
+                   pMdl->ROLL_MAX_BANK * pMdl->MIN_FLIGHT_TURN_TIME / timeFullCircle);
     }
     
-    // In the air we make sure nose wheel looks straight
-    SetNoseWheelAngle(0.0f);
-    
-    // For the roll we assume that max bank angle is applied for the tightest turn.
-    // If we are turning more slowly then we apply less bank angle.
-    const double newRoll = (std::isnan(timeFullCircle) ? ppos.roll() :
-                            std::abs(timeFullCircle) < pMdl->MIN_FLIGHT_TURN_TIME ? std::copysign(pMdl->ROLL_MAX_BANK,timeFullCircle) :
-                            pMdl->ROLL_MAX_BANK * pMdl->MIN_FLIGHT_TURN_TIME / timeFullCircle);
-    // safeguard against to harsh roll rates:
+    // safeguard against to harsh roll rates (similar to MovingParam):
     if (std::abs(ppos.roll()-newRoll) > currCycle.diffTime * pMdl->ROLL_RATE) {
         if (newRoll < ppos.roll()) ppos.roll() -= currCycle.diffTime * pMdl->ROLL_RATE;
         else                       ppos.roll() += currCycle.diffTime * pMdl->ROLL_RATE;

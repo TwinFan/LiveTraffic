@@ -11,7 +11,6 @@ There is another "Hover Detection" already in LTFlightData, maybe replace
 
 Refactor
 -------
-Roll based on 2nd derivative of Spline
 Verify all use of LTAircraft::GetToPos, replace with GetNewestPos
 Refactor CalcHeading, it should again do just that
 Pushback (might need to go together with CalcHeading refactor)

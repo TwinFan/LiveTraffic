@@ -460,13 +460,6 @@ constexpr double GND_FEED_TRACK_AGREE_DEG       = 30.0;
 /// motion vector" (fast). No middle ground.
 constexpr double GND_TRACK_HEADING_MIN_KT       = 10.0;
 
-/// [°] roll hard-set on every frame while on the ground. Real aircraft never
-/// bank while taxiing — they pivot flat — and the existing roll-from-turn-rate
-/// computation can produce micro-banks from heading jitter that look wrong on
-/// a parked aircraft. We zero it explicitly; the in-air banking logic stays
-/// gated behind `!IsOnGnd()` so this only applies on the ground.
-constexpr double GND_ROLL_DEG                   = 0.0;
-
 /// [°] alignment threshold deciding whether motion resuming after a pushback
 /// pause is "forward" (push complete, exit) or "still being pushed" (tug
 /// resumed, stay in pushback). Compared against `|track − pbHeldNose|` where
