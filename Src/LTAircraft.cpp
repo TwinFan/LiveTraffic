@@ -271,17 +271,18 @@ void MovingParam::moveToBy (double _from, bool _increase, double _to,
         // set origin and desired target value
         valFrom = _from;
         valTo = _to;
-        bIncrease = _increase;
+        // We honor the _increase flag in case of wrap around parameters
+        bIncrease = bWrapAround ? _increase : (valFrom < valTo);
         
         // distance depends if we are going to wrap around on the way
         // standard (direct, no wrap-around) case first
-        if (( _increase && _from < _to) ||
-            (!_increase && _from > _to)) {
+        if (( bIncrease && _from < _to) ||
+            (!bIncrease && _from > _to)) {
             valDist = _to - _from;
         } else {
             // wrap around cases
             LOG_ASSERT(bWrapAround);
-            if (_increase)
+            if (bIncrease)
                 valDist = _to - _from + defDist; // (defMax - _from) + (_to - defMin)
             else
                 valDist = _to - _from - defDist; // -((_from - defMin) + (defMax - _to))
