@@ -4,14 +4,10 @@ TODO
 Bug
 -----
 
-In longer legs without Spline, and they do exist,
-heading turns to final heading too early,
-crabbing along the leg.
-Seems we need the 50/50 solution again that was in earlier:
-First turn to track, then turn to final
-
-
 Handle change of local coordinate system for CSplines (and maybe Beziers)
+
+Make Navigraph's / RealTraffic's "Hover Detection" generic, it works good for them
+There is another "Hover Detection" already in LTFlightData, maybe replace
 
 Refactor
 -------

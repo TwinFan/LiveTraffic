@@ -83,6 +83,9 @@ public:
     // get current value (might actually _change_ val if inMotion!)
     double get ();
     
+    /// How long would it take to make a move?
+    double getTimeTo (double _to) const;
+    
     // non-moving status checks
     inline double is () const       { return val; }
     inline bool isUp () const       { return val <= defMin; }

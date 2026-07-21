@@ -355,6 +355,20 @@ double MovingParam::get()
     return val;
 }
 
+/// How long would it take to make a move?
+double MovingParam::getTimeTo (double _to) const
+{
+    // how far to move?
+    double dist = std::abs(val - _to);
+    
+    // In a wrap-around case, there might be a shorter way
+    if (bWrapAround && dist > defDist/2)
+        dist = defDist - dist;                      // turn the other way round
+    
+    // Time it needs to make that move
+    return dist/defDist * defDuration;
+}
+
 
 double MovingParam::percDone () const
 {
@@ -1306,13 +1320,28 @@ bool LTAircraft::CalcPPos()
             speed_m = vec.speed;
 
             // *** Heading ***
-            //     is a continues turn to target heading on the short legs.
+            //     On short legs (stationary, or time less than need for direct turn to target heading)
+            //     we just turn directly to target heading.
+            //     On longer legs turn first to track, later to target heading.
+            heading.SetVal(ppos.heading());
+            heading.defDuration = IsOnGrnd() ? pMdl->TAXI_TURN_TIME : pMdl->FLIGHT_TURN_TIME;
+            const double tTurn = heading.getTimeTo(to.heading());
+            const double tLeg = to.ts() - currCycle.simTime;
+            if (tLeg > tTurn && vec.dist > SIMILAR_POS_DIST) {
+                // Have time to first turn to track heading
+                heading.moveQuickestToBy(ppos.heading(), vec.angle,
+                                         currCycle.simTime,             // can start now
+                                         currCycle.simTime + tLeg/2.0,  // shall finish by mid of leg
+                                         true);                         // start immediately
+            } else {
+                // Have only time to turn directly to target heading
+                heading.moveQuickestToBy(ppos.heading(), to.heading(),
+                                         currCycle.simTime,             // can start now
+                                         to.ts(),                       // shall finish by end of leg
+                                         true);                         // start immediately
+            }
 
             // ...start the turn from the initial heading to the vector heading
-            heading.defDuration = IsOnGrnd() ? pMdl->TAXI_TURN_TIME : pMdl->FLIGHT_TURN_TIME;
-            heading.moveQuickestToBy(ppos.heading(), to.heading(),
-                                     currCycle.simTime, to.ts(),    // can start now, shall finish by end of leg
-                                     true);                         // start immediately
         }
         
         // *** Correction Angle for crosswind ***
@@ -1425,15 +1454,23 @@ bool LTAircraft::CalcPPos()
     }
     else {
         // Linear interpolation
-        // heading comes from the moving parameter define during pos switch
         // Now we apply the factor so that with time we move from 'from' to 'to'.
         // Note that this calculation also works if we passed 'to' already
         // (due to no newer 'to' available): we just keep going the same way.
         // This is effectively a scaled vector sum, broken down into its components:
         ppos.lat()   = from.lat()   * (1 - f) + to.lat() * f;
         ppos.lon()   = from.lon()   * (1 - f) + to.lon() * f;
+
+        // *** Heading *** comes from the moving parameter define during pos switch
         // Get heading from moving param
         ppos.heading() = heading.get();
+        // Time to turn to target heading during a long leg?
+        if (f >= 0.5 && !heading.isProgrammed()) {
+            heading.moveQuickestToBy(ppos.heading(), to.heading(),
+                                     currCycle.simTime,             // can start now
+                                     to.ts(),                       // shall finish by end of leg
+                                     false);                        // start as late as possible
+        }
     }
     
     // Update heading correction angle
@@ -1450,9 +1487,10 @@ bool LTAircraft::CalcPPos()
             double toPitch = vsi2deg(GetSpeed_m_s(), GetVSI_m_s());
             toPitch += GetFlapsPos() * pMdl->PITCH_FLAP_ADD;
             toPitch = std::clamp<double>(toPitch, pMdl->PITCH_MIN, pMdl->PITCH_MAX);
-            // During Rotate and Flare we might have the nose higher than 'required' for the VSI,
+            // During Rotate/LiftOff and Flare we might have the nose higher than 'required' for the VSI,
             // but absolutely avoid taking the nose down in these phases
             if ((GetFlightPhase() != FPH_ROTATE &&
+                 GetFlightPhase() != FPH_LIFT_OFF &&
                  GetFlightPhase() != FPH_FLARE) ||
                 toPitch > GetPitch())
             {
@@ -1817,9 +1855,9 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
         gearDeflection.max();           // start main gear deflection
         spoilers.max();                 // start deploying spoilers
         ppos.f.onGrnd = GND_ON;
-        // DEFERRED nose-down
+        // DEFERRED nose-down: Wait for PITCH_HOLD_TOUCHDOWN seconds
         pitch.moveToBy(NAN, false, 0.0, NAN,
-                       currCycle.simTime + pMdl->PITCH_HOLD_TOUCHDOWN + pitch.defDuration,
+                       currCycle.simTime + pMdl->PITCH_HOLD_TOUCHDOWN + pitch.getTimeTo(0.0),
                        false);
     }
     
