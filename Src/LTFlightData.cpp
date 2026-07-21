@@ -1117,10 +1117,6 @@ bool LTFlightData::CalcNextPos ( double simTime )
         // *** Landing / Take-Off Detection ***
         
         if ( pAc && !posDeque.empty() ) {
-            // clear outdated rotate timestamp
-            if (!std::isnan(rotateTS) && (rotateTS + 10 * mdl.ROTATE_TIME < simTime) )
-                rotateTS = NAN;
-            
             // *** Landing ***
             
             // If current pos is in the air and next pos is approaching or touching ground
@@ -1131,7 +1127,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
             // then rolling out to (or through) next pos we determine this case
             // and then insert an artifical touch down position, which just keeps going with
             // previous vsi (a little less VSI to allow for flare) and speed down to the ground.
-            const positionTy& toPos_ac = pAc->GetToPos();   // a/c's current to-position
+            const positionTy& toPos_ac = pAc->GetNewestPos();   // a/c's most future position
             positionTy& next = posDeque.front();            // next pos waiting in posDeque
 
             if (!toPos_ac.IsOnGnd() &&                      // currently not heading for ground
@@ -3171,8 +3167,10 @@ LTFlightData::tryResult LTFlightData::TryFetchNewPos (dequePositionTy& acPosList
             posNext = positionTy();
         
         // store rotate timestamp if there is one (never overwrite with NAN!)
-        if (!std::isnan(rotateTS))
+        if (!std::isnan(rotateTS)) {
             _rotateTS = rotateTS;
+            rotateTS = NAN;                     // and then clear hear not to overwrite again
+        }
         
         // output all positional information as debug info on request
         if (dataRefs.GetDebugAcPos(key()))

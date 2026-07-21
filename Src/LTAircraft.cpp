@@ -936,14 +936,7 @@ probeNextTs(0), terrainAlt_m(0.0)
         CalcLabelInternal(statCopy);
         
         // init moving params where necessary.
-        // The pitch is initialised to the static ground attitude
-        // `GND_PITCH_DEG` whenever the aircraft starts its life on the
-        // ground (parked / taxiing) so the first rendered frame already
-        // looks correct — otherwise the MovingParam would briefly target
-        // 0° and produce a visible nose-bob before the ground-attitude
-        // override (in `CalcAcPos`) kicks in. Aircraft created in flight
-        // continue to start at neutral 0°.
-        pitch.SetVal(IsOnGrnd() ? GND_PITCH_DEG : 0);
+        pitch.SetVal(0);
         corrAngle.SetVal(0);
         
         // calculate our first position, must also succeed
@@ -1003,9 +996,11 @@ void LTAircraft::CalcLabelInternal (const LTFlightData::FDStaticData& statDat)
 LTAircraft::operator std::string() const
 {
     char buf[4048];
-    snprintf(buf,sizeof(buf),"a/c %s\nlocSpline:\n%s\naltSpline:\n%s\nheading: %s\n%s Y: %.1fft %.0fkn %.0fft/m Phase: %02d %s\nposList:\n",
+    snprintf(buf,sizeof(buf),"a/c %s\nloc:\n%s\naltSpline:\n%s\nheading: %s\n%s Y: %.1fft %.0fkn %.0fft/m Phase: %02d %s\nposList:\n",
              labelInternal.c_str(),
-             locSpline.dbgTxt().c_str(),
+             // location: CSpline or Bezier or nothing
+             locSpline ? locSpline.dbgTxt().c_str() :
+             locBezier ? locBezier.dbgTxt().c_str() : "<undefined>",
              altSpline.dbgTxt().c_str(),
              heading.dbgTxt().c_str(),
              ppos.dbgTxt().c_str(), GetTerrainAlt_ft(),
@@ -1077,6 +1072,16 @@ const positionTy& LTAircraft::GetToPos(double* pTrack) const
         *pTrack = GetTrack();
     return ppos;
 }
+
+/// Most future well-known position, posList.back() or ppos
+const positionTy& LTAircraft::GetNewestPos () const
+{
+    if (!posList.empty())
+        return posList.back();
+    else
+        return ppos;
+}
+
 
 // are we in desperate need of new positions?
 bool LTAircraft::OutOfPositions() const
@@ -1223,30 +1228,9 @@ bool LTAircraft::CalcPPos()
     // (Must have reach/passed posDeque[1] and there must be a third position,
     //  which can now serve as 'to')
     while ( posList[1].ts() <= currCycle.simTime && posList.size() >= 3 ) {
-        // Preserve the slot we are about to discard.
-        // Use in Spline computations.
-        posPrev = posList.front();
-
         // By just removing the first element (current 'from') from the deqeue
         // we make posDeque[2] the next 'to'
         posList.pop_front();
-
-        // Snapshot the spline's exit-tangent control point (P3)
-        // That is the _likely_ (though not _guaranteed_) position to be reached
-        // after 'to', to be used as Spline control point.
-        posNext = posNextNext;
-
-        // Now: To absolutely ensure we continue seamlessly from current
-        // ppos we set posDeque[0] ('from') to ppos. Should be close anyway in normal
-        // situations. (It's not if the simulation was halted while feeding live
-        // data, then posList got completely outdated and ppos might jump beyond the entire list.)
-        if ( ppos < posList[1]) {
-            // Save some flags needed for later calculations
-            ppos.f.specialPos = posList.front().f.specialPos;
-            ppos.edgeIdx      = posList.front().edgeIdx;
-            // Then overwrite posDeque[0]
-            posList.front() = ppos;
-        }
         // flag: switched positions
         bPosSwitch = true;
     }
@@ -1256,28 +1240,18 @@ bool LTAircraft::CalcPPos()
     
     // we are now certain to have at least 2 position and we are flying
     // from the first to the second
-    positionTy& from  = posList[0];     // TODO: We shouldn't be needing 'from', we fly from 'ppos'. If new, set ppos = posList[0]
+    positionTy& from  = posList[0];
     positionTy& to    = posList[1];
-    const double duration = to.ts() - from.ts();
-    const double prevHead = phase == FPH_UNKNOWN ? from.heading()    : ppos.heading();  // previous heading (needed for roll calculation)
 #ifdef DEBUG
     std::string debFrom ( from.dbgTxt() );
     std::string debTo   ( to.dbgTxt() );
     std::string debVec  ( from.between(to) );
 #endif
-    LOG_ASSERT_FD(fd,duration > 0);
 
     // *** position switch ***
     
     // some things only change when we work with new positions compared to last frame
     if ( bPosSwitch ) {
-        // *** vector we will be flying now from 'from' to 'to':
-        from.normalize();
-        to.normalize();
-        const vectorTy prevVec = vec;
-        vec = from.between(to);
-        LOG_ASSERT_FD(fd,!std::isnan(vec.speed) && !std::isnan(vec.vsi));
-        
         // first time inits
         if (phase == FPH_UNKNOWN) {
             // we start at the beginning from
@@ -1292,7 +1266,31 @@ bool LTAircraft::CalcPPos()
             // point to some reasonable heading
             heading.SetVal(ppos.heading() = from.heading());
         }
+        
+        // Snapshot the spline's exit-tangent control point (P3)
+        // That is the _likely_ (though not _guaranteed_) position to be reached
+        // after 'to', to be used as Spline control point.
+        posNext = posNextNext;
+        
+        // To absolutely ensure we continue seamlessly from current
+        // ppos we set posList[0] ('from') to ppos. Should be close anyway in normal
+        // situations. (It's not if the simulation was halted while feeding live
+        // data, then posList got completely outdated and ppos might jump beyond the entire list.)
 
+        // Save some flags needed for later calculations
+        ppos.f.specialPos = from.f.specialPos;
+        ppos.f.bPushback  = from.f.bPushback;
+        ppos.edgeIdx      = from.edgeIdx;
+        // Then overwrite posList[0]
+        from = ppos;
+
+        // *** vector we will be flying now from 'from' to 'to':
+        from.normalize();
+        to.normalize();
+        const vectorTy prevVec = vec;           // used in altitude spline calculation
+        vec = from.between(to);
+        LOG_ASSERT_FD(fd,!std::isnan(vec.speed) && !std::isnan(vec.vsi));
+        
         // *** ground status starts with that one of 'from'
         ppos.f.onGrnd = from.f.onGrnd;
 
@@ -1306,14 +1304,23 @@ bool LTAircraft::CalcPPos()
                 if (dataRefs.GetDebugAcPos(key())) {
                     LOG_MSG(logDEBUG,DBG_SPLINE_INVALID, ppos.dbgTxt().c_str(), to.dbgTxt().c_str());
                 }
+                // Try a Bezier instead of a Spline
+                if (!locBezier.Define(ppos, to) &&
+                    dataRefs.GetDebugAcPos(key()))
+                {
+                    LOG_MSG(logDEBUG,DBG_BEZIER_INVALID, ppos.dbgTxt().c_str(), to.dbgTxt().c_str());
+                }
+                // Speed is going to be constant then
+                speed_m = vec.speed;
             }
         }
         // on short legs used linear interpolation
         else {
             locSpline.clear();
+            locBezier.Clear();
         }
         
-        if (!locSpline) {
+        if (!locSpline && !locBezier) {
             // *** Speed ***
             //     is constant in case of linear interpolation.
             //     (Otherwise the Spline is going to determine it dynamically.)
@@ -1372,8 +1379,9 @@ bool LTAircraft::CalcPPos()
         vec.vsi;
         to.pitch() = std::clamp<double>(vsi2deg(vec.speed, vsiTo),
                                         pMdl->PITCH_MIN, pMdl->PITCH_MAX);
-        if (!altSpline)
+        if (!altSpline) {
             pitch.moveTo(to.pitch());
+        }
         
         // output debug info on request
         if (dataRefs.GetDebugAcPos(key())) {
@@ -1383,6 +1391,10 @@ bool LTAircraft::CalcPPos()
     
     // *** The Factor ***
     
+    const double duration = to.ts() - from.ts();
+    const double prevHead = phase == FPH_UNKNOWN ? from.heading()    : ppos.heading();  // previous heading (needed for roll calculation)
+    LOG_ASSERT_FD(fd,duration > 0);
+
     // How far have we traveled (in time) between from and to?
     const double f = (currCycle.simTime - from.ts()) / duration;
     
@@ -1428,6 +1440,11 @@ bool LTAircraft::CalcPPos()
         speed_m = v.length();
         heading.SetVal(ppos.heading() = v.angle());
     }
+    // is instead a Bezier curve defined?
+    else if (f <= 1.0 && locBezier) {
+        locBezier.GetPos(ppos, currCycle.simTime);
+        heading.SetVal(ppos.heading());                     // Bezier set heading, tell our param, too
+    }
     else {
         // Linear interpolation
         // heading comes from the moving parameter define during pos switch
@@ -1451,22 +1468,20 @@ bool LTAircraft::CalcPPos()
         vsi = altSpline.slope(currCycle.simTime) / Ms_per_FTm;  // convert from m/s to ft/min
         
         // if there is no pre-programmed pitch movement
-        if (!pitch.inMotion()) {
+        if (!pitch.isProgrammed()) {
             double toPitch = vsi2deg(GetSpeed_m_s(), GetVSI_m_s());
             toPitch += GetFlapsPos() * pMdl->PITCH_FLAP_ADD;
             toPitch = std::clamp<double>(toPitch, pMdl->PITCH_MIN, pMdl->PITCH_MAX);
-            // During Rotate/Lift Off and Flare/RollOut we might have the nose higher than 'required' for the VSI,
+            // During Rotate and Flare we might have the nose higher than 'required' for the VSI,
             // but absolutely avoid taking the nose down in these phases
             if ((GetFlightPhase() != FPH_ROTATE &&
-                 GetFlightPhase() != FPH_LIFT_OFF &&
-                 GetFlightPhase() != FPH_FLARE &&
-                 GetFlightPhase() != FPH_TOUCH_DOWN &&      // During TouchDown/RollOut the nose is still up for some time,
-                 GetFlightPhase() != FPH_ROLL_OUT) ||       // don't interfere, is being taken down later
+                 GetFlightPhase() != FPH_FLARE) ||
                 toPitch > GetPitch())
             {
                 // For a small change just set it, else move there
-                if (std::abs(GetPitch() - toPitch) < 0.5)
+                if (std::abs(GetPitch() - toPitch) < 0.5) {
                     pitch.SetVal(ppos.pitch() = toPitch);
+                }
                 else {
                     pitch.moveTo(toPitch);
                     ppos.pitch()  = pitch.get();
@@ -1525,57 +1540,6 @@ bool LTAircraft::CalcPPos()
         // but tires are rotating
         tireRpm.SetVal(std::min(TireRpm(GetSpeed_kt()),
                                 tireRpm.defMax));
-
-        // ------------------------------------------------------------------
-        // TODO: Reconsider...the world isn't flat everywhere. Properly done, pitch should come from altitude difference, always
-        // Hard-set ground attitude every frame to defeat feed-driven jitter.
-        //
-        // Why this exists: data feeds and the position-interpolation code
-        // path can produce small drifts in pitch and roll while an aircraft
-        // is sitting on (or rolling along) the ground. Real aircraft are
-        // mechanically held in a fixed attitude by their landing gear —
-        // they do not bank while taxiing and their pitch is determined by
-        // gear geometry rather than dynamic flight forces. So we forcibly
-        // clamp pitch and roll to the constants `GND_PITCH_DEG` /
-        // `GND_ROLL_DEG` defined in `Constants.h`, overriding whatever the
-        // interpolation/flight-model code produced earlier in this frame.
-        //
-        // Exceptions: phases where the nose is genuinely moving relative
-        // to the ground — rotation for take-off (`FPH_ROTATE`), lift-off
-        // itself (`FPH_LIFT_OFF`), the flare before touchdown
-        // (`FPH_FLARE`), the single-cycle touchdown event
-        // (`FPH_TOUCH_DOWN`), and the roll-out that immediately follows
-        // touchdown (`FPH_ROLL_OUT`). In all of these the flight-model
-        // code is actively driving the `pitch` MovingParam through a
-        // planned transition — `pitch.moveTo(ROTATE_PITCH_MAX_DEG)` on
-        // rotate, VSI-derived target on lift-off,
-        // `pitch.moveTo(PITCH_FLARE)` on flare,
-        // `pitch.moveTo(GND_PITCH_DEG)` on touchdown to walk the nose
-        // down smoothly during roll-out. Overriding pitch during any of
-        // these phases would visibly snap the nose. In particular:
-        //   - Without the `FPH_ROLL_OUT` exception, the de-rotation
-        //     animation gets clobbered one frame after touchdown
-        //     (touchdown is documented as a single-frame event) and
-        //     the aircraft appears to slam its nose-wheel down.
-        //   - Without the `FPH_LIFT_OFF` exception, an aircraft whose
-        //     phase advances ROTATE → LIFT_OFF *while still bOnGrnd*
-        //     (VSI crossed `VSI_STABLE` before the aircraft physically
-        //     left the runway — common on takeoff rolls where the
-        //     altitude is barometric and the smoothed value crosses
-        //     `MDL_CLOSE_TO_GND` a frame or two before the deque
-        //     bracket itself leaves the ground) gets its rotation pitch
-        //     forcibly reset to `GND_PITCH_DEG = 2°` for as many frames
-        //     as it takes for bOnGrnd to flip false. Visible as: nose
-        //     pitches up, briefly flips level on the runway, then
-        //     pitches up again once airborne. Reported on AAL2449.
-        if (phase != FPH_ROTATE &&
-            phase != FPH_LIFT_OFF &&
-            phase != FPH_FLARE  &&
-            phase != FPH_TOUCH_DOWN &&
-            phase != FPH_ROLL_OUT)
-        {
-            ppos.pitch() = GND_PITCH_DEG;
-        }
     }
     
     // save this position for (next) camera view position
@@ -1804,12 +1768,7 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
         // (as we don't do any counter-measure in the next ENTERED-statements
         //  we can lift the nose only if we are exatly AT rotate phase)
         if (phase == FPH_ROTATE) {
-            // Cap the rotate-phase pitch target at `pMdl->PITCH_ROTATE`.
-            // Once the aircraft transitions to FPH_LIFT_OFF the in-air pitch logic in
-            // `LTFlightData::CalcNextPos` (line ~1700) takes over and
-            // walks pitch toward the VSI-derived target, clamped to
-            // `pMdl->PITCH_MAX` — so steep climbs can still reach the
-            // full 15°, just not while the gear is still on the runway.
+            // Pitch up
             pitch.moveTo(pMdl->PITCH_ROTATE);
             gearDeflection.defDuration = pitch.defDuration;
             gearDeflection.min();               // and start easing up on the wheels in about the same timeframe
@@ -1880,32 +1839,10 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
         gearDeflection.max();           // start main gear deflection
         spoilers.max();                 // start deploying spoilers
         ppos.f.onGrnd = GND_ON;
-        // DEFERRED nose-down: do NOT call `pitch.moveTo(GND_PITCH_DEG)`
-        // here. Record the touchdown timestamp instead; the frame-level
-        // check further down in this function will fire the moveTo only
-        // after `TOUCHDOWN_HOLD_PITCH_S` seconds have elapsed, modelling
-        // the aerobrake during which real airliners keep the nose
-        // pitched up at `PITCH_FLARE` after the main gear is on the
-        // runway. Until that delayed moveTo fires, the MovingParam's
-        // last commanded target remains `PITCH_FLARE` (set on
-        // `FPH_FLARE` entry) and the ground-attitude override in
-        // `CalcAcPos` is bypassed for both `FPH_TOUCH_DOWN` and
-        // `FPH_ROLL_OUT`, so the pitch stays at flare value during the
-        // hold.
-        touchdownTs = currCycle.simTime;
-    }
-
-    // Deferred nose-down after touchdown (TOUCHDOWN_HOLD_PITCH_S hold).
-    // Fires once, then clears `touchdownTs` so subsequent frames do
-    // nothing. If for any reason the aircraft is destroyed mid-hold,
-    // the timestamp dies with it. If the aircraft re-touchdowns
-    // (e.g. porpoising) before we fire, the ENTERED(FPH_TOUCH_DOWN)
-    // block above simply re-stamps the timestamp, restarting the hold.
-    if (!std::isnan(touchdownTs) &&
-        currCycle.simTime >= touchdownTs + pMdl->PITCH_HOLD_TOUCHDOWN)
-    {
-        pitch.moveTo(GND_PITCH_DEG);
-        touchdownTs = NAN;
+        // DEFERRED nose-down
+        pitch.moveToBy(NAN, false, 0.0, NAN,
+                       currCycle.simTime + pMdl->PITCH_HOLD_TOUCHDOWN + pitch.defDuration,
+                       false);
     }
     
     // roll-out

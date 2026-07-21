@@ -82,16 +82,19 @@ double CoordDistance (double lat1, double lon1, double lat2, double lon2)
 
 double CoordAngle (const positionTy& p1, const positionTy& p2 )
 {
+    assert(p1.f.unitCoord == UNIT_WORLD && p2.f.unitCoord == UNIT_WORLD);
     return CoordAngle (p1.lat(), p1.lon(), p2.lat(), p2.lon());
 }
 
 double CoordDistance (const positionTy& p1, const positionTy& p2)
 {
+    assert(p1.f.unitCoord == UNIT_WORLD && p2.f.unitCoord == UNIT_WORLD);
     return CoordDistance (p1.lat(), p1.lon(), p2.lat(), p2.lon());
 }
 
 vectorTy CoordVectorBetween (const positionTy& from, const positionTy& to )
 {
+    assert(from.f.unitCoord == UNIT_WORLD && to.f.unitCoord == UNIT_WORLD);
     double d_ts = to.ts() - from.ts();
     double dist = CoordDistance (from, to);
     return vectorTy (CoordAngle (from, to),         // angle
@@ -106,6 +109,7 @@ vectorTy CoordVectorBetween (const positionTy& from, const positionTy& to )
 // calculates new altitude by applying speed and vsi
 positionTy CoordPlusVector (const positionTy& p, const vectorTy& vec)
 {
+    assert(p.f.unitCoord == UNIT_WORLD);
     const positionTy pos(p.deg2rad());
     const double vec_angle = deg2rad(vec.angle);
     const double vec_dist = vec.dist * 2 / EARTH_D_M;
@@ -864,7 +868,7 @@ ptTy Bezier (double t, const ptTy& p0, const ptTy& p1, const ptTy& p2,
     if (pAngle) {
         // B'(t) = 2(1-t)(p1-p0)+2t(p2-p1)
         ptTy dtB = 2 * oneMt * (p1-p0) + 2 * t * (p2-p1);
-        *pAngle = rad2deg360(std::atan2(dtB.x, dtB.y));
+        *pAngle = dtB.angle();
     }
     
     // We calculate the value directly, ie. without De-Casteljau
@@ -887,7 +891,7 @@ ptTy Bezier (double t, const ptTy& p0, const ptTy& p1, const ptTy& p2, const ptT
     if (pAngle) {
         // B'(t) = 3(1-t)^2 (p1-p0) + 6(1-t)t(p2-p1) + 3t^2(p3-p2)
         ptTy dtB = 3*oneMt2*(p1-p0) + 6*(oneMt)*t*(p2-p1) + 3*t2*(p3-p2);
-        *pAngle = rad2deg360(std::atan2(dtB.x, dtB.y));
+        *pAngle = dtB.angle();
     }
     
     // We calculate the value directly, ie. without De-Casteljau
@@ -897,6 +901,103 @@ ptTy Bezier (double t, const ptTy& p0, const ptTy& p1, const ptTy& p2, const ptT
     (3 * oneMt2 * t)  * p1 +            // 3(1-t)^2t p1 +
     (3 * oneMt  * t2) * p2 +            // 3(1-t)t^2 p2 +
     (t2 * t)          * p3;             // t^3       p3
+}
+
+//
+// MARK: Bezier Curves
+//
+
+// Define a quadratic Bezier Curve based on the given flight data positions, with the mid point being the intersection of the vectors
+bool BezierCurve::Define (const positionTy& _start,
+                          const positionTy& _end)
+{
+    // Find the mid point as the intersection of the vectors
+    // defined by the two positions and their headings
+    start = _start;                     // A = start = (0|0)
+    start.WorldToLocal();
+    ptTy b = start;                     // B = start + a point in direction _start.heading()
+    b += HeadingToUnitCircle(_start.heading());
+    
+    // End point and its vector
+    end = _end;                         // C = _end
+    end.WorldToLocal();
+    ptTy d = end;                       // D = C + point in direction _end.heading()
+    d += HeadingToUnitCircle(_end.heading());
+    
+    // find the intersection
+    ptCtrl = CoordIntersect(start, b, end, d);
+    
+    // This intersection serves our Bezier curve purposes only if a few conditions are met
+    const double dStartEndLen  = (ptTy(end) - ptTy(start)).length();
+    const ptTy dStartCtrl = ptCtrl    - ptTy(start);
+    const ptTy dCtrlEnd = ptTy(end)   - ptCtrl;
+    
+        // 1. Must be in start-heading direction relative from start
+    if (std::abs(HeadingDiff(dStartCtrl.angle(), _start.heading())) > 15.0  ||
+        // 2. Must be in end-heading direction relative to end
+        std::abs(HeadingDiff(dCtrlEnd.angle(),   _end.heading())) > 15.0    ||
+        // 3. Each leg should not be longer than the total length, but also not too short
+        dStartCtrl.length() > dStartEndLen                                  ||
+        dStartCtrl.length() < 0.2 * dStartEndLen                            ||
+        dCtrlEnd.length()   > dStartEndLen                                  ||
+        dCtrlEnd.length()   < 0.2 * dStartEndLen)
+    {
+        Clear();
+        return false;
+    }
+    return true;
+}
+
+// Clear the definition, so that BezierCurve::isDefined() will return `false`
+void BezierCurve::Clear ()
+{
+    start = positionTy();
+    end = positionTy();
+    ptCtrl.clear();
+}
+
+// Return the position as per given timestamp, if the timestamp is between `start` and `end`
+bool BezierCurve::GetPos (positionTy& pos, double _calcTs)
+{
+    // not defined or not in the time range of this curve?
+    if (_calcTs < start.ts() || end.ts() < _calcTs)
+        return false;
+    
+    // Calculate f between [0.0..1.0]
+    const double myF = (_calcTs - start.ts()) / (end.ts() - start.ts());
+    
+    // The position to return
+    double angle = NAN;
+    ptTy p = Bezier(myF, start, ptCtrl, end, &angle);
+    LOG_ASSERT(p.isValid());
+    
+    // Convert the result back into geographic coordinated
+    const double alt_m = pos.alt_m();
+    pos.lat() = p.y;
+    pos.lon() = p.x;
+    pos.f.unitCoord = UNIT_LOCAL;
+    pos.LocalToWorld();
+    pos.alt_m() = alt_m;                // keep altitude unchanged
+    pos.heading() = angle;
+    
+    // We've updated the position
+    return true;
+}
+
+
+// Debug text output
+std::string BezierCurve::dbgTxt() const
+{
+    if (isValid()) {
+        char s[250];
+        snprintf(s, sizeof(s), "(%.5f / %.5f / %.1f @ %.1f) {%.5f %.5f} (%.5f / %.5f / %.1f @ %.1f)",
+                 start.lat(), start.lon(), start.heading(), start.ts(),
+                 ptCtrl.y, ptCtrl.x,
+                 end.lat(), end.lon(), end.heading(), end.ts());
+        return s;
+    } else {
+        return "<undefined>";
+    }
 }
 
 //

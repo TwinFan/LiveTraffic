@@ -460,17 +460,6 @@ constexpr double GND_FEED_TRACK_AGREE_DEG       = 30.0;
 /// motion vector" (fast). No middle ground.
 constexpr double GND_TRACK_HEADING_MIN_KT       = 10.0;
 
-/// [°] pitch hard-set on every frame while the aircraft is on the ground
-/// (except during the take-off / flare phases, which manage pitch dynamically).
-/// 0° (level) matches LiveTraffic's pre-existing convention (the touch-down
-/// transition previously walked pitch to 0) and avoids the visible "tail-
-/// dragger" look the previous 2° value produced on narrow-body airliners.
-/// Hard-setting it (rather than inheriting from the data feed, which usually
-/// has no useful pitch on the ground) still serves its other purpose:
-/// preventing pitch drift caused by inter-position interpolation in the slot
-/// pipeline.
-constexpr double GND_PITCH_DEG                  = 0.0;
-
 /// [°] roll hard-set on every frame while on the ground. Real aircraft never
 /// bank while taxiing — they pivot flat — and the existing roll-from-turn-rate
 /// computation can produce micro-banks from heading jitter that look wrong on
@@ -878,6 +867,7 @@ constexpr int ERR_CFG_FILE_MAXWARN = 10;     // maximum number of warnings while
 #define DBG_REMOVED_NOK_POS     "DEBUG REMOVED NOK POS: %s"
 #define DBG_REMOVED_CLOSE_POS   "DEBUG REMOVED TOO-CLOSE STRAIGHT POS: %s"
 #define DBG_SPLINE_INVALID      "DEBUG SPLINE INVALID:\nppos: %s\nto:   %s"
+#define DBG_BEZIER_INVALID      "DEBUG BEZIER INVALID:\nppos: %s\nto:   %s"
 #define DBG_INVENTED_STOP_POS   "DEBUG INVENTED STOP POS: %s"
 #define DBG_INVENTED_TD_POS     "DEBUG INVENTED TOUCH-DOWN POS: %s"
 #define DBG_REUSING_TD_POS      "DEBUG RE-USED TOUCH-DOWN POS: %s"

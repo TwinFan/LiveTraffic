@@ -75,6 +75,7 @@ struct ptTy {
     ptTy () : x(NAN), y(NAN) {}
     ptTy (double _x, double _y) : x(_x), y(_y) {}
     ptTy operator + (const ptTy& _o) const { return ptTy ( x+_o.x, y+_o.y); }   ///< scalar sum
+    ptTy& operator += (const ptTy& _o) { x+=_o.x; y+=_o.y; return *this; }      ///< scalar sum
     ptTy operator - (const ptTy& _o) const { return ptTy ( x-_o.x, y-_o.y); }   ///< scalar difference
     ptTy operator * (const double d) const { return ptTy ( d*x, d*y); }         ///< scalar product
     bool operator== (const ptTy& _o) const;                                     ///< equality based on dequal() (ie. 'nearly' equal)
@@ -615,6 +616,47 @@ ptTy Bezier (double t, const ptTy& p0, const ptTy& p1, const ptTy& p2,
 /// @param[out] pAngle If defined, receives the angle of the curve at `t` in degrees
 ptTy Bezier (double t, const ptTy& p0, const ptTy& p1, const ptTy& p2, const ptTy& p3,
              double* pAngle = nullptr);
+
+/// @brief Handles a quadratic Bezier curve based on flight data positions
+/// @details Only using quadratic curves because in higher-level Bezier curves the parameter `t`
+///          does no longer correspond well to distance and planes would appear slowing down
+///          at beginning and end.
+/// @details The constructors take positions from flight data,
+///          the necessary end and control points of a Bezier Curve
+///          are computed from that input.
+/// @see https://en.wikipedia.org/wiki/B%C3%A9zier_curve#Constructing_B%C3%A9zier_curves
+struct BezierCurve
+{
+protected:
+    positionTy start;           ///< start point of the actual Bezier curve
+    positionTy end;             ///< end point of the actual Bezier curve
+    ptTy ptCtrl;                ///< Control point of the curve
+public:
+    BezierCurve () {}           ///< Standard constructor does nothing
+    
+    /// @brief Define a quadratic Bezier Curve based on the given flight data positions, with the mid point being the intersection of the vectors
+    /// @param _start Start position of the Bezier curve
+    /// @param _end End position of the curve
+    /// @return Could a reasonable mid point be derived and hence a Bezier curve be set up?
+    bool Define (const positionTy& _start,
+                 const positionTy& _end);
+    
+    /// Clear the definition, so that BezierCurve::isDefined() will return `false`
+    void Clear ();
+    /// Is a curve defined?
+    bool isValid () const { return ptCtrl.isValid(); }
+    operator bool () const { return isValid(); }
+
+    /// Return the position as per given timestamp, if the timestamp is between `start` and `end`
+    /// @param[in,out] pos Current position, to be overwritten with new position
+    /// @param _calcTs Timestamp for the position we look for, used to calculate factor `f`
+    /// @return if the position was adjusted
+    bool GetPos (positionTy& pos, double _calcTs);
+    
+    /// Debug text output
+    std::string dbgTxt() const;
+};
+
 
 /// @brief Cubic Hermite Spline (cSpline)
 /// @see https://en.wikipedia.org/wiki/Cubic_Hermite_spline

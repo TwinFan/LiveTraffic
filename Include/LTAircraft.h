@@ -191,11 +191,6 @@ public:
     // absolute positions (max 3: last, current destination, next)
     // as basis for calculating ppos per frame
     dequePositionTy     posList;
-    // TODO: posPrev shouldn't be needed any longer
-    /// Most-recently-retired `from` position. When `posList.pop_front()` is
-    /// called during the position switch in CalcPPos, the slot being removed
-    /// is copied here first so it remains available as Spline control point.
-    positionTy          posPrev;
     // TODO: posnext shouldn't be needed any longer
     /// Snapshot of the slot AFTER the current `to`, captured at segment
     /// switch and held fixed for the duration of the current leg.
@@ -208,6 +203,8 @@ public:
     CSpline<double>     altSpline;
     /// 2D cSpline for position
     CSpline<ptTy>       locSpline;
+    /// 2D Bezier for position (alternative for locSpline)
+    BezierCurve         locBezier;
     
     std::string         labelInternal;  // internal label, e.g. for error messages
 protected:
@@ -224,12 +221,6 @@ protected:
     flightPhaseE        phase;          // current flight phase
     double              rotateTs;       // when to rotate?
     double              vsi;            // vertical speed (ft/m)
-    /// loop in `CalcFlightModel` defers the nose-down `pitch.moveTo(
-    /// GND_PITCH_DEG)` until `TOUCHDOWN_HOLD_PITCH_S` seconds have
-    /// elapsed since this timestamp — modelling the aerobrake during
-    /// which a real airliner holds its nose up after the mains touch.
-    /// Cleared back to NAN once the deferred move has fired.
-    double              touchdownTs = NAN;
     bool                bArtificalPos;  // running on artifical positions for roll-out?
     double              speed_m;        /// current speed [m/s]
     MovingParam         heading;        ///< heading movement
@@ -282,6 +273,8 @@ public:
     /// @brief position heading to (usually posList[1], ppos if ppos > posList[1])
     /// @param[out] pTrack Receives heading towards to-position
     const positionTy& GetToPos (double* pTrack = nullptr) const;
+    /// Most future well-known position, posList.back() or ppos
+    const positionTy& GetNewestPos () const;
     // have no more viable positions left, in need of more?
     bool OutOfPositions() const;
     /// periodically find the nearest airport and return a nice position string relative to it

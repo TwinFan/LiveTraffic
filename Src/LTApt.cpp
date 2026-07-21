@@ -2575,7 +2575,8 @@ bool LTAptRefresh ()
         return false;
 
     double radius = dataRefs.GetFdStdDistance_m();
-    if (lastCameraPos.dist(camera) < radius)        // is false if lastCameraPos is NAN
+    if (lastCameraPos.hasPos() &&
+        lastCameraPos.dist(camera) < radius)        // is false if lastCameraPos is NAN
     {
         // Didn't move far, so no new scan for new airports needed.
         // But do we need to check for rwy altitudes after last scan of apt.dat file?
