@@ -1047,31 +1047,14 @@ std::string LTAircraft::GetFlightId() const
 //
 
 // position heading to (usually posList.back(), but ppos if ppos > posList.back())
-const positionTy& LTAircraft::GetToPos(double* pTrack) const
+const positionTy& LTAircraft::GetToPos() const
 {
-    // posList contains more than just the _current_ to-position, but even a future one (temporary state)
-    if ( posList.size() >= 3 ) {
-        if (pTrack)
-            *pTrack = posList[1].angle(posList[2]);
+    // "Normal" state: 2+ positions in the posList and ppos not yet reached the 2nd
+    if ( posList.size() >= 2 && ppos < posList.back() )
         return posList[1];
-    }
-    
-    // "Normal" state: 2 positions in the posList and ppos not yet reached the 2nd
-    if ( posList.size() == 2 && ppos < posList.back() ) {
-        // If we have a nextPos we can provide the track there
-        if (pTrack) {
-            if (posNext.isNormal())
-                *pTrack = posList[1].angle(posNext);
-            else
-                *pTrack = GetTrack();
-        }
-        return posList.back();
-    }
-    
-    // We passed our posList already and don't _exactly_ know where we are headed
-    if (pTrack)
-        *pTrack = GetTrack();
-    return ppos;
+    else
+        // flying somewhere...
+        return ppos;
 }
 
 /// Most future well-known position, posList.back() or ppos
@@ -1182,7 +1165,7 @@ bool LTAircraft::CalcPPos()
     // we need at least two: 'from' and 'to'
     while ( posList.size() < 2 ) {
         // try fetching new data, if succeeded repeated evaluation
-        switch ( fd.TryFetchNewPos(posList, posNextNext, rotateTs) ){
+        switch ( fd.TryFetchNewPos(posList, posNext, rotateTs) ){
             case LTFlightData::TRY_NO_DATA:
                 // no new data available...tell fd (maybe again) that we urgendtly need some!
                 fd.TriggerCalcNewPos(tsLastCalcRequested = currCycle.simTime);
@@ -1218,7 +1201,7 @@ bool LTAircraft::CalcPPos()
 
         // 0,5s before reaching last known position we try adding new positions
         if (lastPos.ts() <= currCycle.simTime + TIME_REQU_POS) {
-            if (fd.TryFetchNewPos(posList, posNextNext, rotateTs) == LTFlightData::TRY_SUCCESS) {
+            if (fd.TryFetchNewPos(posList, posNext, rotateTs) == LTFlightData::TRY_SUCCESS) {
                 // we got new position(s)!
                 bArtificalPos = false;
             }
@@ -1267,11 +1250,6 @@ bool LTAircraft::CalcPPos()
             // point to some reasonable heading
             heading.SetVal(ppos.heading() = from.heading());
         }
-        
-        // Snapshot the spline's exit-tangent control point (P3)
-        // That is the _likely_ (though not _guaranteed_) position to be reached
-        // after 'to', to be used as Spline control point.
-        posNext = posNextNext;
         
         // To absolutely ensure we continue seamlessly from current
         // ppos we set posList[0] ('from') to ppos. Should be close anyway in normal
@@ -1408,8 +1386,7 @@ bool LTAircraft::CalcPPos()
         speed_m > 0.5 &&
         !bArtificalPos)
     {
-        // add ppos and the stop point (ppos + above vector) to the list of positions
-        // (they will be activated with the next frame only)
+        // add a stop point (ppos + above vector) to the list of positions
         positionTy posStop = AccelCalcStopPoint(ppos, speed_m, pMdl->ROLL_OUT_DECEL);
         posStop.f.flightPhase = FPH_STOPPED_ON_RWY;
         posList.push_back(ppos);
@@ -1418,12 +1395,12 @@ bool LTAircraft::CalcPPos()
             LOG_MSG(logDEBUG,DBG_INVENTED_STOP_POS,posStop.dbgTxt().c_str());
         }
         // for Spline computations, we need a very slow, but directed vector after the stop point
-        posNextNext = posStop + vectorTy(posStop.heading(), SIMILAR_POS_DIST, NAN, 1.0 / KT_per_M_per_S);
-        posList.push_back(posNextNext);
+        posStop += vectorTy(posStop.heading(), SIMILAR_POS_DIST, NAN, 1.0 / KT_per_M_per_S);
+        posList.push_back(posStop);
         // add that last one again at the same position, 5s later, to ensure an absolute stop
-        posStop = posNextNext;
         posStop.ts() += 5.0;
         posList.push_back(posStop);
+        posNext = positionTy();
         bArtificalPos = true;                   // flag: we are working with an artifical position now
     }
     

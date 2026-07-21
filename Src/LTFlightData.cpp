@@ -651,7 +651,8 @@ void LTFlightData::DataCleansing (bool& bChanged)
         
         // position _before_ the first position in the deque
         if (pAc) {
-            pos1 = pAc->GetToPos(&h1);
+            pos1 = pAc->GetToPos();
+            h1 = pos1.heading();
             // if (still) the to-Pos is current iter pos then increment
             // (could be that plane's current 'to' is still the first
             //  in out queue)

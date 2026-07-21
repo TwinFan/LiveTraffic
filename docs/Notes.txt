@@ -13,9 +13,6 @@ First turn to track, then turn to final
 
 Handle change of local coordinate system for CSplines (and maybe Beziers)
 
-Exception bWrapAround
-
-
 Refactor
 -------
 Roll based on 2nd derivative of Spline
