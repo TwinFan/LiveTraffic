@@ -432,6 +432,10 @@ public:
     static void AppendAllNewPos();      // called from main thread, can calc terrain
     void AppendNewPos();                // called from AppendAllNewPos
 
+    /// @brief Hover check: Force a position on the ground if hovering low over runway
+    /// @returns if position should be entirely ignored
+    bool HoverDetection (positionTy& pos);
+    
     // check if thisPos would be OK after lastPos
     bool IsPosOK (const positionTy& lastPos,
                   const positionTy& thisPos,

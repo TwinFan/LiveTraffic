@@ -6,9 +6,6 @@ Bug
 
 Handle change of local coordinate system for CSplines (and maybe Beziers)
 
-Make Navigraph's / RealTraffic's "Hover Detection" generic, it works good for them
-There is another "Hover Detection" already in LTFlightData, maybe replace
-
 Refactor
 -------
 Refactor CalcHeading, it should again do just that

@@ -655,61 +655,6 @@ void LTFlightData::DataCleansing (bool& bChanged)
             }
         } // inner while loop over positions
     } // outer if of data cleansing
-    
-    // *** Hovering-along-the-runway detection ***
-    
-    // RealTraffic's data sometimes has the issue that after approach
-    // a plane does not touch down but instead there is actual tracking
-    // data that lets the plane fly along the runway a few dozen feet
-    // above ground. Looks like calculated predictive data for
-    // case of missing ADS-B data... But prevents LiveTraffic from
-    // just using its autoland feature, which would look a lot better.
-    // So let's remove that hovering stuff
-    
-    const LTChannel* pChn = nullptr;
-    if (pAc && !posDeque.empty() &&
-        FPH_APPROACH <= pAc->GetFlightPhase() &&
-        pAc->GetFlightPhase() < FPH_LANDING &&
-        GetCurrChannel(pChn) && pChn->DoHoverDetection())
-    {
-        // We have a plane which is in approach.
-        const double maxHoverAlt_m = pAc->GetTerrainAlt_m() + (MAX_HOVER_AGL * M_per_FT);
-        
-        // What we now search for is data at level altitude following a descend.
-        // So we follow our positions as long as they are descending.
-        // Then we remove all data which is hovering at level altitude
-        // some few dozen feet above ground.
-        
-        // this increments iter as long as the next pos is descending
-        positionTy prevPos = pAc->GetNewestPos();   // we start comparing with current 'to'-pos of aircraft
-        dequePositionTy::const_iterator iter;
-        for (iter = posDeque.cbegin();              // start at the beginning
-             
-             iter != posDeque.cend() &&             // it's not yet the end, AND
-             !iter->IsOnGnd() &&                    // not on ground, AND
-             iter->vsi_ft(prevPos) < -mdl.VSI_STABLE; // descending considerably
-             
-             prevPos = *iter++ );                   // increment
-        
-        // 'prevPos' now is the last pos of the descend and will no longer change
-        // 'iter' points to the first pos _after_ descend
-        // and is the first deletion candidate.
-        // Delete all positions hovering above the runway.
-        while (iter != posDeque.cend() &&                         // not the end,
-               !iter->IsOnGnd() &&                                // between ground and
-               iter->alt_m() < maxHoverAlt_m &&                   // max hover altitude
-               std::abs(iter->vsi_ft(prevPos)) <= mdl.VSI_STABLE) // and flying level
-        {
-            // remove that hovering position
-            if (dataRefs.GetDebugAcPos(key())) {
-                LOG_MSG(logDEBUG, DBG_HOVER_POS_REMOVED,
-                        keyDbg().c_str(),
-                        iter->dbgTxt().c_str());
-            }
-            iter = posDeque.erase(iter);        // erase and returns element thereafter
-            bChanged = true;
-        }
-    }
 }
 
 // Smoothing data means:
@@ -2331,6 +2276,56 @@ void LTFlightData::CalcHeading (dequePositionTy::iterator it)
         it->heading() = 0;
 }
 
+
+// Hover check: Force a position on the ground if hovering low over runway
+// returns if position should be entirely ignored
+bool LTFlightData::HoverDetection (positionTy& pos)
+{
+    // only do for fixed-wing aircraft
+    if (statData.pDoc8643 && statData.pDoc8643->hasRotor())
+        return false;
+    
+    // The max hover height is about 12s of "initial climb"
+    const LTAircraft::FlightModel& mdl = LTAircraft::FlightModel::FindFlightModel(*this, false);
+    const double maxHoverHeight_m = M_per_FT * mdl.VSI_INIT_CLIMB * NVGR_MAX_RWY_HOVER_CLIMB_DUR_S / 60.0;
+    if (!pos.IsOnGnd() &&                                           // not on ground
+        pos.alt_m() < HIGHEST_AIRPORT_M + maxHoverHeight_m)         // low enough to be potentially hovering low over an airport?
+    {
+        // Do we have a ground situation in the data,
+        // for which the incoming position could be a lift-off position?
+        const double gndAlt_m = GetLastPosGndAlt_m();
+        if (!std::isnan(gndAlt_m) &&
+            pos.alt_m() < gndAlt_m + maxHoverHeight_m)
+        {
+            // So this new data comes right after a gnd position and is pretty low...
+            // is it also above a runway? (then pos is snapped to the rwy)
+            if (LTAptSnapIfOverRwy(pos))
+            {
+                // ...we have forced it on the ground:
+                if (dataRefs.GetDebugAcPos(key())) {
+                    LOG_MSG(logDEBUG, "%s: Forcing a rwy position onto ground with max hover height = %.0fm:\n%s",
+                            key().c_str(), maxHoverHeight_m, pos.dbgTxt().c_str());
+                }
+                pos.f.onGrnd = GND_ON;
+                pos.alt_m() = NAN;
+            }
+            // Not over a rwy: ignore this position
+            else {
+                if (dataRefs.GetDebugAcPos(key())) {
+                    LOG_MSG(logDEBUG, "%s: Ignoring a non-rwy hovering position with max hover height = %.0fm:\n%s",
+                            key().c_str(), maxHoverHeight_m, pos.dbgTxt().c_str());
+                }
+                // tell call: ignore!
+                return true;
+            }
+        }
+    }
+    
+    // tell call: use the (potentially modified) position
+    return false;
+}
+
+
 // check if thisPos would be OK after lastPos,
 // pHeading: if given overrides lastPos.Heading()
 //           if NAN, then no check for heading
@@ -2573,6 +2568,10 @@ void LTFlightData::AddNewPos ( positionTy& pos )
     try {
         // access guarded by a mutex
         std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
+        
+        // Hover detection...if to be ignored then do so
+        if (HoverDetection(pos))
+            return;
 
         // We only consider data that is newer than what we have already
         const positionTy latestPos = GetMostFuturePos();
