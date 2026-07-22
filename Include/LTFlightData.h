@@ -259,10 +259,6 @@ protected:
     FDKeyTy acKey;                  ///< the planes unique identifier, publicly visible
     FDKeyTy acPrivateKey;           ///< (optional) the true but private, ie. non-public identifier of the plane, for purposes of matching against public planes
 
-    // last used Receiver ID, identifies the receiver of the signal of this flight data
-    int             rcvr;
-    int             sig;            // signal level
-    
     std::string     labelStat;      // static part of the a/c label
     DataRefs::LabelCfgTy labelCfg = { 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0 };  // the configuration the label was saved for
     
@@ -390,10 +386,11 @@ protected:
     
 public:
     LTFlightData();
-    LTFlightData(const LTFlightData&);
     ~LTFlightData();
-    
-    LTFlightData& operator=(const LTFlightData&);
+        
+    // No copying
+    LTFlightData(const LTFlightData&) = delete;
+    LTFlightData& operator=(const LTFlightData&) = delete;
     
     bool IsValid() const { return bValid; }
     void SetInvalid(bool bAlsoAc = true);
@@ -480,15 +477,13 @@ public:
     std::string Positions2String () const;
     
     // access dynamic data (other than position)
-    void AddDynData ( const FDDynamicData& inDyn, int rcvr, int sig, positionTy* pos = nullptr ); // new data read from stream to be stored
+    void AddDynData ( const FDDynamicData& inDyn, positionTy* pos = nullptr ); // new data read from stream to be stored
     // access to current dynData, i.e. dnDataDeque[0]
     bool TryGetSafeCopy ( FDDynamicData& outDyn ) const;    // tries to get a copy, fails if lock unavailable
     FDDynamicData WaitForSafeCopyDyn(bool bFirst = true) const;  // waits for lock and returns a copy
     FDDynamicData GetUnsafeDyn() const;                     // no lock, potentially inconsistent!
     bool GetCurrChannel (const LTChannel* &pChn) const;
     dataRefsLT GetCurrChannel () const;                     ///< Current channel's id
-    
-    inline int GetRcvr() const { return rcvr; }
     
     /// @brief For the last queue position, if it is on the ground, return its altitude
     /// @returns `NAN` if last queue pos is not on the ground, or its altitude [m] if it is

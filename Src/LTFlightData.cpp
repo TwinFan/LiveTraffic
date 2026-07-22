@@ -351,20 +351,12 @@ std::recursive_mutex LTFlightData::exportFdMutex;
 
 // Constructor
 LTFlightData::LTFlightData () :
-rcvr(0),sig(0),
 rotateTS(NAN),
 // created "now"...if no positions are ever added then it will be removed after 2 x outdated interval
 youngestTS(dataRefs.GetSimTime() + 2 * dataRefs.GetAcOutdatedIntvl()),
 pAc(nullptr), probeRef(NULL),
 bValid(true)
 {}
-
-// Copy Constructor (needed for emplace into map) doesn't copy mutex
-LTFlightData::LTFlightData(const LTFlightData& fd)
-{
-    // all logic is in the copy assignment operator
-    *this = fd;
-}
 
 // Destructor makes sure lock is available and aircraft is removed, too
 LTFlightData::~LTFlightData()
@@ -381,33 +373,6 @@ LTFlightData::~LTFlightData()
     } catch(const std::system_error& e) {
         LOG_MSG(logERR, ERR_LOCK_ERROR, key().c_str(), e.what());
     }
-}
-
-// Copy assignment operator copies all but the mutex
-LTFlightData& LTFlightData::operator=(const LTFlightData& fd)
-{
-    try {
-        // access guarded by a mutex
-        std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
-        // copy data
-        acKey               = fd.acKey;             // key
-        rcvr                = fd.rcvr;
-        sig                 = fd.sig;
-        labelStat           = fd.labelStat;
-        labelCfg            = fd.labelCfg;
-        posDeque            = fd.posDeque;          // dynamic data
-        posToAdd            = fd.posToAdd;
-        dynDataDeque        = fd.dynDataDeque;
-        rotateTS            = fd.rotateTS;
-        youngestTS          = fd.youngestTS;
-        statData            = fd.statData;          // static data
-        pAc                 = fd.pAc;
-        probeRef            = fd.probeRef;
-        bValid              = fd.bValid;
-    } catch(const std::system_error& e) {
-        LOG_MSG(logERR, ERR_LOCK_ERROR, key().c_str(), e.what());
-    }
-    return *this;
 }
 
 // set this FD invalid (which will cause it's removal)
@@ -3341,7 +3306,6 @@ std::string LTFlightData::Positions2String () const
 
 // add dynamic data (if new one is more up-to-date)
 void LTFlightData::AddDynData (const FDDynamicData& inDyn,
-                               int _rcvr, int _sig,
                                positionTy* pos)
 {
     try {
@@ -3411,10 +3375,6 @@ void LTFlightData::AddDynData (const FDDynamicData& inDyn,
                 // and keep sorted
                 std::sort(dynDataDeque.begin(),dynDataDeque.end());
             }
-            
-            // either way: we 'like' this receiver
-            rcvr = _rcvr;
-            sig = _sig;
         }
             
         // also export and store the pos (lock is held recursively)

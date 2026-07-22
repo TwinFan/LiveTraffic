@@ -552,7 +552,7 @@ bool NvgrFR24Connection::ProcessFetchedData ()
                 // Add dynamic data
                 LTFlightData::FDDynamicData dyn = nvgrData;
                 dyn.pChannel = this;
-                fd.AddDynData(dyn, 0, 0, &nvgrData.pos);
+                fd.AddDynData(dyn, &nvgrData.pos);
                 
             } else {
                 LOG_MSG(logWARN, "Skipped one incomplete tracking data record for '%s'",

@@ -947,7 +947,7 @@ bool RealTrafficConnection::ProcessTrafficBuffer (const JSON_Object* pBuf)
             }
 
             // add the dynamic data
-            fd.AddDynData(dyn, 0, 0, &pos);
+            fd.AddDynData(dyn, &pos);
 
         } catch(const std::system_error& e) {
             LOG_MSG(logERR, ERR_LOCK_ERROR, "mapFd", e.what());
@@ -1181,7 +1181,7 @@ bool RealTrafficConnection::ProcessParkedAcBuffer (const JSON_Object* pData)
             // add the "dynamic" data
             // We send in the position 3 times in enough of a time distance for the plane to appear directly
             for (int k = 0; k < 4; ++k) {
-                fd.AddDynData(dyn, 0, 0, &pos);
+                fd.AddDynData(dyn, &pos);
                 pos.ts() = (dyn.ts += 0.5 * double(dataRefs.GetFdBufPeriod()));
             }
 
@@ -2343,7 +2343,7 @@ bool RealTrafficConnection::ProcessRTTFC (LTFlightData::FDKeyTy& fdKey,
         }
 
         // add the dynamic data
-        fd.AddDynData(dyn, 0, 0, &pos);
+        fd.AddDynData(dyn, &pos);
 
     } catch(const std::system_error& e) {
         LOG_MSG(logERR, ERR_LOCK_ERROR, "mapFd", e.what());
@@ -2517,7 +2517,7 @@ bool RealTrafficConnection::ProcessAITFC (LTFlightData::FDKeyTy& fdKey,
         fd.UpdateData(std::move(stat), dist);
 
         // add the dynamic data
-        fd.AddDynData(dyn, 0, 0, &pos);
+        fd.AddDynData(dyn, &pos);
 
     } catch(const std::system_error& e) {
         LOG_MSG(logERR, ERR_LOCK_ERROR, "mapFd", e.what());

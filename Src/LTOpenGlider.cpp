@@ -390,7 +390,7 @@ bool OpenGliderConnection::ProcessFetchedData ()
                 // position is rather important, we check for validity
                 // (we do allow alt=NAN if on ground)
                 if ( pos.isNormal(true) )
-                    fd.AddDynData(dyn, 0, 0, &pos);
+                    fd.AddDynData(dyn, &pos);
                 else
                     LOG_MSG(logDEBUG,ERR_POS_UNNORMAL,fdKey.c_str(),pos.dbgTxt().c_str());
             }
@@ -748,7 +748,7 @@ bool OpenGliderConnection::APRSProcessLine (const std::string& ln)
             // position is rather important, we check for validity
             // (we do allow alt=NAN if on ground)
             if ( pos.isNormal(true) )
-                fd.AddDynData(dyn, 0, 0, &pos);
+                fd.AddDynData(dyn, &pos);
             else
                 LOG_MSG(logDEBUG,ERR_POS_UNNORMAL,fdKey.c_str(),pos.dbgTxt().c_str());
         }
