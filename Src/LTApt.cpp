@@ -1291,7 +1291,7 @@ public:
         if (posIter != fd.posDeque.begin())
             pPrevPos = &(*std::prev(posIter));
         else if (fd.hasAc())
-            pPrevPos = &(fd.pAc->GetToPos());
+            pPrevPos = &(fd.pAc->GetNewestPos());
 
         // 1. --- Try to match pos with a startup location
         if (const StartupLoc* pStartLoc = FindStartupLoc(pos,

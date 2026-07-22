@@ -603,7 +603,7 @@ void LTFlightData::DataCleansing (bool& bChanged)
     if ((pAc && !posDeque.empty()) || (posDeque.size() >= 2))
     {
         positionTy& last = posDeque.back();
-        const positionTy& prev = posDeque.size() >= 2 ? *std::prev(posDeque.cend(),2) : pAc->GetToPos();
+        const positionTy& prev = posDeque.size() >= 2 ? *std::prev(posDeque.cend(),2) : pAc->GetNewestPos();
         double terrain_alt_m = pAc ? pAc->GetTerrainAlt_m() : NAN;
         if (!prev.IsOnGnd() &&                      // too late? ;-) position shall not already be on the ground
             !std::isnan(last.alt_m()) &&            // do we have an altitude at all?
@@ -651,7 +651,7 @@ void LTFlightData::DataCleansing (bool& bChanged)
         
         // position _before_ the first position in the deque
         if (pAc) {
-            pos1 = pAc->GetToPos();
+            pos1 = pAc->GetNewestPos();
             h1 = pos1.heading();
             // if (still) the to-Pos is current iter pos then increment
             // (could be that plane's current 'to' is still the first
@@ -716,7 +716,7 @@ void LTFlightData::DataCleansing (bool& bChanged)
         // some few dozen feet above ground.
         
         // this increments iter as long as the next pos is descending
-        positionTy prevPos = pAc->GetToPos();       // we start comparing with current 'to'-pos of aircraft
+        positionTy prevPos = pAc->GetNewestPos();   // we start comparing with current 'to'-pos of aircraft
         dequePositionTy::const_iterator iter;
         for (iter = posDeque.cbegin();              // start at the beginning
              
@@ -1058,7 +1058,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
                 // No more positions on the ground: Make the a/c stop
                 // by adding the last known position just once again as artifical stop.
                 else if (pAc->IsOnGrnd()) {
-                    positionTy stopPos = pAc->GetToPos();
+                    positionTy stopPos = pAc->GetNewestPos();
                     if (stopPos.IsOnGnd() &&
                         stopPos.f.flightPhase != FPH_TOUCH_DOWN &&      // don't copy touch down pos, that looks ugly, and hinders auto-land/stop
                         stopPos.f.flightPhase != FPH_STOPPED_ON_RWY &&  // avoid adding several stops
@@ -1221,7 +1221,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
             {
                 // i == 0 is as above with actual a/c present position
                 // in later runs we use future data from our queue
-                const positionTy& ppos_i  = i == 0 ? pAc->GetToPos() : posDeque[i-1];
+                const positionTy& ppos_i  = i == 0 ? pAc->GetNewestPos() : posDeque[i-1];
                 positionTy& to_i          = posDeque[i];
                 const double to_i_ts      = to_i.ts();  // the reference might become invalid later once we start erasing, so we copy this timestamp that we need
                 
@@ -1614,7 +1614,7 @@ void LTFlightData::CalcHeading (dequePositionTy::iterator it)
         if (it != posDeque.cbegin()) {
             pPrePos = &*std::prev(it);
         } else if (pAc) {
-            const positionTy& toPos = pAc->GetToPos();
+            const positionTy& toPos = pAc->GetNewestPos();
             if (toPos.isNormal(true) && toPos.IsOnGnd() &&
                 !std::isnan(toPos.ts()) && it->ts() > toPos.ts())
             {
@@ -2271,7 +2271,7 @@ void LTFlightData::CalcHeading (dequePositionTy::iterator it)
         }
     } else if (pAc) {
         // no predecessor in the queue...but there is an a/c, take that
-        const positionTy& prePos = pAc->GetToPos();
+        const positionTy& prePos = pAc->GetNewestPos();
         vecTo = prePos.between(*it);
         if (vecTo.dist < SIMILAR_POS_DIST)      // distance from predecessor to it too short
         {
@@ -2983,12 +2983,12 @@ void LTFlightData::AppendNewPos()
                 if (posDeque.size() >= 2)
                     headToLatest = posDeque[posDeque.size()-2].angle(*pLatestPos);
                 else if (hasAc())
-                    headToLatest = pAc->GetToPos().angle(*pLatestPos);
+                    headToLatest = pAc->GetNewestPos().angle(*pLatestPos);
             }
             // no deque positions, but an aircraft?
             else if (hasAc())
             {
-                pLatestPos = &(pAc->GetToPos());
+                pLatestPos = &(pAc->GetNewestPos());
                 headToLatest = pAc->GetTrack();
             }
 
@@ -3141,7 +3141,7 @@ LTFlightData::tryResult LTFlightData::TryFetchNewPos (dequePositionTy& acPosList
             posDeque.pop_front();
         } else {
             // there is an a/c...only use stuff past current 'to'-pos
-            const positionTy& to = pAc->GetToPos();
+            const positionTy& to = pAc->GetNewestPos();
             LOG_ASSERT_FD(*this, !std::isnan(to.ts()));
             
             // Remove outdated positions from posDeque,
@@ -3205,7 +3205,7 @@ positionTy LTFlightData::GetMostFuturePos () const
         return posDeque.back();
     // Has an aircraft?
     if (hasAc())
-        return GetAircraft()->GetToPos();
+        return GetAircraft()->GetNewestPos();
     // Nothing found!
     return positionTy();
 }

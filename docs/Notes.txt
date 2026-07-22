@@ -11,7 +11,6 @@ There is another "Hover Detection" already in LTFlightData, maybe replace
 
 Refactor
 -------
-Verify all use of LTAircraft::GetToPos, replace with GetNewestPos
 Refactor CalcHeading, it should again do just that
 Pushback (might need to go together with CalcHeading refactor)
   Idea: Just set a "ReverseHeading" flag in positionTy, that is only pulled when handing over heading to XPMP2::Aircraft
