@@ -1259,7 +1259,7 @@ bool LTAircraft::CalcPPos()
             bOnGrnd = from.IsOnGnd();
             
             // avg of the current vector
-            speed_m = vec.speed;
+            speed_m = from.speed_m(to);
             
             // point to some reasonable heading
             heading.SetVal(ppos.heading() = from.heading());
@@ -1439,13 +1439,14 @@ bool LTAircraft::CalcPPos()
     //     and if no Spline was defined due to too small movement.
     if (f <= 1.0 && locSpline) {
         // TODO: Better encapsulation
+        const double alt_m = ppos.alt_m();                  // We save the altitude
         ppos.setLoc(locSpline.val(currCycle.simTime));      // this is now local coordinates!
-        ppos.f.unitCoord = UNIT_LOCAL;                      // convert back to world coordinates
-        ppos.LocalToWorld();
+        ppos.LocalToWorld();                                // convert back to world coordinates
+        ppos.alt_m() = alt_m;                               // override with "our" altitude
         // Heading/Speed vactor
-        const ptTy v = locSpline.slope(currCycle.simTime);
-        speed_m = v.length();
-        heading.SetVal(ppos.heading() = v.angle());
+        const positionTy v = locSpline.slope(currCycle.simTime);
+        speed_m = v.lengthXZ();
+        heading.SetVal(ppos.heading() = v.angleXZ());
     }
     // is instead a Bezier curve defined?
     else if (f <= 1.0 && locBezier) {

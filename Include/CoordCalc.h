@@ -77,7 +77,8 @@ struct ptTy {
     ptTy operator + (const ptTy& _o) const { return ptTy ( x+_o.x, y+_o.y); }   ///< scalar sum
     ptTy& operator += (const ptTy& _o) { x+=_o.x; y+=_o.y; return *this; }      ///< scalar sum
     ptTy operator - (const ptTy& _o) const { return ptTy ( x-_o.x, y-_o.y); }   ///< scalar difference
-    ptTy operator * (const double d) const { return ptTy ( d*x, d*y); }         ///< scalar product
+    ptTy operator * (const double d) const { return ptTy ( x*d, y*d); }         ///< scalar product
+    ptTy operator / (const double d) const { return ptTy ( x/d, y/d); }         ///< scalar product
     bool operator== (const ptTy& _o) const;                                     ///< equality based on dequal() (ie. 'nearly' equal)
     bool operator!= (const ptTy& _o) const { return !operator==(_o); }          ///< unequality bases on `not equal`
     bool isValid() const { return !std::isnan(x) && !std::isnan(y); }           ///< valid if both `x` and `y` are not `NAN`
@@ -96,8 +97,7 @@ struct ptTy {
 
     std::string dbgTxt () const;                                                ///< returns a string "y, x" for the point/position
 };
-inline ptTy operator * (double d, ptTy pt) { return ptTy ( d * pt.x, d * pt.y); }   ///< scalar multiplication
-inline ptTy operator / (ptTy pt, double d) { return ptTy ( pt.x / d, pt.y / d); }   ///< scalar division
+inline ptTy operator * (double d, ptTy pt) { return pt * d; }                   ///< scalar multiplication
 
 /// Vector of points
 typedef std::vector<ptTy> vecPtTyT;
@@ -415,15 +415,9 @@ public:
     positionTy ( const ptTy& _pt) :
         positionTy ( _pt.y, _pt.x ) {}
     
-    // merge with the given position
-    positionTy& operator |= (const positionTy& pos);
-
-    // Operations on the double values only (_lat through _roll)
-    positionTy& operator+= (const positionTy& o);           ///< adds o._lat to _lat and so on...till o._roll to _roll
-    positionTy& operator*= (double d);                      ///< multiplies _lat,...,_roll with f
-
     // typecase to ptTy
     operator ptTy() const { return ptTy(lon(),lat()); }
+    
     // standard string for any output purposes
     static const char* GrndE2String (onGrndE grnd);
     std::string dbgTxt() const;
@@ -497,6 +491,15 @@ public:
     inline double& X() { return lon(); }
     inline double& Y() { return alt_m(); }
 
+    // Location-only scalar/vector operations
+    positionTy operator + (const positionTy& o) const;          ///< scalar sum of x/y/z
+    positionTy operator - (const positionTy& o) const;          ///< scalar diff of x/y/z
+    positionTy operator * (const double d) const;               ///< scalar product
+    positionTy operator / (const double d) const;               ///< scalar product
+    double lengthXZ2 () const { return sqr(X())+sqr(Z()); }             ///< squared magnitude of X/Z vector
+    double lengthXZ  () const { return std::sqrt(lengthXZ2()); }        ///< magnitude of X/Z vector
+    double angleXZ ()   const { return rad2deg360(atan2(X(), -Z())); }  ///< angle X/Z is pointing to
+    
     // short-cuts to coord functions
     inline double angle (const positionTy& pos2 ) const       { return CoordAngle ( *this, pos2); }
     inline double dist (const positionTy& pos2 ) const        { return CoordDistance ( *this, pos2); }
@@ -514,12 +517,17 @@ public:
     positionTy& operator += (const vectorTy& vec );
     
     /// Set location from a ptTy
-    void setLoc (const ptTy& pt) { lat()=pt.y; lon()=pt.x; }
-    
+    void setLoc (const ptTy& pt)        { lat()=pt.y;       lon()=pt.x;      }
+    /// Set location (and with it f.unitCoord), but don't touch other fields
+    void setLoc (const positionTy& pos);
+
     // convert between World and Local OpenGL coordinates
     positionTy& LocalToWorld ();
     positionTy& WorldToLocal ();
 };
+
+/// Scalar product
+inline positionTy operator * (double d, const positionTy& p) { return p * d; }
 
 typedef std::deque<positionTy> dequePositionTy;
 

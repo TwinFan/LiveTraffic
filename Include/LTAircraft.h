@@ -200,8 +200,8 @@ public:
     positionTy          posNext;
     /// cSpline for altitude
     CSpline<double>     altSpline;
-    /// 2D cSpline for position
-    CSpline<ptTy>       locSpline;
+    /// 3D cSpline for position
+    CSpline<positionTy> locSpline;
     /// 2D Bezier for position (alternative for locSpline)
     BezierCurve         locBezier;
     

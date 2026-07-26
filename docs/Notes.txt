@@ -4,7 +4,12 @@ TODO
 Bug
 -----
 
+Rotate up after De-Flare had started (KLAX )
+
+Auto-Land stops on touch-down
+
 Handle change of local coordinate system for CSplines (and maybe Beziers)
+
 
 Refactor
 -------

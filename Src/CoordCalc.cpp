@@ -387,76 +387,6 @@ vectorTy::operator std::string() const
 //MARK: positionTy
 //
 
-// "merges" with the given position, i.e. creates kind of an "average" position
-positionTy& positionTy::operator |= (const positionTy& pos)
-{
-    LOG_ASSERT(f.unitCoord == pos.f.unitCoord && f.unitAngle == pos.f.unitAngle);
-    // heading needs special treatment
-    // (also removes nan value if one of the headings is nan)
-    const double h = HeadingAvg(heading(), pos.heading(), mergeCount, pos.mergeCount);
-    // take into account how many other objects made up the current pos! ("* count")
-
-    // Special handling for possible NAN values: If NAN on either side then the other wins
-    double prev_alt = std::isnan(alt_m()) ? pos.alt_m() : alt_m();
-    double prev_ptc = std::isnan(pitch()) ? pos.pitch() : pitch();
-    double prev_rol = std::isnan(roll())  ? pos.roll()  : roll();
-
-	// previous implementation:    v = (v * mergeCount + pos.v) / (mergeCount+1);
-    (*this *= mergeCount) += pos;
-    ++mergeCount;
-    *this *= 1.0 / mergeCount;
-
-    heading() = h;
-    
-    // Handle NAN cases
-    if (std::isnan(alt_m())) alt_m() = prev_alt;
-    if (std::isnan(pitch())) pitch() = prev_ptc;
-    if (std::isnan(roll()))  roll()  = prev_rol;
-
-    // any special flight phase? shall survive
-    // (if both pos have special flight phases then ours survives)
-    if (!f.flightPhase)
-        f.flightPhase = pos.f.flightPhase;
-    
-    // ground status: if different, then the new one is likely off ground,
-    //                but we have it determined soon
-    if (f.onGrnd != pos.f.onGrnd)
-        f.onGrnd = GND_UNKNOWN;       // IsOnGnd() will return false for this!
-    
-    // Special Pos and other location flags need to be re-evaluated
-    f.bHeadFixed = false;
-    f.specialPos = SPOS_NONE;
-    edgeIdx      = EDGE_UNKNOWN;
-    
-    return normalize();
-}
-
-// adds o._lat to _lat and so on...till o._roll to _roll
-positionTy& positionTy::operator+= (const positionTy& o)
-{
-    _lat   += o._lat;
-    _lon   += o._lon;
-    _alt   += o._alt;
-    _ts    += o._ts;
-    _head  += o._head;
-    _pitch += o._pitch;
-    _roll  += o._roll;
-    return *this;
-}
-
-// multiplies _lat,...,_roll with f
-positionTy& positionTy::operator*= (double d)
-{
-    _lat   *= d;
-    _lon   *= d;
-    _alt   *= d;
-    _ts    *= d;
-    _head  *= d;
-    _pitch *= d;
-    _roll  *= d;
-    return *this;
-}
-
 const char* positionTy::GrndE2String (onGrndE grnd)
 {
     switch (grnd) {
@@ -469,18 +399,30 @@ const char* positionTy::GrndE2String (onGrndE grnd)
 std::string positionTy::dbgTxt () const
 {
     char buf[200];
-    snprintf(buf, sizeof(buf), "%.1f: (%7.5f, %7.5f) %7.1fft %8.8s %3.3s %-13.13s %4.*zu {h %3.0f%c, p %3.0f, r %3.0f}",
-             ts(),
-             lat(), lon(),
-             alt_ft(),
-             GrndE2String(f.onGrnd),
-             SpecialPosE2String(f.specialPos),
-             f.flightPhase ? (LTAircraft::FlightPhase2String(f.flightPhase)).c_str() : "",
-             HasTaxiEdge() ? 1 : 0,
-             HasTaxiEdge() ? edgeIdx : 0,
-             heading(),
-             (f.bHeadFixed ? '*' : ' '),
-             pitch(), roll());
+    
+    if (f.unitCoord == UNIT_WORLD) {
+        snprintf(buf, sizeof(buf), "%.1f: (%7.5f, %7.5f) %7.1fft %8.8s %3.3s %-13.13s %4.*zu {h %3.0f%c, p %3.0f, r %3.0f}",
+                 ts(),
+                 lat(), lon(),
+                 alt_ft(),
+                 GrndE2String(f.onGrnd),
+                 SpecialPosE2String(f.specialPos),
+                 f.flightPhase ? (LTAircraft::FlightPhase2String(f.flightPhase)).c_str() : "",
+                 HasTaxiEdge() ? 1 : 0,
+                 HasTaxiEdge() ? edgeIdx : 0,
+                 heading(),
+                 (f.bHeadFixed ? '*' : ' '),
+                 pitch(), roll());
+    } else {
+        double lat = NAN, lon = NAN, alt = NAN;
+        if (dataRefs.IsXPThread()) {
+            XPLMLocalToWorld(X(), Y(), Z(), &lat, &lon, &alt);
+            alt /= M_per_FT;
+        }
+        snprintf(buf, sizeof(buf), "(%7.5f | %7.5f) %7.5fm = (%7.5f, %7.5f) %7.1fft",
+                 Z(), X(), Y(),
+                 lat, lon, alt);
+    }
     return std::string(buf);
 }
 
@@ -597,12 +539,65 @@ positionTy& positionTy::rad2deg()
     return *this;
 }
 
+// scalar sum of x/y/z
+positionTy positionTy::operator + (const positionTy& o) const
+{
+    assert(f.unitCoord == UNIT_LOCAL);
+    positionTy ret = *this;
+    ret.X() += o.X();
+    ret.Y() += o.Y();
+    ret.Z() += o.Z();
+    return ret;
+}
+
+// scalar diff of x/y/z
+positionTy positionTy::operator - (const positionTy& o) const
+{
+    assert(f.unitCoord == UNIT_LOCAL);
+    positionTy ret = *this;
+    ret.X() -= o.X();
+    ret.Y() -= o.Y();
+    ret.Z() -= o.Z();
+    return ret;
+}
+
+// scalar product
+positionTy positionTy::operator * (const double d) const
+{
+    assert(f.unitCoord == UNIT_LOCAL);
+    positionTy ret = *this;
+    ret.X() *= d;
+    ret.Y() *= d;
+    ret.Z() *= d;
+    return ret;
+}
+
+// scalar product
+positionTy positionTy::operator / (const double d) const
+{
+    assert(f.unitCoord == UNIT_LOCAL);
+    positionTy ret = *this;
+    ret.X() /= d;
+    ret.Y() /= d;
+    ret.Z() /= d;
+    return ret;
+}
+
 // move myself by a certain distance in a certain direction (but don't touch alt)
 positionTy& positionTy::operator += (const vectorTy& vec )
 {
     // overwrite myself with new position
     *this = destPos(vec);
     return normalize();                 // normalize and return myself
+}
+
+/// Set location, sets lat/lon if pos is in WORLD, x/y/z if pos is in LOCAL
+void positionTy::setLoc (const positionTy& pos)
+{
+    f.unitCoord = pos.f.unitCoord;
+    X() = pos.X();
+    Y() = pos.Y();
+    Z() = pos.Z();
 }
 
 // convert between World and Local OpenGL coordinates
@@ -1049,23 +1044,24 @@ bool CSpline<T>::cont (double tsNow,
 ///             assuming a straight continuous movement like from p0 to p1,
 ///             hence the vector is (p1-p0)/∆ts
 template<>
-bool CSpline<ptTy>::set (double tsNow,
-                         const positionTy& _p0, double speed0_m,
-                         const positionTy& _p1,
-                         const positionTy& _p2,
-                         double n)
+bool CSpline<positionTy>::set (double tsNow,
+                               const positionTy& _p0, double speed0_m,
+                               const positionTy& _p1,
+                               const positionTy& _p2,
+                               double n)
 {
     // Starting point / tangent ideally is current value
-    ptTy p0, m0;
+    positionTy p0, m0;
     if (isValid()) {
         p0 = val(tsNow);                    // continue from current values
         m0 = slope(tsNow);
     }
     else {
-        positionTy p0convert = _p0;         // otherwise it is the given _p0, converted to local
-        p0 = p0convert.WorldToLocal();
+        p0 = _p0;                           // otherwise it is the given _p0, converted to local
+        p0.WorldToLocal();
         tsNow = _p0.ts();                   // and we calculate with the timestamp given in that position
         m0 = HeadingSpeedVec(_p0.heading(), std::max(speed0_m, 0.5));
+        m0.f.unitCoord = UNIT_LOCAL;
     }
 
     // End point, and next point
@@ -1073,41 +1069,47 @@ bool CSpline<ptTy>::set (double tsNow,
     positionTy p2 = _p2; if (p2.hasPos()) p2.WorldToLocal();
     
     // ending tangent is ideally the average of next legs
-    ptTy m1 = p2.hasPos() ?
-        (ptTy(p2) - ptTy(p0)) * (n / (p2.ts()-tsNow)) :
-        (ptTy(p1) - ptTy(p0)) * (n / (p1.ts()-tsNow));
+    positionTy m1 = p2.hasPos() ?
+        (p2 - p0) * (n / (p2.ts()-tsNow)) :
+        (p1 - p0) * (n / (p1.ts()-tsNow));
     
     // but if we have a fixed heading, then we may need to turn the tangent in that direction
-    const double m0ang = m0.angle();
-    double m1ang = m1.angle();
+    const double m0ang = m0.angleXZ();
+    double m1ang = m1.angleXZ();
     double m1len = NAN;
     if (_p1.f.bHeadFixed &&
         HeadingDiff(_p1.heading(), m1ang) > 1.0)
     {
-        m1 = HeadingSpeedVec(m1ang = _p1.heading(), m1len = m1.length());
+        m1 = HeadingSpeedVec(m1ang = _p1.heading(), m1len = m1.lengthXZ());
+        m1.f.unitCoord = UNIT_LOCAL;
     }
+    
+    // Y (altitude) values of tangents
+    const double dY = (p1.Y() - p0.Y()) / (p1.ts()-tsNow);
+    if (std::isnan(m0.Y())) m0.Y() = dY;
+    if (std::isnan(m1.Y())) m1.Y() = dY;
     
     // Now set the spline parameters
     set (tsNow, p0, m0, _p1.ts(), p1, m1);
 
     // Verify if spline is good, i.e. does not move too far outside the start/end heading range (like in loops or cusps)
-    bool bSplineGood = HeadingIsBetween(slope(t0+0.5*dt).angle(),   // Mid   point's heading
+    bool bSplineGood = HeadingIsBetween(slope(t0+0.5*dt).angleXZ(), // Mid   point's heading
                                         m0ang, m1ang, 3.0);         // Start/End point's heading, Tolerance
     if (!bSplineGood)
     {
         // It may help to adjust the starting speed (m0.length) towards m1.length.
         // That will mean a sudden spead change...but we need to continue somehow:
-        const double m0len = m0.length();
-        if (std::isnan(m1len)) m1len = m1.length();
+        const double m0len = m0.lengthXZ();
+        if (std::isnan(m1len)) m1len = m1.lengthXZ();
         const double lenF = m1len / m0len - 1.0;                        // the full 100% factor to get from m0len to m1len
         // Try a few variants of m0, with length developing towards m1len
         for (double f: {0.2, 0.4, 0.66, 0.95})
         {
-            ptTy m0_ = (f * lenF + 1.0) * m0;
+            positionTy m0_ = (f * lenF + 1.0) * m0;
             set (tsNow, p0, m0_,
                  _p1.ts(), p1, m1);
             // Verify if spline is good, i.e. does not move too far outside the start/end heading range (like in loops or cusps)
-            bSplineGood = HeadingIsBetween(slope(t0+0.5*dt).angle(),    // Mid   point's heading
+            bSplineGood = HeadingIsBetween(slope(t0+0.5*dt).angleXZ(),  // Mid   point's heading
                                            m0ang, m1ang, 3.0);          // Start/End point's heading, Tolerance
             if (bSplineGood)
                 break;
@@ -1130,7 +1132,7 @@ template<typename T>
 bool CSpline<T>::set (double, const positionTy&, double,
                       const positionTy&, const positionTy&, double)
 {
-    static_assert(std::is_same<T,ptTy>::value == false, "Won't work if T is no pyTy");
+    static_assert(std::is_same<T,positionTy>::value == false, "Won't work if T is no positionTy");
     return false;
 }
 
@@ -1158,11 +1160,11 @@ T CSpline<T>::slope (double t) const
 
 // Debug output
 std::string dbgTxt (double d, bool = false) { return std::to_string(d); }
-std::string dbgTxt (const ptTy& pt, bool bExt = false)
+std::string dbgTxt (const positionTy& pt, bool bExt = false)
 {
     if (bExt) {
         char s[100];
-        snprintf(s, sizeof(s), " (%.0f°, %.1fm/s)", pt.angle(), pt.length());
+        snprintf(s, sizeof(s), " (%.0f°, %.1fm/s)", pt.angleXZ(), pt.lengthXZ());
         return pt.dbgTxt() + s;
     }
     return pt.dbgTxt();
@@ -1207,4 +1209,4 @@ std::string CSpline<T>::dbgTxt() const
 
 // Force compilation of the following:
 template struct CSpline<double>;        // 1D Hermite Spline
-template struct CSpline<ptTy>;          // 2D Hermite Spline
+template struct CSpline<positionTy>;    // 3D Hermite Spline
