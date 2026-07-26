@@ -274,71 +274,6 @@ protected:
     positionTy              posRwy;     ///< determined rwy (likely) to land on (position)
     std::string             rwyId;      ///< determined rwy (likely) to land non (human-readable text)
 
-    // ---- Ground holding state (see Constants.h `GND_HOLDING_TIMEOUT_S`) -----
-    // Once an aircraft has been continuously stationary on the ground for
-    // longer than the holding timeout, `bGroundHolding` flips to true and
-    // subsequent feed updates that fall within the "trivial jitter" envelope
-    // (small distance + low groundspeed) are dropped by `AddNewPos` rather
-    // than being appended to `posToAdd`. The streak start timestamp is the
-    // wall-clock `pos.ts()` of the first stationary slot we observed; it is
-    // reset to 0 whenever the aircraft moves meaningfully or leaves ground.
-    /// First timestamp of the current stationary-on-ground streak (sec).
-    /// 0 means "not currently in a stationary streak".
-    double                  groundHoldingSinceTs = 0.0;
-    /// True once the streak has lasted longer than `GND_HOLDING_TIMEOUT_S`.
-    /// While true, trivial feed updates are suppressed in `AddNewPos`.
-    bool                    bGroundHolding       = false;
-    /// Count of consecutive non-stationary updates seen while in holding.
-    /// We do not exit holding on the first one — see `GND_HOLDING_EXIT_CONSEC`.
-    /// Feed jitter can briefly produce a single 2 kt sample for a truly
-    /// parked aircraft; requiring multiple consecutive non-stationary slots
-    /// before exiting avoids those false-exits.
-    int                     groundNonStationaryCnt = 0;
-
-    // ---- Pushback state (simplified state machine) -----------------------
-    // PB_NONE   : not in pushback (taxiing, parked, airborne).
-    // PB_ACTIVE : currently being pushed; aircraft is moving and the
-    //             heading is overridden to `track + 180°` so the tail
-    //             leads the direction of motion. Naturally tracks
-    //             rotating pushes because the nose is recomputed every
-    //             motion slot.
-    // PB_PAUSED : was in pushback, now stationary. The next motion slot
-    //             decides: aligned with held nose ⇒ taxi (EXIT); against
-    //             held nose ⇒ tug continuing (back to PB_ACTIVE).
-    //
-    // Entry signal: `bGateParked` is true (we have observed a
-    // SPOS_STARTUP slot — the aircraft is parked at a gate) AND a slot
-    // with meaningful motion arrives. Exit clears `bGateParked` so the
-    // aircraft must return to a gate before another pushback can fire.
-    enum PushbackStateE { PB_NONE = 0, PB_ACTIVE, PB_PAUSED };
-    PushbackStateE          pbState              = PB_NONE;
-    /// [°] last nose direction computed during pushback. May be sourced
-    /// either from the feed (`feedHdg` — true-nose case) or derived from
-    /// motion (`HeadingNormalize(track + 180°)` — course-feed case). The
-    /// choice is locked once at PB_NONE→PB_ACTIVE entry (see
-    /// `pbUseFeedNose`) and is NOT re-evaluated mid-push, to avoid the
-    /// per-slot flip-flop that produced visible spinning in earlier
-    /// revisions. Held through PB_PAUSED so the exit-direction test
-    /// (resumed motion vs this nose) has a stable reference even if the
-    /// pause lasted many slots.
-    double                  pbHeldNose           = NAN;
-    /// True when the nose source for this pushback is the FEED heading
-    /// (`it->heading()` captured before override). False when the source
-    /// is the position-derived motion track (`track + 180°`). Decided
-    /// once at PB_NONE→PB_ACTIVE entry by comparing the first-motion
-    /// feedHdg against the prior parked heading: if they are within
-    /// ~30° the feed is reporting true nose (rotates accurately during
-    /// the push) — trust it. Otherwise the feed is reporting course-
-    /// over-ground (≈ motion direction during push, useless as a nose
-    /// reference) — derive nose from track. Locked for the duration of
-    /// the push; cleared on exit (PB_NONE) or airborne transition.
-    bool                    pbUseFeedNose        = false;
-    /// True once a SPOS_STARTUP slot has been added to the deque (i.e.
-    /// the aircraft is/was parked at an apt.dat startup location).
-    /// Required for `PB_NONE → PB_ACTIVE` entry. Cleared on the same
-    /// frame the state machine exits to `PB_NONE`.
-    bool                    bGateParked          = false;
-
     // STATIC DATA (protected, access will be mutex-controlled for thread-safety)
     FDStaticData            statData;
     
@@ -435,11 +370,14 @@ public:
     /// @returns if position should be entirely ignored
     bool HoverDetection (positionTy& pos);
     
-    // check if thisPos would be OK after lastPos
-    bool IsPosOK (const positionTy& lastPos,
-                  const positionTy& thisPos,
-                  double* pHeading = nullptr,
-                  bool* pbChanged = nullptr);
+    /// @brief check if thisPos would be OK after lastPos
+    /// @param trackToPrevPos Track heading plane takes to lastPos (needed to calculate turn at point lastPos)
+    /// @param prevPos Previous position just before `thisPos`
+    /// @param thisPos The position to verify, to be added after `lastPos`
+    /// @returns if `thisPos` is OK to be added after `prevPos`
+    bool IsPosOK (double trackToPrevPos,
+                  const positionTy& prevPos,
+                  const positionTy& thisPos);
     
     // youngest ts, i.e. timestamp of youngest used good position
     inline double GetYoungestTS() const { return youngestTS; }
