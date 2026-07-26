@@ -76,6 +76,7 @@ public:
     SyntheticConnection ();
     /// No URL involved
     std::string GetURL (const positionTy&) override { return ""; }
+    bool DoHoverDetection () const override { return false; }
     /// Scan for relevant flight data
     bool FetchAllData(const positionTy&) override;
     /// Processes the available stored data

@@ -99,9 +99,6 @@
 #define ERR_ADSBEX_NO_KEY_DEF   "ADS-B Exchange: API Key missing. Get one at rapidapi.com/adsbx/api/adsbexchange-com1 and enter it in Basic Settings."
 #define ERR_ADSBEX_OTHER        "ADS-B Exchange: Received an ERRor response: %s"
 
-constexpr double ADSBEX_SMOOTH_AIRBORNE = 65.0; // smooth 65s of airborne data
-constexpr double ADSBEX_SMOOTH_GROUND   = 35.0; // smooth 35s of ground data
-
 //
 // MARK: Base class for ADSBEx format
 //
@@ -137,9 +134,6 @@ public:
     ADSBExchangeConnection ();
     std::string GetURL (const positionTy& pos) override;
     std::string GetStatusText () const override;  ///< return a human-readable staus
-//    // shall data of this channel be subject to LTFlightData::DataSmoothing?
-//    bool DoDataSmoothing (double& gndRange, double& airbRange) const override
-//    { gndRange = ADSBEX_SMOOTH_GROUND; airbRange = ADSBEX_SMOOTH_AIRBORNE; return true; }
     
 protected:
     void Main () override;          ///< virtual thread main function

@@ -182,6 +182,8 @@ public:
     void Stop (bool bWaitJoin) override;            ///< also close the aircraft list file
     /// Invokes APRS thread, or returns URL to fetch current data from live.glidernet.org
     std::string GetURL (const positionTy& pos) override;
+    /// OpenGlider doesn't work with ADS-B data, hence doesn't run into the same hover-over-rwy problem as all the ADS-B channels
+    bool DoHoverDetection () const override { return false; }
     /// @brief Processes the fetched data
     bool ProcessFetchedData () override;
     bool FetchAllData(const positionTy& pos) override { return LTOnlineChannel::FetchAllData(pos); }

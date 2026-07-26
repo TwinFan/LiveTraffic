@@ -657,95 +657,6 @@ void LTFlightData::DataCleansing (bool& bChanged)
     } // outer if of data cleansing
 }
 
-// Smoothing data means:
-// We change timestamps(!) of tracking data in order to have
-// speed change smoothly.
-// This is particularly necessary if position's timestamps aren't
-// reliable as speed is a function of
-// distance (between positions, which are assumed reliable) and
-// time (between timestamps, which in _this_ function are assumed unreliable).
-// Introduced with RealTraffic, which doesn't transmit the position's timestamp,
-// hence timestamps are unreliable between [ts-10s;ts].
-void LTFlightData::DataSmoothing (bool& bChanged)
-{
-    double gndRange = 0.0;
-    double airbRange = 0.0;
-    
-    // access guarded by a mutex
-    std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
-
-    // shall we do data smoothing at all?
-    const LTChannel* pChn = nullptr;
-    if (!GetCurrChannel(pChn) || !pChn->DoDataSmoothing(gndRange,airbRange))
-        return;
-    
-    // find first and last positions for smoothing
-    const positionTy& posFirst = posDeque[0];
-    const double tsRange = posFirst.IsOnGnd() ? gndRange : airbRange;
-    dequePositionTy::iterator itLast = posDeque.begin();
-    for (++itLast; itLast != posDeque.end(); ++itLast) {
-        // there are various 'stop' conditions
-        //  most important: leaving allowed smoothing range (in seconds)
-        if (itLast->ts() - posFirst.ts() > tsRange  ||
-            // don't smooth across gnd status changes
-            itLast->f.onGrnd != posFirst.f.onGrnd       ||
-            // don't smooth across artifically calculated positions
-            itLast->f.flightPhase != FPH_UNKNOWN)
-            break;
-    }
-    // we went one too far...so how far did we go into the deque?
-    --itLast;
-    // not far enough for any smoothing?
-    if (std::distance(posDeque.begin(), itLast) < 2)
-        return;
-    
-    // what is the total distance travelled between first and last?
-    // (to take curves into account we need to sum up individual distances)
-    double dist = 0.0;
-    dequePositionTy::iterator itPrev = posDeque.begin();        // previous pos
-    for (dequePositionTy::iterator it = std::next(itPrev);      // next pos
-         itPrev != itLast;
-         ++it, ++itPrev)
-    {
-        dist += itPrev->dist(*it);                              // distance between prev and next
-    }
-    const double totTime = itLast->ts() - posFirst.ts();
-    // sanity check: some reasonable time
-    if (totTime < 1.0)
-        return;
-    // avg speed:
-    const double speed = dist / totTime;
-    // sanity check: some reasonable speed to avoid INF and NAN values
-    if (speed < 1.0)
-        return;
-
-    // all positions between first and last are now to be moved in a way
-    // that the speed stays constant in all segments
-    itPrev = posDeque.begin();
-    for (dequePositionTy::iterator it = std::next(itPrev);
-         it != itLast;
-         ++it, ++itPrev)
-    {
-        // speed is constant, but distances differs from leg to leg
-        // and, thus, determines time difference:
-        it->ts() = itPrev->ts() + itPrev->dist(*it) / speed;
-    }
-    
-    // If previously there where two (or more) positions with the exact same
-    // position but different timestamps then these positions now have the very
-    // same timestamp. (Distance between them is 0, with the above calculation
-    // time difference now is also 0.) We must remove these duplicates:
-    dequePositionTy::iterator dup;
-    while ((dup = std::adjacent_find(posDeque.begin(), posDeque.end(),
-                                     // find two adjacent positions with same timestamp:
-                                     [](const positionTy& a, const positionTy& b){return dequal(a.ts(),b.ts());})) != posDeque.end())
-    {
-        posDeque.erase(dup);
-    }
-    
-    // so we changed data
-    bChanged = true;
-}
 
 // shift ground positions to taxiways, insert positions at taxiway nodes
 void LTFlightData::SnapToTaxiways (bool& bChanged)
@@ -883,11 +794,6 @@ bool LTFlightData::CalcNextPos ( double simTime )
                     i++;
             }
         }
-        
-        // *** Data Smoothing ***
-        // (potentially changes timestamp, so needs to be befure
-        //  maintenance, which relies on timestamps)
-        DataSmoothing(bChanged);
         
         // *** maintenance of buffered positions ***
         
@@ -2281,13 +2187,18 @@ void LTFlightData::CalcHeading (dequePositionTy::iterator it)
 // returns if position should be entirely ignored
 bool LTFlightData::HoverDetection (positionTy& pos)
 {
+    // shall we do data smoothing at all for current channel?
+    const LTChannel* pChn = nullptr;
+    if (!GetCurrChannel(pChn) || !pChn->DoHoverDetection())
+        return false;
+
     // only do for fixed-wing aircraft
     if (statData.pDoc8643 && statData.pDoc8643->hasRotor())
         return false;
     
     // The max hover height is about 12s of "initial climb"
     const LTAircraft::FlightModel& mdl = LTAircraft::FlightModel::FindFlightModel(*this, false);
-    const double maxHoverHeight_m = M_per_FT * mdl.VSI_INIT_CLIMB * NVGR_MAX_RWY_HOVER_CLIMB_DUR_S / 60.0;
+    const double maxHoverHeight_m = M_per_FT * mdl.VSI_INIT_CLIMB * MAX_RWY_HOVER_CLIMB_DUR / 60.0;
     if (!pos.IsOnGnd() &&                                           // not on ground
         pos.alt_m() < HIGHEST_AIRPORT_M + maxHoverHeight_m)         // low enough to be potentially hovering low over an airport?
     {
