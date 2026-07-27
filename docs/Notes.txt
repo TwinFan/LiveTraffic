@@ -4,12 +4,16 @@ TODO
 Bug
 -----
 
-Rotate up after De-Flare had started (KLAX )
+Leaving rwy after touch-down is often too early, short-cutting the corner
+Idea: In this case take the beginning point of the taxi edge into the path
+instead of the mid point of the edge
+Also...when the nextPos is not on rwy then we should no longer prefer rwy positions,
+we now stick really long on the rwy. That is good for getting onto the rwy, but not off.
 
 Auto-Land stops on touch-down
 
 Handle change of local coordinate system for CSplines (and maybe Beziers)
-
+(at least clear Splines and Beziers, so that planes revert to linear interpolation for the rest of the leg)
 
 Refactor
 -------

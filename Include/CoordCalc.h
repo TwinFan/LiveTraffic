@@ -699,7 +699,7 @@ struct CSpline {
     /// @note Only for T = ptTy
     /// @returns if a valid Spline was defined
     bool set (double tsNow,
-              const positionTy& p0, double speed0_m,
+              const positionTy& p0, double speed0_m, double vsi0_m,
               const positionTy& p1,
               const positionTy& p2,
               double n = 1.0);
@@ -710,6 +710,9 @@ struct CSpline {
     /// Valid?
     bool isValid () const { return !std::isnan(t0) && !std::isnan(dt); }
     operator bool () const { return isValid(); }
+    
+    /// Good? Doesn't seem to have loops?
+    bool isGood (double m0ang, double m1ang, double tolerance) const;
     
     /// Value at t with `_t0 <= t <= _t1`
     T val (double t) const;

@@ -1034,6 +1034,18 @@ bool CSpline<T>::cont (double tsNow,
     return true;
 }
 
+// Verify if spline is good, i.e. does not move too far outside the start/end heading range (like in loops or cusps)
+template<>
+bool CSpline<positionTy>::isGood (double m0ang, double m1ang, double tolerance) const
+{
+    return
+    HeadingIsBetween(slope(t0+0.1*dt).angleXZ(),    // 10%   point's heading
+                     m0ang, m1ang, tolerance)       // Start/End point's heading, Tolerance
+    &&
+    HeadingIsBetween(slope(t0+0.5*dt).angleXZ(),    // Mid   point's heading
+                     m0ang, m1ang, tolerance);      // Start/End point's heading, Tolerance
+}
+
 /// @brief Define by current pos + speed, next two pos
 /// @details Tangent m0 is the current speed/heading vector.
 ///          Tangent m1 is
@@ -1045,7 +1057,7 @@ bool CSpline<T>::cont (double tsNow,
 ///             hence the vector is (p1-p0)/∆ts
 template<>
 bool CSpline<positionTy>::set (double tsNow,
-                               const positionTy& _p0, double speed0_m,
+                               const positionTy& _p0, double speed0_m, double vsi0_m,
                                const positionTy& _p1,
                                const positionTy& _p2,
                                double n)
@@ -1086,15 +1098,19 @@ bool CSpline<positionTy>::set (double tsNow,
     
     // Y (altitude) values of tangents
     const double dY = (p1.Y() - p0.Y()) / (p1.ts()-tsNow);
-    if (std::isnan(m0.Y())) m0.Y() = dY;
+    if (std::isnan(m0.Y())) {
+        if (std::isnan(vsi0_m))
+            m0.Y() = dY;
+        else
+            m0.Y() = vsi0_m;                // can/should override with current VSI for smooth movement
+    }
     if (std::isnan(m1.Y())) m1.Y() = dY;
     
     // Now set the spline parameters
     set (tsNow, p0, m0, _p1.ts(), p1, m1);
 
     // Verify if spline is good, i.e. does not move too far outside the start/end heading range (like in loops or cusps)
-    bool bSplineGood = HeadingIsBetween(slope(t0+0.5*dt).angleXZ(), // Mid   point's heading
-                                        m0ang, m1ang, 3.0);         // Start/End point's heading, Tolerance
+    bool bSplineGood = isGood(m0ang, m1ang, 3.0);                       // Start/End point's heading, Tolerance
     if (!bSplineGood)
     {
         // It may help to adjust the starting speed (m0.length) towards m1.length.
@@ -1109,8 +1125,7 @@ bool CSpline<positionTy>::set (double tsNow,
             set (tsNow, p0, m0_,
                  _p1.ts(), p1, m1);
             // Verify if spline is good, i.e. does not move too far outside the start/end heading range (like in loops or cusps)
-            bSplineGood = HeadingIsBetween(slope(t0+0.5*dt).angleXZ(),  // Mid   point's heading
-                                           m0ang, m1ang, 3.0);          // Start/End point's heading, Tolerance
+            bSplineGood = isGood(m0ang, m1ang, 3.0);                    // Start/End point's heading, Tolerance
             if (bSplineGood)
                 break;
         }
@@ -1129,15 +1144,12 @@ bool CSpline<positionTy>::set (double tsNow,
 
 // all other types don't work with this signature
 template<typename T>
-bool CSpline<T>::set (double, const positionTy&, double,
+bool CSpline<T>::set (double, const positionTy&, double, double,
                       const positionTy&, const positionTy&, double)
 {
     static_assert(std::is_same<T,positionTy>::value == false, "Won't work if T is no positionTy");
     return false;
 }
-
-
-
 
 
 /// Value at t with `_t0 <= t <= _t1`
@@ -1176,7 +1188,7 @@ std::string CSpline<T>::dbgTxt() const
     if (!isValid())
         return "<undefined>";
     
-    char s[1000];
+    char s[2000];
     snprintf(s, sizeof(s),
 #ifdef DEBUG
              "p0:      %s  m0:       %s {%.0f°, %.1fm/s}\n"

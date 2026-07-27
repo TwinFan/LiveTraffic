@@ -1287,11 +1287,12 @@ bool LTAircraft::CalcPPos()
         // *** ground status starts with that one of 'from'
         ppos.f.onGrnd = from.f.onGrnd;
 
-        // *** Spline for ground movement *** of considerable length.
+        // *** Spline for 3D movement *** of considerable length.
         //     Requires a certain distance for clear vectors,
         //     otherwise planes would turn heading artificially.
         if (vec.dist > SIMILAR_POS_DIST) {
-            if (!locSpline.set(currCycle.simTime, ppos, speed_m,
+            if (!locSpline.set(currCycle.simTime,
+                               ppos, speed_m, GetVSI_m_s(),
                                to, posNext))
             {
                 if (dataRefs.GetDebugAcPos(key())) {
@@ -1349,46 +1350,51 @@ bool LTAircraft::CalcPPos()
         
         // *** Altitiude ***
         
-        // CSpline for altitude transition if not staying on ground
-        double m0 = NAN, m1 = NAN;                  // tangents, effectively climb-rate in m/s
-        if (from.IsOnGnd() && to.IsOnGnd())
+        // If using 3D location spline then need nothing else
+        if (locSpline) {
             altSpline.clear();
-        // Flying (or transitioning to/from flying)
-        else
-        {
-            if (from.IsOnGnd()) {                       // Lift off case -> starting tangent is close to 0 (exactly: the slop of the runway)
-                m0 = !std::isnan(prevVec.vsi) ? prevVec.vsi : 0.0;
-            }
-            else if (to.IsOnGnd()) {                    // touch down case -> ending tangent is close to 0 (slope of runway)
-                m1 = posNext.hasPosAlt() ?
-                (posNext.alt_m() - to.alt_m()) / (posNext.ts() - to.ts()) :
-                0.0;
-            }
-            if (std::isnan(m0)) m0 = GetVSI_m_s();      // standard case: continue with current climb rate
-            if (std::isnan(m1)) {                       // standard case: average climbrate between this and next segment
-                m1 = posNext.hasPosAlt() ?
-                (posNext.alt_m() - ppos.alt_m()) / (posNext.ts() - ppos.ts()) :
-                vec.vsi;                                // or this segment's rate if we don't yet know what comes next
-            }
-            // Initialize the altitude cSpline
-            altSpline.set(ppos.ts(), ppos.alt_m(), m0,
-                          to.ts(), to.alt_m(), m1);
         }
-        
-        // *** Pitch ***
-        
-        // We calculate a target/to pitch here just for backup. It will rarely be used.
-        // And actually...it is m1 if we could compute that...but then again,
-        // if we could compute m1 then we'll use a spline and don't need this
-        const double vsiTo =
-        to.IsOnGnd() ? 0.0 :
-        !std::isnan(m1) ? m1 :
-        posNext.hasPosAlt() ? (posNext.alt_m() - ppos.alt_m()) / (posNext.ts() - ppos.ts()) :
-        vec.vsi;
-        to.pitch() = std::clamp<double>(vsi2deg(vec.speed, vsiTo),
-                                        pMdl->PITCH_MIN, pMdl->PITCH_MAX);
-        if (!altSpline) {
-            pitch.moveTo(to.pitch());
+        // Don't have a location spline...but may be able to use an altitude spline
+        else {
+            // CSpline for altitude transition if not staying on ground
+            double m0 = NAN, m1 = NAN;                  // tangents, effectively climb-rate in m/s
+            if (from.IsOnGnd() && to.IsOnGnd())
+                altSpline.clear();
+            // Flying (or transitioning to/from flying)
+            else
+            {
+                if (from.IsOnGnd()) {                       // Lift off case -> starting tangent is close to 0 (exactly: the slop of the runway)
+                    m0 = !std::isnan(prevVec.vsi) ? prevVec.vsi : 0.0;
+                }
+                else if (to.IsOnGnd()) {                    // touch down case -> ending tangent is close to 0 (slope of runway)
+                    m1 = posNext.hasPosAlt() ?
+                    (posNext.alt_m() - to.alt_m()) / (posNext.ts() - to.ts()) :
+                    0.0;
+                }
+                if (std::isnan(m0)) m0 = GetVSI_m_s();      // standard case: continue with current climb rate
+                if (std::isnan(m1)) {                       // standard case: average climbrate between this and next segment
+                    m1 = posNext.hasPosAlt() ?
+                    (posNext.alt_m() - ppos.alt_m()) / (posNext.ts() - ppos.ts()) :
+                    vec.vsi;                                // or this segment's rate if we don't yet know what comes next
+                }
+                // Initialize the altitude cSpline
+                altSpline.set(ppos.ts(), ppos.alt_m(), m0,
+                              to.ts(), to.alt_m(), m1);
+            }
+            
+            // *** Pitch ***
+            
+            // We calculate a target/to pitch here just for backup. It will rarely be used.
+            // And actually...it is m1 if we could compute that...but then again,
+            // if we could compute m1 then we'll use a spline and don't need this
+            const double vsiTo = from.IsOnGnd() && to.IsOnGnd() ? 0.0 :         // on ground: hard-coded to 0 (terrain altitude doesn't seem to be accurate enough)
+                                 !std::isnan(m1) ? m1 : vec.vsi;
+            to.pitch() = std::clamp<double>(vsi2deg(vec.speed, vsiTo),
+                                            pMdl->PITCH_MIN, pMdl->PITCH_MAX);
+            // Don't override any pre-programmed pitch movement (like de-flare)
+            if (!altSpline && !pitch.isProgrammed()) {
+                pitch.moveTo(to.pitch());
+            }
         }
         
         // output debug info on request
@@ -1400,7 +1406,8 @@ bool LTAircraft::CalcPPos()
     // *** The Factor ***
     
     const double duration = to.ts() - from.ts();
-    const double prevHead = phase == FPH_UNKNOWN ? from.heading()    : ppos.heading();  // previous heading (needed for roll calculation)
+    const double prevHead  = phase == FPH_UNKNOWN ? from.heading() : ppos.heading();    // previous heading (needed for roll calculation)
+    const double prevAlt_m = phase == FPH_UNKNOWN ? from.alt_m()   : ppos.alt_m();      // previous altitude (needed for vsi calculation)
     LOG_ASSERT_FD(fd,duration > 0);
 
     // How far have we traveled (in time) between from and to?
@@ -1433,29 +1440,33 @@ bool LTAircraft::CalcPPos()
         bArtificalPos = true;                   // flag: we are working with an artifical position now
     }
     
-    // *** Plane Location ***
+    // *** Plane Location / Heading ***
     //     In most cases controlled by the Spline.
     //     But not so if running out of positions (f > 1.0),
     //     and if no Spline was defined due to too small movement.
-    if (f <= 1.0 && locSpline) {
-        // TODO: Better encapsulation
-        const double alt_m = ppos.alt_m();                  // We save the altitude
+    if (f > 1.0) {
+        if (locSpline) locSpline.clear();
+        if (altSpline) altSpline.clear();
+        if (locBezier) locBezier.Clear();
+    }
+    
+    if (locSpline) {
+        // Ask the locSpline for the current location (this includes altitude)
         ppos.setLoc(locSpline.val(currCycle.simTime));      // this is now local coordinates!
         ppos.LocalToWorld();                                // convert back to world coordinates
-        ppos.alt_m() = alt_m;                               // override with "our" altitude
         // Heading/Speed vactor
         const positionTy v = locSpline.slope(currCycle.simTime);
         speed_m = v.lengthXZ();
         heading.SetVal(ppos.heading() = v.angleXZ());
     }
     // is instead a Bezier curve defined?
-    else if (f <= 1.0 && locBezier) {
+    else if (locBezier) {
         locBezier.GetPos(ppos, currCycle.simTime);
         heading.SetVal(ppos.heading());                     // Bezier set heading, tell our param, too
     }
     else {
-        // Linear interpolation
-        // Now we apply the factor so that with time we move from 'from' to 'to'.
+        // No Splines -> Linear interpolation
+        // Apply the factor so that with time we move from 'from' to 'to'.
         // Note that this calculation also works if we passed 'to' already
         // (due to no newer 'to' available): we just keep going the same way.
         // This is effectively a scaled vector sum, broken down into its components:
@@ -1477,46 +1488,21 @@ bool LTAircraft::CalcPPos()
     // Update heading correction angle
     corrAngle.get();
     
-    // *** Altitude, VSI, Pitch ***
-    //     follow the Altitude cSpline, if defined, otherwise linear
-    if (altSpline) {
-        ppos.alt_m() = altSpline.val(currCycle.simTime);
-        vsi = altSpline.slope(currCycle.simTime) / Ms_per_FTm;  // convert from m/s to ft/min
-        
-        // if there is no pre-programmed pitch movement
-        if (!pitch.isProgrammed()) {
-            double toPitch = vsi2deg(GetSpeed_m_s(), GetVSI_m_s());
-            toPitch += GetFlapsPos() * pMdl->PITCH_FLAP_ADD;
-            toPitch = std::clamp<double>(toPitch, pMdl->PITCH_MIN, pMdl->PITCH_MAX);
-            // During Rotate/LiftOff and Flare we might have the nose higher than 'required' for the VSI,
-            // but absolutely avoid taking the nose down in these phases
-            if ((GetFlightPhase() != FPH_ROTATE &&
-                 GetFlightPhase() != FPH_LIFT_OFF &&
-                 GetFlightPhase() != FPH_FLARE) ||
-                toPitch > GetPitch())
-            {
-                // For a small change just set it, else move there
-                if (std::abs(GetPitch() - toPitch) < 0.5) {
-                    pitch.SetVal(ppos.pitch() = toPitch);
-                }
-                else {
-                    pitch.moveTo(toPitch);
-                    ppos.pitch()  = pitch.get();
-                }
-            }
-        }
-        else {
-            ppos.pitch()  = pitch.get();
+    // *** Altitude ***
+    //     follow the Location or Altitude cSpline, if defined, otherwise linear
+    if (locSpline || altSpline) {
+        // locSpline has set altitue already above in the "location" section
+        // but if we have a separate altSpline we need to process it now:
+        if (altSpline) {
+            ppos.alt_m() = altSpline.val(currCycle.simTime);
         }
     }
     // No altitude spline -> linear motion
     else {
         ppos.alt_m()  = from.alt_m() * (1 - f) + to.alt_m() * f;
-        vsi = vec.vsi_ft();
-        ppos.pitch() = pitch.get();
     }
 
-    // calculate timestamp can be a bit off, overwrite with current value as of now
+    // calculated timestamp can be a bit off, overwrite with current value as of now
     ppos.ts() = currCycle.simTime;
 
     // if we are runnig beyond 'to' we might become invalid (especially too low, too high)
@@ -1531,17 +1517,7 @@ bool LTAircraft::CalcPPos()
         return false;
     }
     
-    // *** Attitude ***
-    
-    // Calculate roll based on heading change
-    CalcRoll(prevHead);
-
-#ifdef DEBUG
-    std::string debPpos ( ppos.dbgTxt() );
-#endif
-    LOG_ASSERT_FD(fd,ppos.isFullyValid());
-
-    // *** Height and Flight Model ***
+    // *** Height AGL and Flight Model ***
     // Now we know our new position, determine height above ground
     YProbe();
 
@@ -1553,15 +1529,59 @@ bool LTAircraft::CalcPPos()
         // safety measure:
         // on the ground we are...on the ground, not moving vertically
         ppos.alt_m() = terrainAlt_m;
-        vsi = 0;
         // but tires are rotating
         tireRpm.SetVal(std::min(TireRpm(GetSpeed_kt()),
                                 tireRpm.defMax));
     }
     
+    // *** Roll ***
+    
+    // Calculate roll based on heading change
+    CalcRoll(prevHead);
+    
+    // *** VSI / Pitch ***
+    //     can only be determined once sure about the altitude (like the above clamp to ground)
+    
+    // On the ground hard-coded to 0.0 (terrain altitude not accurate enough).
+    vsi = bOnGrnd ? 0.0 :
+          // In the air, delta-altitude is VSI (convert from m/s to ft/min)
+          (ppos.alt_m() - prevAlt_m) / (currCycle.diffTime * Ms_per_FTm);
+
+    // if there is a pre-programmed pitch movement follow that
+    if (pitch.isProgrammed()) {
+        ppos.pitch()  = pitch.get();
+    }
+    else {
+        // dynamic pitch based on latest delta altitude (requires speed...if standing still then we use the vector's vsi)
+        double toPitch = bOnGrnd ? 0.0 :
+                         IsSpeedZero() ? vec.vsi : vsi2deg(GetSpeed_m_s(), GetVSI_m_s());
+        if (!bOnGrnd)                       // if in the air add pitch for extended flaps
+            toPitch += GetFlapsPos() * pMdl->PITCH_FLAP_ADD;
+        toPitch = std::clamp<double>(toPitch, pMdl->PITCH_MIN, pMdl->PITCH_MAX);
+        // During Rotate/LiftOff and Flare we might have the nose higher than 'required' for the VSI,
+        // but absolutely avoid taking the nose down in these phases
+        if ((GetFlightPhase() != FPH_ROTATE &&
+             GetFlightPhase() != FPH_LIFT_OFF &&
+             GetFlightPhase() != FPH_FLARE) ||
+            toPitch > GetPitch())
+        {
+            // Limit the movement to an amount like MovingParam would do
+            double change = toPitch - ppos.pitch();
+            const double maxChange = (pitch.defDist / pitch.defDuration) * currCycle.diffTime;
+            if (std::abs(change) > maxChange)
+                change = std::copysign(maxChange, change);
+            pitch.SetVal(ppos.pitch() += change);
+        }
+    }
+    
     // save this position for (next) camera view position
     CalcCameraViewPos();
     
+#ifdef DEBUG
+    std::string debPpos ( ppos.dbgTxt() );
+#endif
+    LOG_ASSERT_FD(fd,ppos.isFullyValid());
+
     // success
     return true;
 }
