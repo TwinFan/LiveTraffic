@@ -1129,7 +1129,7 @@ bool RealTrafficConnection::ProcessParkedAcBuffer (const JSON_Object* pData)
             else {
                 const positionTy futPos = fd.GetMostFuturePos();
                 if (futPos.hasPos() &&
-                    pos.distRoughSqr(futPos) > GATE_REFEED_MAX_DIST_M * GATE_REFEED_MAX_DIST_M)
+                    pos.distRoughSqr(futPos) > sqr(SIMILAR_POS_DIST_PARKED))
                     // That flight has positions away from the gate, so do NOT put it back there -> skip
                     continue;
             }

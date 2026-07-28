@@ -88,7 +88,7 @@ bool NextCycle (int newCycle)
         // simTime directly, so a small reversal is just a tiny stutter on
         // the next render, not a state-corrupting event. See
         // TIME_NONLINEAR_BACKWARD_S in Constants.h for the rationale.
-        if (currCycle.diffTime < TIME_NONLINEAR_BACKWARD_S) {
+        if (currCycle.diffTime < TIME_DIFF_TOLERATE) {
             // jumped backward...that has nothing to do with debugging
             dataRefs.SetReInitAll(true);
             SHOW_MSG(logWARN, ERR_TIME_NONLINEAR, currCycle.diffTime);
@@ -123,7 +123,7 @@ bool NextCycle (int newCycle)
     // See TIME_NONLINEAR_BACKWARD_S in Constants.h for the rationale
     // behind the asymmetric thresholds.
     if (dataRefs.GetNumAc() > 0 &&
-        (currCycle.diffTime < TIME_NONLINEAR_BACKWARD_S ||
+        (currCycle.diffTime < TIME_DIFF_TOLERATE ||
          currCycle.diffTime > dataRefs.GetFdBufPeriod()) ) {
         // too much time passed...we start over and reinit all aircraft
         dataRefs.SetReInitAll(true);
