@@ -1470,7 +1470,6 @@ public:
         // (consider high-speed exits!).
         const double totalDist      = posPrev.dist(pos);
         const double totalTime      = pos.ts() - posPrev.ts();
-        // const double totalAvgSpeed  = totalDist / totalTime;
         // maximum allowed taxiway length to be inserted is 1.5 x totalDist,
         // so we do allow for the taxiway to be longer than direct travel, but not too much.
         // When totalTime increases beyond 20s then we allow for even more travel as we would have time for full 180° turns
@@ -1576,6 +1575,7 @@ public:
                 for (size_t eIdx: vecEBest) {
                     const TaxiEdge& e = vecTaxiEdges[eIdx];
                     positionTy posIns = GetEdgeCenterPt(eIdx, posFrom);
+                    posIns.f.bPushback = pos.f.bPushback;   // copy the pushback flag, must be same as how we approach `pos`
                     // Timestamp is half the previous edge, plus half this edge, multiplied by the time per meter:
                     posIns.ts() = posFrom.ts() + (lenPrevHalf + e.dist_m/2.0)*sPerM;
                     // save the values for the next iteration

@@ -1159,13 +1159,6 @@ const char* GetADSBEmitterCat (const std::string& cat)
     return cat.c_str();
 }
 
-// comparing 2 doubles for near-equality
-bool dequal ( const double d1, const double d2 )
-{
-    constexpr double epsilon = 0.00001;
-    return ((d1 - epsilon) < d2) && (d2 < (d1 + epsilon));
-}
-
 // Find an interpolated value
 float interpolate (const std::vector<float>& scale,
                    const std::vector<float>& values,

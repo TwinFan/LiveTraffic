@@ -284,7 +284,7 @@ public:
     std::string GetFlightPhaseString() const { return FlightPhase2String(phase); }
     std::string GetFlightPhaseRwyString() const;        ///< GetFlightPhaseString() plus rwy id in case of approach
     bool IsOnRwy() const;               ///< is the aircraft on a rwy (on ground and at least on pos on rwy)
-    inline double GetHeading() const { return ppos.heading() + corrAngle.is(); }
+    double GetHeading() const;          ///< returns heading (including wind and pushback correction)
     inline double GetTrack() const { return vec.angle; }
     inline double GetFlapsPos() const { return flaps.is(); }
     inline double GetGearPos() const { return gear.is(); }

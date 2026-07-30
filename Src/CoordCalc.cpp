@@ -30,6 +30,17 @@
 #include<cmath>
 
 //
+// MARK: Helper
+//
+
+// comparing 2 doubles for near-equality
+bool dequal ( const double d1, const double d2 )
+{
+    constexpr double epsilon = 0.00001;
+    return ((d1 - epsilon) < d2) && (d2 < (d1 + epsilon));
+}
+
+//
 // MARK: ptTy
 //
 
@@ -401,7 +412,7 @@ std::string positionTy::dbgTxt () const
     char buf[200];
     
     if (f.unitCoord == UNIT_WORLD) {
-        snprintf(buf, sizeof(buf), "%.1f: (%7.5f, %7.5f) %7.1fft %8.8s %3.3s %-13.13s %4.*zu {h %3.0f%c, p %3.0f, r %3.0f}",
+        snprintf(buf, sizeof(buf), "%.1f: (%7.5f, %7.5f) %7.1fft %8.8s %3.3s %-13.13s %4.*zu {h %3.0f%c%c, p %3.0f, r %3.0f}",
                  ts(),
                  lat(), lon(),
                  alt_ft(),
@@ -412,6 +423,7 @@ std::string positionTy::dbgTxt () const
                  HasTaxiEdge() ? edgeIdx : 0,
                  heading(),
                  (f.bHeadFixed ? '*' : ' '),
+                 (f.bPushback  ? '<' : ' '),
                  pitch(), roll());
     } else {
         double lat = NAN, lon = NAN, alt = NAN;

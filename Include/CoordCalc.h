@@ -41,6 +41,9 @@ constexpr inline T sqr (const T a) { return a*a; }
 template <class T>
 constexpr inline T pyth2 (const T a, const T b) { return sqr(a) + sqr(b); }
 
+/// comparing 2 doubles for near-equality
+bool dequal ( const double d1, const double d2 );
+
 //
 //MARK: Degree/Radian conversion
 //      (as per stackoverflow post, adapted)
@@ -174,8 +177,12 @@ double HeadingAvg (double h1, double h2, double f1=1, double f2=1);
 /// -180 <= HeadingDiff <= 180
 double HeadingDiff (double h1, double h2);
 
-/// Normaize a heading to the value range [0..360)
+/// Normalize a heading to the value range [0..360)
 double HeadingNormalize (double h);
+
+/// Return the opoosite heading, normalized
+inline double HeadingReverse (double h)
+{ return HeadingNormalize(h + 180.0); }
 
 /// @brief Is h between h1 and h2, with a tolerance of dh degree?
 bool HeadingIsBetween (double h, double h1, double h2, double dh = 0.5);
@@ -425,6 +432,7 @@ public:
     
     // timestamp-based comparison
     inline bool hasSimilarTS (const positionTy& p) const { return std::abs(ts()-p.ts()) <= SIMILAR_TS_INTVL; }
+    inline bool hasEqualTS (const positionTy& p) const { return dequal(ts(), p.ts()); }
     inline int cmp (const positionTy& p)        const { return ts() < p.ts() ? -1 : (ts() > p.ts() ? 1 : 0); }
     inline bool operator<< (const positionTy& p) const { return ts() < p.ts() - SIMILAR_TS_INTVL; }
     inline bool operator<  (const positionTy& p) const { return ts() < p.ts(); }

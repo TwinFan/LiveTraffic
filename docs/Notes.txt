@@ -4,6 +4,9 @@ TODO
 Bug
 -----
 
+Pushback and SUP position still conflict in the first moments of pushback
+-> See Analysis.txt
+
 Leaving rwy after touch-down is often too early, short-cutting the corner
 Idea: In this case take the beginning point of the taxi edge into the path
 instead of the mid point of the edge
@@ -21,6 +24,7 @@ Pushback (might need to go together with CalcHeading refactor)
   When parked, increase no-jitter zone to 2 x SIMILAR_POS
   But save a pos if it is once out of SIMILAR_POS...we need that again when we receive the 2x out of position
   Idea: Just set a "ReverseHeading" flag in positionTy, that is only pulled when handing over heading to XPMP2::Aircraft
+Remove "Special Logging" introduced for Balt
 Stop on Runway
   There are apparently two ways...why? Can't we reduce it to one?
   LTFlightData and LTAircraft

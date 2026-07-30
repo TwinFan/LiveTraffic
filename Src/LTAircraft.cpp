@@ -1143,6 +1143,15 @@ bool LTAircraft::IsOnRwy() const
 }
 
 
+// returns heading (including wind and pushback correction)
+double LTAircraft::GetHeading() const
+{
+    return HeadingNormalize(ppos.heading() +
+                            corrAngle.is() +
+                            (ppos.f.bPushback ? 180.0 : 0.0));
+}
+
+
 // Lift produced for wake system, typically mass * 9.81, but blends in during rotate and blends out while landing
 float LTAircraft::GetLift() const
 {
@@ -1284,9 +1293,16 @@ bool LTAircraft::CalcPPos()
         vec = from.between(to);
         LOG_ASSERT_FD(fd,!std::isnan(vec.speed) && !std::isnan(vec.vsi));
         
-        // *** ground status starts with that one of 'from'
-        ppos.f.onGrnd = from.f.onGrnd;
-
+        // *** Pushback start/end ***
+        if (ppos.f.bPushback != to.f.bPushback) {
+            // Current pos takes over already the new flag
+            ppos.f.bPushback = to.f.bPushback;
+            // Flip current heading as we are reversing direction of movement now.
+            // This goes as tangent into Spline calculation and must point in direction of movement.
+            // (GetHeading() flips the actual heading around again based on f.bPushback)
+            heading.SetVal(ppos.heading() = HeadingReverse(ppos.heading()));
+        }
+        
         // *** Spline for 3D movement *** of considerable length.
         //     Requires a certain distance for clear vectors,
         //     otherwise planes would turn heading artificially.
@@ -1648,7 +1664,7 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
         // if not artifically reducing speed (roll-out)
         if (!bArtificalPos) {
             // Could be taxxing, could be pushback
-            if (GetToPos().f.flightPhase == FPH_PUSHBACK)
+            if (GetToPos().f.bPushback)
                 phase = FPH_PUSHBACK;
             else
                 phase = FPH_TAXI;
@@ -2370,11 +2386,14 @@ void LTAircraft::CalcCameraViewPos()
 {
     if (IsInCameraView() && !dataRefs.ShallUseExternalCamera()) {
         posExt = ppos;
+        
+        // Override heading with 'official' heading, which includes correction for wind and pushback
+        posExt.heading() = GetHeading();
 
         // move position back along the longitudinal axes
-        posExt += vectorTy(ppos.heading(),      extOffs.x);
+        posExt += vectorTy(posExt.heading(),      extOffs.x);
         // move position a bit to the side
-        posExt += vectorTy(ppos.heading() + 90, extOffs.z);
+        posExt += vectorTy(posExt.heading() + 90, extOffs.z);
         // and move a bit up
         posExt.alt_m() +=                       extOffs.y;
 

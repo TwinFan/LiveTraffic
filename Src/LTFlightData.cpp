@@ -675,34 +675,6 @@ void LTFlightData::SnapToTaxiways (bool& bChanged)
     dequePositionTy::iterator iter = posDeque.begin();
     if (!iter->IsOnGnd() || iter->IsPostProcessed())
         return;
-    
-    // Run the EHS-staleness cross-check (and the rest of the
-    // on-ground heading filter chain) on this slot BEFORE
-    // handing it to LTAptSnap.
-    //
-    // Why: `LTAptSnap` uses `pos.heading()` to decide which
-    // direction along a taxi edge to route the aircraft (see
-    // TaxiEdge::startByHeading / endByHeading in LTApt.cpp).
-    // The feed-supplied heading comes from Mode S Enhanced
-    // Surveillance, which updates roughly every 10 s and lags
-    // during turns. If snap reads a stale value the synthesised
-    // taxi path can be routed BACKWARD along the edge — the
-    // rendered aircraft visibly moves the wrong way along its
-    // taxiway between feed samples. Observed for DAL973 and
-    // RPA5716 at YSSY.
-    //
-    // `CalcHeading` (since commit d861869) applies the feed-vs-
-    // track cross-check that catches exactly this case: if the
-    // feed heading disagrees with the actual motion track by
-    // 30-150° it falls through to the track-derived value
-    // instead. Running it here means snap sees the corrected
-    // heading and routes the right way.
-    //
-    // The existing post-snap CalcHeading loop in CalcNextPos
-    // remains responsible for filling in the heading of the
-    // intermediate waypoints that snap itself synthesises
-    // (those are inserted with heading=NaN).
-    CalcHeading(iter);
 
     // Try snapping to a rwy or taxiway
     if (LTAptSnap(*this, iter, true))
@@ -928,6 +900,107 @@ bool LTFlightData::CalcNextPos ( double simTime )
         std::string deb1   ( posDeque.size() >= 2 ? std::string(posDeque[1].dbgTxt()) : "<none>" );
         std::string debvec ( posDeque.size() >= 2 ? std::string(posDeque.front().between(posDeque[1])) : "<none>" );
 #endif
+        
+        // *** Pushback Detection ***
+        if (!posDeque.empty()) {
+            // Is pushback already going on and traces of it in our posDeque?
+            // ok, that's awkward...we reverse iterate our posDeque with a forward iterator...but we need to find the _last_ occurence of pPushback, and from there then later move forward
+            dequePositionTy::iterator iIsPbAlready = std::prev(posDeque.end());
+            while(!iIsPbAlready->f.bPushback) {
+                if (iIsPbAlready == posDeque.begin()) {
+                    iIsPbAlready = posDeque.end();          // didn't find any bPushback position, reset iIsPbAlready to say so
+                    break;
+                }
+                --iIsPbAlready;
+            }
+            // iIspbAlready now is either end(), or points to the last bPushback position in posDeque
+            
+            // Lambda to check for "close" or "in the same direction and not too fast"
+            auto isCloseOrSameHeading = [](const positionTy& p1, const positionTy& p2)->bool {
+                const vectorTy vec = p1.between(p2);
+                return vec.dist < SIMILAR_POS_DIST ||
+                       (std::abs(HeadingDiff(vec.angle, p1.heading())) < 90 &&
+                        vec.speed_kn() <= MAX_PB_SPEED);
+            };
+            
+            // Didn't find a bPushback position, but have an aircraft to ask?
+            if (iIsPbAlready == posDeque.end() && pAc &&
+                pAc->GetNewestPos().f.bPushback)            // and that aircraft is already in pushback mode?
+            {
+                // compare against first posDeque pos to see if pushback continues there
+                if (isCloseOrSameHeading(posDeque.front(), pAc->GetNewestPos())) {
+                    posDeque.front().f.bPushback = true;    // it does, so mark the first
+                    iIsPbAlready = posDeque.begin();        // and rest of processing further down
+                }
+                // does not continue, say so
+                else if (dataRefs.GetDebugAcPos(key())) {
+                    LOG_MSG(logDEBUG,"DEBUG ENDING PUSHBACK with %s",Positions2String().c_str());
+                }
+            }
+
+            // Initial pushback detection: Plane _now_ leaving the parking position?
+            const positionTy* pParkedPos = nullptr;
+            if (iIsPbAlready == posDeque.end() &&           // didn't find a position that's marked bPushback
+                IsParked(&pParkedPos) && pParkedPos)        // but we are parking just now?
+            {
+                // loop front-to-back through our positions and see if we are leaving parking position in reverse
+                dequePositionTy::iterator iLeaveParkingFirst = posDeque.end();
+                for (dequePositionTy::iterator i = posDeque.begin();
+                     i != posDeque.end();
+                     i++)
+                {
+                    // Remember this position if it happens to be the 'posLeaveParking' pos that we need to re-insert
+                    if (i->hasEqualTS(posLeaveParking))
+                        iLeaveParkingFirst = i;
+                    // is this position so far away from parking that we decide we are leaving parking?
+                    // And are we doing so in opposite direction of Startup Pos?
+                    const vectorTy vec = pParkedPos->between(*i);           // vector from parking to i
+                    if (vec.dist >= SIMILAR_POS_DIST_PARKED &&
+                        std::abs(HeadingDiff(vec.angle, pParkedPos->heading())) >= 120)
+                    {
+                        // Leaving parking!
+                        if (dataRefs.GetDebugAcPos(key())) {
+                            LOG_MSG(logDEBUG,"DEBUG STARTING PUSHBACK with %s",Positions2String().c_str());
+                        }
+                        // If we found it, re-insert a previous position that was a little closer
+                        if (iLeaveParkingFirst != posDeque.end()) {
+                            *iLeaveParkingFirst = posLeaveParking;          // re-insert the position, appears it was the first move out of parking
+                            iLeaveParkingFirst->f.bPushback = true;         // and it is pushback!
+                            posLeaveParking = positionTy();
+                            bChanged = true;
+                            if (iLeaveParkingFirst == posDeque.begin())     // if that pos happens to be at the very beginning
+                                SnapToTaxiways(bChanged);                   // we need to snap it right away
+                        }
+                        // Mark the position being processed as pushback, too
+                        i->f.bPushback = true;
+                        // then continue processing with outside this identification loop
+                        iIsPbAlready = i;
+                        break;
+                    }
+                }
+            }
+            
+            // From the current pushback-identified position,
+            // mark all further position going into the same direction, or holding the position,
+            // also as Pushback.
+            if (iIsPbAlready != posDeque.end()) {
+                for (++iIsPbAlready;                    // when come here, iIsPbAlready points to a pushback pos, we shall skip that (and this way make sure that inside the loop we have a std::prev position
+                     iIsPbAlready != posDeque.end();
+                     iIsPbAlready++)
+                {
+                    // does pushback continue?
+                    if (isCloseOrSameHeading(*std::prev(iIsPbAlready), *iIsPbAlready))
+                        iIsPbAlready->f.bPushback = true;
+                    // does not continue, say so, then leave
+                    else {
+                        if (dataRefs.GetDebugAcPos(key())) {
+                            LOG_MSG(logDEBUG,"DEBUG ENDING PUSHBACK with %s",Positions2String().c_str());
+                        }
+                        break;
+                    }
+                }
+            }
+        }
         
         // *** Landing / Take-Off Detection ***
         
@@ -1727,8 +1800,9 @@ void LTFlightData::AddNewPos ( positionTy& pos )
         // We only consider data that is newer than what we have already
         const positionTy latestPos = GetMostFuturePos();
         if (latestPos.isNormal()) {
-            // pos is before or close to 'to'-position: don't add!
-            if (pos.ts() <= latestPos.ts() + SIMILAR_TS_INTVL)
+            // pos timestamp is before or close to 'to'-position: don't add!
+            const double posTs = pos.ts();
+            if (posTs <= latestPos.ts() + SIMILAR_TS_INTVL)
             {
                 if (dataRefs.GetDebugAcPos(key()))
                     LOG_MSG(logDEBUG,DBG_SKIP_NEW_POS_TS,pos.dbgTxt().c_str());
@@ -1736,12 +1810,22 @@ void LTFlightData::AddNewPos ( positionTy& pos )
             }
 
             // Position is very close to previous position?
-            if (latestPos.distRoughSqr(pos) <= sqr(SIMILAR_POS_DIST)) {
+            const double dist2 = latestPos.distRoughSqr(pos);
+            if (dist2 <= sqr(SIMILAR_POS_DIST)) {
                 // effectively overwrite with latest position (-> don't actually move)
                 // but update with current timestamp (-> keep plane alive)
-                const double currTs = pos.ts();
                 pos = latestPos;
-                pos.ts() = currTs;
+                pos.ts() = posTs;
+            }
+            
+            // Position is fairly close, and we are parked?
+            const bool bParked = IsParked();
+            if (dist2 <= sqr(SIMILAR_POS_DIST_PARKED) && bParked) {
+                // still don't move, but remember that we had this position,
+                // it could be the start of pushback
+                posLeaveParking = pos;
+                pos = latestPos;
+                pos.ts() = posTs;
             }
         }
 
@@ -2362,6 +2446,55 @@ double LTFlightData::GetLastPosGndAlt_m () const
         return GetAircraft()->GetTerrainAlt_m();
     
     return NAN;
+}
+
+
+// Return true if an existing aircraft is in phase FPH_PARKED
+bool LTFlightData::IsParked (const positionTy** ppParkedPos) const
+{
+    if (!hasAc() ||
+        GetAircraft()->GetFlightPhase() != FPH_PARKED)
+        return false;
+    
+    if (ppParkedPos)
+        *ppParkedPos = &GetAircraft()->GetPPos();
+    return true;
+    
+/* TODO: Remove if no longer needed
+    // access to our queue guarded by a mutex
+    std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
+    
+    // lambda to return the "is parked" status and the pointer to the defining position
+    auto returnIsParked = [ppParkedPos](const positionTy* pPos)->bool {
+        // we are parked is flight phase or position say so
+        const bool bParked = pPos->f.flightPhase == FPH_PARKED ||
+                             pPos->f.specialPos == SPOS_STARTUP;
+        // if parked return a pointer to the position that said so
+        if (bParked && ppParkedPos) *ppParkedPos = pPos;
+        return bParked;
+    };
+    
+    // go in reverse through the posDeque to find the first position for which some status is clear
+    for (dequePositionTy::const_reverse_iterator i = posDeque.crbegin();
+         i != posDeque.crend();
+         i++)
+    {
+        // do we have information? -> return it
+        if (i->IsPostProcessed() || i->f.flightPhase != FPH_UNKNOWN)
+            return returnIsParked(&*i);
+    }
+    
+    // posDeque didn't have info, how about the a/c itself?
+    if (!hasAc()) return false;
+    
+    const LTAircraft& ac = *GetAircraft();
+    const positionTy& pos = ac.GetNewestPos();
+    if (pos.IsPostProcessed() || pos.f.flightPhase != FPH_UNKNOWN)
+        return returnIsParked(&pos);
+
+    // still no info found, eventually return the plane's current phase directly
+    return returnIsParked(&ac.GetPPos());
+*/
 }
 
 

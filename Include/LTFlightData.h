@@ -271,6 +271,7 @@ protected:
     dequeFDDynDataTy        dynDataDeque;
     double                  rotateTS;
     double                  youngestTS;
+    positionTy              posLeaveParking;    ///< (potentially) the first position by which plane leaves parking
     positionTy              posRwy;     ///< determined rwy (likely) to land on (position)
     std::string             rwyId;      ///< determined rwy (likely) to land non (human-readable text)
 
@@ -429,6 +430,10 @@ public:
     /// @brief For the last queue position, if it is on the ground, return its altitude
     /// @returns `NAN` if last queue pos is not on the ground, or its altitude [m] if it is
     double GetLastPosGndAlt_m () const;
+    
+    /// @brief Returns `true` if an aircraft exists with flight phase `FPH_PARKED`
+    /// @param[out] ppParkedPos (optional) retrieves a pointer to the position because of which it was decided that the aircraft is parked
+    bool IsParked (const positionTy** ppParkedPos = nullptr) const;
     
     /// @brief In case of "larger" aircraft, upgrade to use Mode S
     /// @returns if the value has been modified
