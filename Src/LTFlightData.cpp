@@ -672,8 +672,9 @@ void LTFlightData::SnapToTaxiways (bool& bChanged)
     // Only snap the very first position, if not done already
     // Only act on positions on the ground,
     // which have (not yet) been artificially added
+    // and not during Pushback
     dequePositionTy::iterator iter = posDeque.begin();
-    if (!iter->IsOnGnd() || iter->IsPostProcessed())
+    if (!iter->IsOnGnd() || iter->IsPostProcessed() || iter->f.bPushback)
         return;
 
     // Try snapping to a rwy or taxiway
@@ -888,20 +889,13 @@ bool LTFlightData::CalcNextPos ( double simTime )
         // *** Data Cleansing ***
         DataCleansing(bChanged);
         
-        // *** Snap to taxiways ***
-        // As late as possible, so we hopefully have enough data in the queue
-        // for a perfect taxiway routing
-        // TODO: LTAircraft also takes the 'next' pos into consideration for curves. Reconsider when to snap...we should not use an un-snapped position as 'next', not only because it moves a little but because taxi paths could be inserted before
-        if (bAcNeedsData)
-            SnapToTaxiways(bChanged);
-
 #ifdef DEBUG
         std::string deb0   ( !posDeque.empty() ? posDeque.front().dbgTxt() : "<none>" );
         std::string deb1   ( posDeque.size() >= 2 ? std::string(posDeque[1].dbgTxt()) : "<none>" );
         std::string debvec ( posDeque.size() >= 2 ? std::string(posDeque.front().between(posDeque[1])) : "<none>" );
 #endif
         
-        // *** Pushback Detection ***
+        // *** Pushback Detection (no snapping!) ***
         if (!posDeque.empty()) {
             // Is pushback already going on and traces of it in our posDeque?
             // ok, that's awkward...we reverse iterate our posDeque with a forward iterator...but we need to find the _last_ occurence of pPushback, and from there then later move forward
@@ -968,8 +962,6 @@ bool LTFlightData::CalcNextPos ( double simTime )
                             iLeaveParkingFirst->f.bPushback = true;         // and it is pushback!
                             posLeaveParking = positionTy();
                             bChanged = true;
-                            if (iLeaveParkingFirst == posDeque.begin())     // if that pos happens to be at the very beginning
-                                SnapToTaxiways(bChanged);                   // we need to snap it right away
                         }
                         // Mark the position being processed as pushback, too
                         i->f.bPushback = true;
@@ -1001,6 +993,13 @@ bool LTFlightData::CalcNextPos ( double simTime )
                 }
             }
         }
+        
+        // *** Snap to taxiways ***
+        // As late as possible, so we hopefully have enough data in the queue
+        // for a perfect taxiway routing
+        // TODO: LTAircraft also takes the 'next' pos into consideration for curves. Reconsider when to snap...we should not use an un-snapped position as 'next', not only because it moves a little but because taxi paths could be inserted before
+        if (bAcNeedsData)
+            SnapToTaxiways(bChanged);
         
         // *** Landing / Take-Off Detection ***
         
@@ -1802,16 +1801,23 @@ void LTFlightData::AddNewPos ( positionTy& pos )
         if (latestPos.isNormal()) {
             // pos timestamp is before or close to 'to'-position: don't add!
             const double posTs = pos.ts();
-            if (posTs <= latestPos.ts() + SIMILAR_TS_INTVL)
+            const double tsDiff = posTs - latestPos.ts();
+            if (tsDiff <= SIMILAR_TS_INTVL)
             {
                 if (dataRefs.GetDebugAcPos(key()))
                     LOG_MSG(logDEBUG,DBG_SKIP_NEW_POS_TS,pos.dbgTxt().c_str());
                 return;
             }
 
-            // Position is very close to previous position?
+            // Position is too close to previous position?
             const double dist2 = latestPos.distRoughSqr(pos);
-            if (dist2 <= sqr(SIMILAR_POS_DIST)) {
+            if (dist2 <= sqr(SIMILAR_POS_DIST) &&
+                // and not in pushback, or last used update very long ago approaching buffering period
+                // (in pushback we just swallow very small changes, hoping for another update coming thereafter,
+                //  but not introducing intermittend stop points)
+                (!latestPos.f.bPushback ||
+                 (tsDiff >= dataRefs.GetFdBufPeriod() * 0.75)))
+            {
                 // effectively overwrite with latest position (-> don't actually move)
                 // but update with current timestamp (-> keep plane alive)
                 pos = latestPos;
@@ -1819,13 +1825,15 @@ void LTFlightData::AddNewPos ( positionTy& pos )
             }
             
             // Position is fairly close, and we are parked?
-            const bool bParked = IsParked();
-            if (dist2 <= sqr(SIMILAR_POS_DIST_PARKED) && bParked) {
+            if (dist2 <= sqr(SIMILAR_POS_DIST_PARKED) && IsParked()) {
                 // still don't move, but remember that we had this position,
                 // it could be the start of pushback
                 posLeaveParking = pos;
-                pos = latestPos;
-                pos.ts() = posTs;
+                if (!latestPos.f.bPushback ||
+                    (tsDiff >= dataRefs.GetFdBufPeriod() * 0.75)) {
+                    pos = latestPos;
+                    pos.ts() = posTs;
+                }
             }
         }
 

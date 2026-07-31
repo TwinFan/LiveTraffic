@@ -1839,8 +1839,9 @@ public:
     /// @brief Project pos onto the path leading away from the startup location
     void ProjectPosOnStartupPath (positionTy& _pos, const StartupLoc& _startLoc)
     {
-        // One thing is for sure: the heading must match startup location
-        _pos.heading() = _startLoc.heading;
+        // The heading must match startup location,
+        // or its reverse in case of pushback
+        _pos.heading() = _pos.f.bPushback ? HeadingReverse(_startLoc.heading) : _startLoc.heading;
         _pos.f.bHeadFixed = true;
         _pos.f.specialPos = SPOS_STARTUP;
         // And the altitude needs re-comupting
