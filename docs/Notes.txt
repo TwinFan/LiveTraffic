@@ -1,17 +1,29 @@
 TODO
 ===
 
-AutoATC
-https://forums.x-plane.org/messenger/616782/?&tab=comments#comment-1386178
-https://load1.zem-solutions.com/AutoATCPeek?lat=44.8205&lon=20.2917
-Returns
-{"result":"success","data":[{"lat":44.83533988577092,"lon":20.28103695046056,"alt":5000,"h":63,"ground":false,"state":"inflight","ADS-B":"46116337","cs":"air serbia 4139","af":"AT72","icao":"ASL"}],"timestamp":1748714271217}
+Bug
+-----
+Leaving rwy after touch-down is often too early, short-cutting the corner
+Idea: In this case take the beginning point of the taxi edge into the path
+instead of the mid point of the edge
+Also...when the nextPos is not on rwy then we should no longer prefer rwy positions,
+we now stick really long on the rwy. That is good for getting onto the rwy, but not off.
 
-Actual Time, can replace pulling network time from channels' responses
-https://timeapi.io/api/time/current/zone?timeZone=UTC
+Refactor
+-------
+LTFlightData::CalcNextPos
+  Review, refactor
+
 
 Download History
 ==========
+Download counter when providing v4.6.0: 255.177
+Download counter when providing v4.5.0: 251.950
+Download counter when providing v4.4.0: 244.295
+Download counter when providing v4.3.3: 240.308
+Download counter when providing v4.3.2: 238.016
+Download counter when providing v4.3.1: 237.913
+Download counter when providing v4.3.0: 234.367
 Download counter when providing v4.2.1: 229.417
 Download counter when providing v4.2.0: 225.175
 Download counter when providing v4.1.1: 220.682

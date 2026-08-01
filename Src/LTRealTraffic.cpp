@@ -871,83 +871,11 @@ bool RealTrafficConnection::ProcessTrafficBuffer (const JSON_Object* pBuf)
             if ( fd.empty() )
                 fd.SetKey(fdKey);
             
-            // Try to identify position hovering low over a rwy
-            // TODO: Copied from Navigraph, make it generic code...there is "hover detection" in LTFlightData.cpp already
-            const Doc8643* pDoc8643 = fd.GetUnsafeStat().pDoc8643;
-            if (!pDoc8643 || !pDoc8643->hasRotor())         // only do for fixed-wing aircraft
-            {
-                // The max hover height is about 12s of "initial climb"
-                const LTAircraft::FlightModel& mdl = LTAircraft::FlightModel::FindFlightModel(fd, false);
-                const double maxHoverHeight_m = M_per_FT * mdl.VSI_INIT_CLIMB * NVGR_MAX_RWY_HOVER_CLIMB_DUR_S / 60.0;
-                if (!pos.IsOnGnd() &&                                      // not on ground
-                    pos.alt_m() < HIGHEST_AIRPORT_M + maxHoverHeight_m)    // low enough to be potentially hovering low over an airport?
-                {
-                    // Do we have a ground situation in the data,
-                    // for which the incoming position could be a lift-off position?
-                    double gndAlt_m = fd.GetLastPosGndAlt_m();
-                    if (!std::isnan(gndAlt_m) &&
-                        pos.alt_m() < gndAlt_m + maxHoverHeight_m)
-                    {
-                        // So this new data comes right after a gnd position and is pretty low...
-                        // is it also above a runway? (then pos is snapped to the rwy)
-                        if (LTAptSnapIfOverRwy(pos))
-                        {
-                            // ...we have forced it on the ground:
-                            if (dataRefs.GetDebugAcPos(fd.key())) {
-                                LOG_MSG(logDEBUG, "%s: Forcing a rwy position onto ground with max hover height = %.0fm:\n%s",
-                                        fd.key().c_str(), maxHoverHeight_m, pos.dbgTxt().c_str());
-                            }
-                            pos.f.onGrnd = GND_ON;
-                            pos.alt_m() = NAN;
-                        }
-                        // Not over a rwy: ignore this position
-                        else {
-                            if (dataRefs.GetDebugAcPos(fd.key())) {
-                                LOG_MSG(logDEBUG, "%s: Ignoring a non-rwy hovering position with max hover height = %.0fm:\n%s",
-                                        fd.key().c_str(), maxHoverHeight_m, pos.dbgTxt().c_str());
-                            }
-                            continue;
-                        }
-                    }
-                }
-            }
-            
             // add the static data
             fd.UpdateData(std::move(stat), pos.dist(posView));
 
-            // --- FEED_DIAG (HTTP-Direct path) ---
-            // Per-aircraft monotonicity + source check. We want to see
-            // every position the channel accepts: hex, callsign, feed
-            // timestamp, msg_type/source (e.g. V_adsb_icao), age of
-            // position (`seen` / PosAge), elapsed dt since the previous
-            // accepted feed timestamp for the same hex, and a flag for
-            // OK / BACKWARDS / REPEAT / NEW. Helps identify backwards
-            // feeds sneaking in that produce backwards rendered motion.
-            if (dataRefs.ShallLogDiagnostics())
-            {
-                const std::string srcMsg = jag_s(pJAc, RT_DRCT_MsgSrcType);
-                const std::string callDg = jag_s(pJAc, RT_DRCT_CallSign);
-                const double      srcAge = jag_n(pJAc, RT_DRCT_PosAge);
-                const auto        itLast = lastFeedTs.find(fdKey.num);
-                const double      prevTs = (itLast == lastFeedTs.end()) ? NAN : itLast->second;
-                const double      dtFeed = std::isnan(prevTs) ? NAN : (posTime - prevTs);
-                const char*       flag   = std::isnan(prevTs)  ? "NEW"
-                                         : (dtFeed > 0.0)      ? "OK"
-                                         : (dtFeed < 0.0)      ? "BACKWARDS"
-                                         :                       "REPEAT";
-                LOG_MSG(logDEBUG,
-                        "FEED_DIAG %s cs=%s ts=%.1f src=%s seen=%.1f dt=%+.2f alt=%.0fft gnd=%d vsi=%+.0ffpm %s [HTTP]",
-                        fdKey.c_str(), callDg.c_str(),
-                        posTime, srcMsg.c_str(), srcAge, dtFeed,
-                        pos.alt_ft(),
-                        pos.f.onGrnd == GND_ON ? 1 : 0,
-                        dyn.vsi,
-                        flag);
-                lastFeedTs[fdKey.num] = posTime;
-            }
-
-            // add the dynamic data
-            fd.AddDynData(dyn, 0, 0, &pos);
+           // add the dynamic data
+            fd.AddDynData(dyn, &pos);
 
         } catch(const std::system_error& e) {
             LOG_MSG(logERR, ERR_LOCK_ERROR, "mapFd", e.what());
@@ -1170,7 +1098,7 @@ bool RealTrafficConnection::ProcessParkedAcBuffer (const JSON_Object* pData)
             else {
                 const positionTy futPos = fd.GetMostFuturePos();
                 if (futPos.hasPos() &&
-                    pos.distRoughSqr(futPos) > GATE_REFEED_MAX_DIST_M * GATE_REFEED_MAX_DIST_M)
+                    pos.distRoughSqr(futPos) > sqr(SIMILAR_POS_DIST_PARKED))
                     // That flight has positions away from the gate, so do NOT put it back there -> skip
                     continue;
             }
@@ -1181,7 +1109,7 @@ bool RealTrafficConnection::ProcessParkedAcBuffer (const JSON_Object* pData)
             // add the "dynamic" data
             // We send in the position 3 times in enough of a time distance for the plane to appear directly
             for (int k = 0; k < 4; ++k) {
-                fd.AddDynData(dyn, 0, 0, &pos);
+                fd.AddDynData(dyn, &pos);
                 pos.ts() = (dyn.ts += 0.5 * double(dataRefs.GetFdBufPeriod()));
             }
 
@@ -2309,41 +2237,8 @@ bool RealTrafficConnection::ProcessRTTFC (LTFlightData::FDKeyTy& fdKey,
         // add the static data
         fd.UpdateData(std::move(stat), dist);
 
-        // --- FEED_DIAG (UDP RTTFC path) ---
-        // Per-aircraft monotonicity + source check; see the HTTP variant
-        // for details. `seen` (RT_RTTFC_SEEN) and msg_type are bounds-
-        // checked because the compact 18-field RT App variant strips
-        // them — for short messages we log empty/NAN placeholders so the
-        // line still shows the timestamp and monotonicity flag.
-        if (dataRefs.ShallLogDiagnostics())
-        {
-            std::string srcMsg;
-            double      srcAge = NAN;
-            if (tfc.size() > RT_RTTFC_MSG_TYPE)
-                srcMsg = tfc[RT_RTTFC_MSG_TYPE];
-            if (tfc.size() > RT_RTTFC_SEEN && !tfc[RT_RTTFC_SEEN].empty()) {
-                try { srcAge = std::stod(tfc[RT_RTTFC_SEEN]); } catch (...) {}
-            }
-            const auto   itLast = lastFeedTs.find(fdKey.num);
-            const double prevTs = (itLast == lastFeedTs.end()) ? NAN : itLast->second;
-            const double dtFeed = std::isnan(prevTs) ? NAN : (posTime - prevTs);
-            const char*  flag   = std::isnan(prevTs)  ? "NEW"
-                                : (dtFeed > 0.0)      ? "OK"
-                                : (dtFeed < 0.0)      ? "BACKWARDS"
-                                :                       "REPEAT";
-            LOG_MSG(logDEBUG,
-                    "FEED_DIAG %s cs=%s ts=%.1f src=%s seen=%.1f dt=%+.2f alt=%.0fft gnd=%d vsi=%+.0ffpm %s [UDP]",
-                    fdKey.c_str(), tfc[RT_RTTFC_CS_ICAO].c_str(),
-                    posTime, srcMsg.c_str(), srcAge, dtFeed,
-                    pos.alt_ft(),
-                    pos.f.onGrnd == GND_ON ? 1 : 0,
-                    dyn.vsi,
-                    flag);
-            lastFeedTs[fdKey.num] = posTime;
-        }
-
         // add the dynamic data
-        fd.AddDynData(dyn, 0, 0, &pos);
+        fd.AddDynData(dyn, &pos);
 
     } catch(const std::system_error& e) {
         LOG_MSG(logERR, ERR_LOCK_ERROR, "mapFd", e.what());
@@ -2517,7 +2412,7 @@ bool RealTrafficConnection::ProcessAITFC (LTFlightData::FDKeyTy& fdKey,
         fd.UpdateData(std::move(stat), dist);
 
         // add the dynamic data
-        fd.AddDynData(dyn, 0, 0, &pos);
+        fd.AddDynData(dyn, &pos);
 
     } catch(const std::system_error& e) {
         LOG_MSG(logERR, ERR_LOCK_ERROR, "mapFd", e.what());

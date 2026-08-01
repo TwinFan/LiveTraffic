@@ -298,7 +298,7 @@ void ADSBBase::ProcessV2 (const JSON_Object* pJAc,
     
     // position is rather important, we check for validity
     if ( pos.isNormal(true) ) {
-        fd.AddDynData(dyn, 0, 0, &pos);
+        fd.AddDynData(dyn, &pos);
     }
     else
         LOG_MSG(logDEBUG,ERR_POS_UNNORMAL,fdKey.c_str(),pos.dbgTxt().c_str());

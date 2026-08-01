@@ -110,11 +110,8 @@ public:
     virtual std::string GetStatusText () const;  ///< return a human-readable staus
     virtual int GetNumAcServed () const = 0;     ///< how many a/c do we feed?
     
-    // shall data of this channel be subject to LTFlightData::DataSmoothing?
-    virtual bool DoDataSmoothing (double& gndRange, double& airbRange) const
-    { gndRange = 0.0; airbRange = 0.0; return false; }
     // shall data of this channel be subject to hovering flight detection?
-    virtual bool DoHoverDetection () const { return false; }
+    virtual bool DoHoverDetection () const { return true; }
 
 public:
     virtual bool FetchAllData (const positionTy& pos) = 0;
@@ -276,7 +273,8 @@ public:
     LTACMasterdataChannel (dataRefsLT ch, const char* chName);
 
     int GetNumAcServed () const override { return 0; }  ///< how many a/c do we feed?
-    
+    bool DoHoverDetection () const override { return false; }
+
 protected:
     /// @brief Called from static functions to receive a request for processing
     /// @returns if request has been accepted
@@ -340,6 +338,7 @@ public:
     LTOutputChannel (dataRefsLT ch, const char* chName) :
         LTOnlineChannel(ch, CHT_TRAFFIC_SENDER, chName) {}
     int GetNumAcServed () const override { return 0; }  ///< We don't "feed" aircraft
+    bool DoHoverDetection () const override { return false; }
 };
 
 //

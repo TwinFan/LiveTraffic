@@ -647,7 +647,7 @@ void ADSBHubConnection::ProcessPlaneData ()
 
                 // add the dynamic data
                 dyn.pChannel = this;
-                fd.AddDynData(dyn, 0, 0, &pos);
+                fd.AddDynData(dyn, &pos);
 
             } catch(const std::system_error& e) {
                 LOG_MSG(logERR, ERR_LOCK_ERROR, "mapFd", e.what());

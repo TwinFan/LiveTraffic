@@ -59,9 +59,6 @@ constexpr int OPSKY_HEADING       = 10;              // heading
 constexpr int OPSKY_VSI           = 11;              // vertical rate
 constexpr int OPSKY_RADAR_CODE    = 14;              // squawk
 
-constexpr double OPSKY_SMOOTH_AIRBORNE = 65.0; // smooth 65s of airborne data
-constexpr double OPSKY_SMOOTH_GROUND   = 35.0; // smooth 35s of ground data
-
 //
 //MARK: OpenSky
 //
@@ -83,9 +80,6 @@ public:
     void ComputeBody (const positionTy& pos) override;      ///< only needed for token request, will then form token request body
     bool ProcessFetchedData () override;
     std::string GetStatusText () const override;  ///< return a human-readable staus
-//    // shall data of this channel be subject to LTFlightData::DataSmoothing?
-//    bool DoDataSmoothing (double& gndRange, double& airbRange) const override
-//    { gndRange = OPSKY_SMOOTH_GROUND; airbRange = OPSKY_SMOOTH_AIRBORNE; return true; }
     
     /// @brief Process OpenSKy's 'crendetials.json' file to fetch User ID/Secret from it
     static bool ProcessCredentialsJson (const std::string& sFileName,

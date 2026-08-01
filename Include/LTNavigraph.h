@@ -87,9 +87,6 @@ constexpr int NVGR_MAX_SEARCH_DIST_KM = 150;            ///< [km] Navigraph allo
 #define NVGR_PAINTED_AS         "paintedAs"
 #define NVGR_OP_AS              "operatingAs"
 
-/// Sometimes aircraft position during take off "hover" over the rwy when they should be on the ground. Up to which height do we consider it hovering? Use this time * VSI_INIT_CLIMB
-constexpr double NVGR_MAX_RWY_HOVER_CLIMB_DUR_S = 12.0;
-
 //
 // MARK: Navigraph Traffic Data
 //
@@ -147,9 +144,6 @@ public:
     void ComputeBody (const positionTy& pos) override;      ///< only needed for token request, will then form token request body
     bool ProcessFetchedData () override;
     std::string GetStatusText () const override;  ///< return a human-readable staus
-//    // shall data of this channel be subject to LTFlightData::DataSmoothing?
-//    bool DoDataSmoothing (double& gndRange, double& airbRange) const override
-//    { gndRange = NVGR_SMOOTH_GROUND; airbRange = NVGR_SMOOTH_AIRBORNE; return true; }
     
     static bool IsBuiltIn();                    ///< Is Navigraph support built in, i.e. do we have a proper client secret/id?
     

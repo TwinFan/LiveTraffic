@@ -30,6 +30,17 @@
 #include<cmath>
 
 //
+// MARK: Helper
+//
+
+// comparing 2 doubles for near-equality
+bool dequal ( const double d1, const double d2 )
+{
+    constexpr double epsilon = 0.00001;
+    return ((d1 - epsilon) < d2) && (d2 < (d1 + epsilon));
+}
+
+//
 // MARK: ptTy
 //
 
@@ -42,7 +53,7 @@ bool ptTy::operator== (const ptTy& _o) const
 std::string ptTy::dbgTxt () const
 {
     char buf[100];
-    snprintf(buf, sizeof(buf), "%7.5f, %7.5f", y, x);
+    snprintf(buf, sizeof(buf), "(%7.5f | %7.5f)", y, x);
     return std::string(buf);
 }
 
@@ -82,16 +93,19 @@ double CoordDistance (double lat1, double lon1, double lat2, double lon2)
 
 double CoordAngle (const positionTy& p1, const positionTy& p2 )
 {
+    assert(p1.f.unitCoord == UNIT_WORLD && p2.f.unitCoord == UNIT_WORLD);
     return CoordAngle (p1.lat(), p1.lon(), p2.lat(), p2.lon());
 }
 
 double CoordDistance (const positionTy& p1, const positionTy& p2)
 {
+    assert(p1.f.unitCoord == UNIT_WORLD && p2.f.unitCoord == UNIT_WORLD);
     return CoordDistance (p1.lat(), p1.lon(), p2.lat(), p2.lon());
 }
 
 vectorTy CoordVectorBetween (const positionTy& from, const positionTy& to )
 {
+    assert(from.f.unitCoord == UNIT_WORLD && to.f.unitCoord == UNIT_WORLD);
     double d_ts = to.ts() - from.ts();
     double dist = CoordDistance (from, to);
     return vectorTy (CoordAngle (from, to),         // angle
@@ -106,6 +120,7 @@ vectorTy CoordVectorBetween (const positionTy& from, const positionTy& to )
 // calculates new altitude by applying speed and vsi
 positionTy CoordPlusVector (const positionTy& p, const vectorTy& vec)
 {
+    assert(p.f.unitCoord == UNIT_WORLD);
     const positionTy pos(p.deg2rad());
     const double vec_angle = deg2rad(vec.angle);
     const double vec_dist = vec.dist * 2 / EARTH_D_M;
@@ -141,6 +156,132 @@ double DistLatLonSqr (double lat1, double lon1,
     const double dz = (lat2-lat1) * LAT_DEG_IN_MTR;
     return sqr(dx) + sqr(dz);
 }
+
+/// @brief An _estimated_ distance of a vector of coordinates
+/// @note `lat` is the latitude at which the vector is applied
+double DistLatLonVec (const ptTy& pt, double lat)
+{
+    return std::sqrt(sqr(Lat2Dist(pt.lat())) +
+                     sqr(Lon2Dist(pt.lon(), lat)));
+}
+
+//
+// MARK: Heading functions
+//
+
+// return the average of two headings, shorter side, normalized to [0;360)
+// f1/f2 are linear factors, defaulting to 1
+double HeadingAvg (double head1, double head2, double f1, double f2)
+{
+    // if either value is nan return the other (returns nan if both are nan)
+    if (std::isnan(head1)) return head2;
+    if (std::isnan(head2)) return head1;
+    
+    // if 0° North lies between head1 and head2 then simple
+    // average doesn't work
+    if ( std::abs(head2-head1) > 180 ) {
+        // add 360° to the lesser value...then average works
+        if ( head1 < head2 )
+            head1 += 360;
+        else
+            head2 += 360;
+        LOG_ASSERT ( std::abs(head2-head1) <= 180 );
+    }
+    
+    // return average of the two, normalized to 360°
+    return fmod((f1*head1+f2*head2)/(f1+f2), 360);
+}
+
+// return the smaller difference between two headings
+double HeadingDiff (double head1, double head2)
+{
+    // if either value is nan return nan
+    if (std::isnan(head1) || std::isnan(head2)) return NAN;
+    
+    // if 0° North lies between head1 and head2 then simple
+    // diff doesn't work
+    if ( std::abs(head2-head1) > 180 ) {
+        // add 360° to the lesser value...then diff works
+        if ( head1 < head2 )
+            head1 += 360;
+        else
+            head2 += 360;
+        LOG_ASSERT ( std::abs(head2-head1) <= 180 );
+    }
+    
+    return head2 - head1;
+}
+
+// Normalize a heading to the value range [0..360)
+double HeadingNormalize (double h)
+{
+    // Rarely will ever more than one statement be executed:
+    while (h < 0.0)    h += 360.0;          // make sure it's non-negative
+    while (h >= 360.0) h -= 360.0;          // make sure it's less than 360
+    return h;
+}
+
+/// Is h between h1 and h2, with a tolerance of dh degree?
+bool HeadingIsBetween (double h, double h1, double h2, double dh)
+{
+    double hLeft    = std::min(h1, h2);
+    double hRight   = std::max(h1, h2);
+    if (hRight - hLeft > 180) {
+        // Wrap-around North case
+        return hRight-dh <= h && h <= hLeft+dh;
+    } else {
+        // Straight case
+        return hLeft-dh <= h && h <= hRight+dh;
+    }
+}
+
+/// Return point on the unit circle based on heading
+/// Local coordinates: x = east, y = south
+ptTy HeadingToUnitCircle (double h)
+{
+    // Convert degrees to radians
+    h = deg2rad(h);
+    return ptTy (std::sin(h), -std::cos(h));
+}
+
+
+// Return an abbreviation for a heading, like N, SW
+std::string HeadingText (double h)
+{
+    constexpr size_t NUM_SEGEMENTS = 16;
+    constexpr double CARDINAL_SEGMENT = 360.0 / NUM_SEGEMENTS;
+    constexpr double CARDINAL_HALF_SEGMENT = CARDINAL_SEGMENT / 2.0;
+    const char* SEGMENTS[NUM_SEGEMENTS] = {"N", "NNE", "NE", "ENE",
+        "E", "ESE", "SE", "SSE",
+        "S", "SSW", "SW", "WSW",
+        "W", "WNW", "NW", "NNW"};
+    h = HeadingNormalize(h + CARDINAL_HALF_SEGMENT);
+    const size_t i = size_t(h / CARDINAL_SEGMENT);
+    return SEGMENTS[i < NUM_SEGEMENTS ? i : 0];
+}
+
+
+//
+// MARK: Speed/acceleration functions
+//
+
+// Computes a reasonable point where the plane can come to rest after decceleration to zero
+positionTy AccelCalcStopPoint (const positionTy& pos, double speed_m, double accel_m)
+{
+    // turn accel_m positive...that's simpler for the following calculations
+    if (std::signbit(accel_m)) accel_m *= -1.0;
+    
+    // time required to stop
+    const double dt = speed_m / accel_m;
+    
+    // Distance travelled while decellerating constantly to zero.
+    // (Think of the triangle [0,0] [0,speed_m] [dt,0] on a coordinate system with x = time and y = speed.)
+    const double dist = speed_m * dt * 0.5;
+    positionTy posStop = pos + vectorTy(pos.heading(), dist);
+    posStop.ts() = pos.ts() + dt;
+    return posStop;
+}
+
 
 // Square of distance between a location and a line defined by two points.
 void DistPointToLineSqr (double pt_x, double pt_y,
@@ -257,77 +398,6 @@ vectorTy::operator std::string() const
 //MARK: positionTy
 //
 
-// "merges" with the given position, i.e. creates kind of an "average" position
-positionTy& positionTy::operator |= (const positionTy& pos)
-{
-    LOG_ASSERT(f.unitCoord == pos.f.unitCoord && f.unitAngle == pos.f.unitAngle);
-    // heading needs special treatment
-    // (also removes nan value if one of the headings is nan)
-    const double h = HeadingAvg(heading(), pos.heading(), mergeCount, pos.mergeCount);
-    // take into account how many other objects made up the current pos! ("* count")
-
-    // Special handling for possible NAN values: If NAN on either side then the other wins
-    double prev_alt = std::isnan(alt_m()) ? pos.alt_m() : alt_m();
-    double prev_ptc = std::isnan(pitch()) ? pos.pitch() : pitch();
-    double prev_rol = std::isnan(roll())  ? pos.roll()  : roll();
-
-	// previous implementation:    v = (v * mergeCount + pos.v) / (mergeCount+1);
-    (*this *= mergeCount) += pos;
-    ++mergeCount;
-    *this *= 1.0 / mergeCount;
-
-    heading() = h;
-    
-    // Handle NAN cases
-    if (std::isnan(alt_m())) alt_m() = prev_alt;
-    if (std::isnan(pitch())) pitch() = prev_ptc;
-    if (std::isnan(roll()))  roll()  = prev_rol;
-
-    // any special flight phase? shall survive
-    // (if both pos have special flight phases then ours survives)
-    if (!f.flightPhase)
-        f.flightPhase = pos.f.flightPhase;
-    
-    // ground status: if different, then the new one is likely off ground,
-    //                but we have it determined soon
-    if (f.onGrnd != pos.f.onGrnd)
-        f.onGrnd = GND_UNKNOWN;       // IsOnGnd() will return false for this!
-    
-    // Special Pos and other location flags need to be re-evaluated
-    f.bHeadFixed = false;
-    f.specialPos = SPOS_NONE;
-    f.bCutCorner = false;
-    edgeIdx      = EDGE_UNKNOWN;
-    
-    return normalize();
-}
-
-// adds o._lat to _lat and so on...till o._roll to _roll
-positionTy& positionTy::operator+= (const positionTy& o)
-{
-    _lat   += o._lat;
-    _lon   += o._lon;
-    _alt   += o._alt;
-    _ts    += o._ts;
-    _head  += o._head;
-    _pitch += o._pitch;
-    _roll  += o._roll;
-    return *this;
-}
-
-// multiplies _lat,...,_roll with f
-positionTy& positionTy::operator*= (double d)
-{
-    _lat   *= d;
-    _lon   *= d;
-    _alt   *= d;
-    _ts    *= d;
-    _head  *= d;
-    _pitch *= d;
-    _roll  *= d;
-    return *this;
-}
-
 const char* positionTy::GrndE2String (onGrndE grnd)
 {
     switch (grnd) {
@@ -340,19 +410,31 @@ const char* positionTy::GrndE2String (onGrndE grnd)
 std::string positionTy::dbgTxt () const
 {
     char buf[200];
-    snprintf(buf, sizeof(buf), "%.1f: (%7.5f, %7.5f) %7.1fft %8.8s %3.3s %2.2s %-13.13s %4.*zu {h %3.0f%c, p %3.0f, r %3.0f}",
-             ts(),
-             lat(), lon(),
-             alt_ft(),
-             GrndE2String(f.onGrnd),
-             SpecialPosE2String(f.specialPos),
-             f.bCutCorner ? "CT" : "  ",
-             f.flightPhase ? (LTAircraft::FlightPhase2String(f.flightPhase)).c_str() : "",
-             HasTaxiEdge() ? 1 : 0,
-             HasTaxiEdge() ? edgeIdx : 0,
-             heading(),
-             (f.bHeadFixed ? '*' : ' '),
-             pitch(), roll());
+    
+    if (f.unitCoord == UNIT_WORLD) {
+        snprintf(buf, sizeof(buf), "%.1f: (%7.5f, %7.5f) %7.1fft %8.8s %3.3s %-13.13s %4.*zu {h %3.0f%c%c, p %3.0f, r %3.0f}",
+                 ts(),
+                 lat(), lon(),
+                 alt_ft(),
+                 GrndE2String(f.onGrnd),
+                 SpecialPosE2String(f.specialPos),
+                 f.flightPhase ? (LTAircraft::FlightPhase2String(f.flightPhase)).c_str() : "",
+                 HasTaxiEdge() ? 1 : 0,
+                 HasTaxiEdge() ? edgeIdx : 0,
+                 heading(),
+                 (f.bHeadFixed ? '*' : ' '),
+                 (f.bPushback  ? '<' : ' '),
+                 pitch(), roll());
+    } else {
+        double lat = NAN, lon = NAN, alt = NAN;
+        if (dataRefs.IsXPThread()) {
+            XPLMLocalToWorld(X(), Y(), Z(), &lat, &lon, &alt);
+            alt /= M_per_FT;
+        }
+        snprintf(buf, sizeof(buf), "(%7.5f | %7.5f) %7.5fm = (%7.5f, %7.5f) %7.1fft",
+                 Z(), X(), Y(),
+                 lat, lon, alt);
+    }
     return std::string(buf);
 }
 
@@ -469,12 +551,65 @@ positionTy& positionTy::rad2deg()
     return *this;
 }
 
+// scalar sum of x/y/z
+positionTy positionTy::operator + (const positionTy& o) const
+{
+    assert(f.unitCoord == UNIT_LOCAL);
+    positionTy ret = *this;
+    ret.X() += o.X();
+    ret.Y() += o.Y();
+    ret.Z() += o.Z();
+    return ret;
+}
+
+// scalar diff of x/y/z
+positionTy positionTy::operator - (const positionTy& o) const
+{
+    assert(f.unitCoord == UNIT_LOCAL);
+    positionTy ret = *this;
+    ret.X() -= o.X();
+    ret.Y() -= o.Y();
+    ret.Z() -= o.Z();
+    return ret;
+}
+
+// scalar product
+positionTy positionTy::operator * (const double d) const
+{
+    assert(f.unitCoord == UNIT_LOCAL);
+    positionTy ret = *this;
+    ret.X() *= d;
+    ret.Y() *= d;
+    ret.Z() *= d;
+    return ret;
+}
+
+// scalar product
+positionTy positionTy::operator / (const double d) const
+{
+    assert(f.unitCoord == UNIT_LOCAL);
+    positionTy ret = *this;
+    ret.X() /= d;
+    ret.Y() /= d;
+    ret.Z() /= d;
+    return ret;
+}
+
 // move myself by a certain distance in a certain direction (but don't touch alt)
 positionTy& positionTy::operator += (const vectorTy& vec )
 {
     // overwrite myself with new position
     *this = destPos(vec);
     return normalize();                 // normalize and return myself
+}
+
+/// Set location, sets lat/lon if pos is in WORLD, x/y/z if pos is in LOCAL
+void positionTy::setLoc (const positionTy& pos)
+{
+    f.unitCoord = pos.f.unitCoord;
+    X() = pos.X();
+    Y() = pos.Y();
+    Z() = pos.Z();
 }
 
 // convert between World and Local OpenGL coordinates
@@ -564,76 +699,6 @@ void positionDequeFindAdjacentTS (double ts, dequePositionTy& l,
             return;                 // short-cut...ts in l would only further increase
         }
     }
-}
-
-// return the average of two headings, shorter side, normalized to [0;360)
-// f1/f2 are linear factors, defaulting to 1
-double HeadingAvg (double head1, double head2, double f1, double f2)
-{
-    // if either value is nan return the other (returns nan if both are nan)
-    if (std::isnan(head1)) return head2;
-    if (std::isnan(head2)) return head1;
-    
-    // if 0° North lies between head1 and head2 then simple
-    // average doesn't work
-    if ( std::abs(head2-head1) > 180 ) {
-        // add 360° to the lesser value...then average works
-        if ( head1 < head2 )
-            head1 += 360;
-        else
-            head2 += 360;
-        LOG_ASSERT ( std::abs(head2-head1) <= 180 );
-    }
-    
-    // return average of the two, normalized to 360°
-    return fmod((f1*head1+f2*head2)/(f1+f2), 360);
-}
-
-// return the smaller difference between two headings
-double HeadingDiff (double head1, double head2)
-{
-    // if either value is nan return nan
-    if (std::isnan(head1) || std::isnan(head2)) return NAN;
-    
-    // if 0° North lies between head1 and head2 then simple
-    // diff doesn't work
-    if ( std::abs(head2-head1) > 180 ) {
-        // add 360° to the lesser value...then diff works
-        if ( head1 < head2 )
-            head1 += 360;
-        else
-            head2 += 360;
-        LOG_ASSERT ( std::abs(head2-head1) <= 180 );
-    }
-    
-    return head2 - head1;
-}
-
-// Normaize a heading to the value range [0..360)
-double HeadingNormalize (double h)
-{
-    // Rarely will ever more than one statement be executed:
-    while (h < 0.0)    h += 360.0;          // make sure it's non-negative
-    while (h >= 360.0) h -= 360.0;          // make sure it's less than 360
-    return h;
-}
-
-// Return an abbreviation for a heading, like N, SW
-std::string HeadingText (double h)
-{
-    constexpr double CARDINAL_HALF_SEGMENT = 360.0 / 16.0 / 2.0;
-    h = HeadingNormalize(h);
-    double card = 0.0;
-    for (const char* sCard: { "N", "NNE", "NE", "ENE",
-                              "E", "ESE", "SE", "SSE",
-                              "S", "SSW", "SW", "WSW",
-                              "W", "WNW", "NW", "NNW" })
-    {
-        if (h <= card + CARDINAL_HALF_SEGMENT)
-            return sCard;
-        card += CARDINAL_HALF_SEGMENT * 2.0;
-    }
-    return "N";
 }
 
 
@@ -796,7 +861,8 @@ bool boundingBoxTy::overlap (const boundingBoxTy& o) const
 }
 
 //
-// MARK: Splines
+// MARK: Bezier
+//       Needed for reading airport layouts, not for moving planes
 //
 
 // Calculate a point on a quadratic Bezier curve
@@ -809,14 +875,14 @@ ptTy Bezier (double t, const ptTy& p0, const ptTy& p1, const ptTy& p2,
     if (pAngle) {
         // B'(t) = 2(1-t)(p1-p0)+2t(p2-p1)
         ptTy dtB = 2 * oneMt * (p1-p0) + 2 * t * (p2-p1);
-        *pAngle = rad2deg360(std::atan2(dtB.x, dtB.y));
+        *pAngle = dtB.angle();
     }
     
     // We calculate the value directly, ie. without De-Casteljau
     // B(t) = (1-t)^2 p0 + 2(1+t)t p1 + t^2 p2
     return
     (oneMt*oneMt)   * p0 +              // (1-t)^2 p0 +
-    (2 * oneMt * t) * p1 +              // 2(1+t)t p1 +
+    (2 * oneMt * t) * p1 +              // 2(1-t)t p1 +
     (t*t)           * p2;               // t^2     p2
 }
 
@@ -832,7 +898,7 @@ ptTy Bezier (double t, const ptTy& p0, const ptTy& p1, const ptTy& p2, const ptT
     if (pAngle) {
         // B'(t) = 3(1-t)^2 (p1-p0) + 6(1-t)t(p2-p1) + 3t^2(p3-p2)
         ptTy dtB = 3*oneMt2*(p1-p0) + 6*(oneMt)*t*(p2-p1) + 3*t2*(p3-p2);
-        *pAngle = rad2deg360(std::atan2(dtB.x, dtB.y));
+        *pAngle = dtB.angle();
     }
     
     // We calculate the value directly, ie. without De-Casteljau
@@ -843,6 +909,107 @@ ptTy Bezier (double t, const ptTy& p0, const ptTy& p1, const ptTy& p2, const ptT
     (3 * oneMt  * t2) * p2 +            // 3(1-t)t^2 p2 +
     (t2 * t)          * p3;             // t^3       p3
 }
+
+//
+// MARK: Bezier Curves
+//
+
+// Define a quadratic Bezier Curve based on the given flight data positions, with the mid point being the intersection of the vectors
+bool BezierCurve::Define (const positionTy& _start,
+                          const positionTy& _end)
+{
+    // Find the mid point as the intersection of the vectors
+    // defined by the two positions and their headings
+    start = _start;                     // A = start = (0|0)
+    start.WorldToLocal();
+    ptTy b = start;                     // B = start + a point in direction _start.heading()
+    b += HeadingToUnitCircle(_start.heading());
+    
+    // End point and its vector
+    end = _end;                         // C = _end
+    end.WorldToLocal();
+    ptTy d = end;                       // D = C + point in direction _end.heading()
+    d += HeadingToUnitCircle(_end.heading());
+    
+    // find the intersection
+    ptCtrl = CoordIntersect(start, b, end, d);
+    
+    // This intersection serves our Bezier curve purposes only if a few conditions are met
+    const double dStartEndLen  = (ptTy(end) - ptTy(start)).length();
+    const ptTy dStartCtrl = ptCtrl    - ptTy(start);
+    const ptTy dCtrlEnd = ptTy(end)   - ptCtrl;
+    
+        // 1. Must be in start-heading direction relative from start
+    if (std::abs(HeadingDiff(dStartCtrl.angle(), _start.heading())) > 15.0  ||
+        // 2. Must be in end-heading direction relative to end
+        std::abs(HeadingDiff(dCtrlEnd.angle(),   _end.heading())) > 15.0    ||
+        // 3. Each leg should not be longer than the total length, but also not too short
+        dStartCtrl.length() > dStartEndLen                                  ||
+        dStartCtrl.length() < 0.2 * dStartEndLen                            ||
+        dCtrlEnd.length()   > dStartEndLen                                  ||
+        dCtrlEnd.length()   < 0.2 * dStartEndLen)
+    {
+        Clear();
+        return false;
+    }
+    return true;
+}
+
+// Clear the definition, so that BezierCurve::isDefined() will return `false`
+void BezierCurve::Clear ()
+{
+    start = positionTy();
+    end = positionTy();
+    ptCtrl.clear();
+}
+
+// Return the position as per given timestamp, if the timestamp is between `start` and `end`
+bool BezierCurve::GetPos (positionTy& pos, double _calcTs)
+{
+    // not defined or not in the time range of this curve?
+    if (_calcTs < start.ts() || end.ts() < _calcTs)
+        return false;
+    
+    // Calculate f between [0.0..1.0]
+    const double myF = (_calcTs - start.ts()) / (end.ts() - start.ts());
+    
+    // The position to return
+    double angle = NAN;
+    ptTy p = Bezier(myF, start, ptCtrl, end, &angle);
+    LOG_ASSERT(p.isValid());
+    
+    // Convert the result back into geographic coordinated
+    const double alt_m = pos.alt_m();
+    pos.lat() = p.y;
+    pos.lon() = p.x;
+    pos.f.unitCoord = UNIT_LOCAL;
+    pos.LocalToWorld();
+    pos.alt_m() = alt_m;                // keep altitude unchanged
+    pos.heading() = angle;
+    
+    // We've updated the position
+    return true;
+}
+
+
+// Debug text output
+std::string BezierCurve::dbgTxt() const
+{
+    if (isValid()) {
+        char s[250];
+        snprintf(s, sizeof(s), "(%.5f / %.5f / %.1f @ %.1f) {%.5f %.5f} (%.5f / %.5f / %.1f @ %.1f)",
+                 start.lat(), start.lon(), start.heading(), start.ts(),
+                 ptCtrl.y, ptCtrl.x,
+                 end.lat(), end.lon(), end.heading(), end.ts());
+        return s;
+    } else {
+        return "<undefined>";
+    }
+}
+
+//
+// MARK: Hermite CSplines
+//
 
 /// Set the parameters (time, value like altitude, tangent like climb rate)
 template<typename T>
@@ -855,7 +1022,147 @@ void CSpline<T>::set (double _t0, const T& _p0, const T& _m0,
     b = -3*_p0 + 3*_p1 - dt * (2*_m0 + _m1);
     c =                  dt *    _m0;
     d =    _p0;
+    
+#ifdef DEBUG
+    __p0 = _p0;
+    __p1 = _p1;
+    __m0 = _m0;
+    __m1 = _m1;
+    __p2 = T();
+    __head0 = __speed0 = NAN;
+#endif
 }
+
+/// @brief Seamlessly continues the current spline to a new end point
+/// @returns `true` if set, or `false` if Spline wasn't valid
+template<typename T>
+bool CSpline<T>::cont (double tsNow,
+                       double _t1, const T& _p1, const T& _m1)
+{
+    if (!isValid()) return false;
+    
+    set (tsNow, val(tsNow), slope(tsNow),
+         _t1, _p1, _m1);
+    return true;
+}
+
+// Verify if spline is good, i.e. does not move too far outside the start/end heading range (like in loops or cusps)
+template<>
+bool CSpline<positionTy>::isGood (double m0ang, double m1ang, double tolerance) const
+{
+    return
+    HeadingIsBetween(slope(t0+0.1*dt).angleXZ(),    // 10%   point's heading
+                     m0ang, m1ang, tolerance)       // Start/End point's heading, Tolerance
+    &&
+    HeadingIsBetween(slope(t0+0.5*dt).angleXZ(),    // Mid   point's heading
+                     m0ang, m1ang, tolerance);      // Start/End point's heading, Tolerance
+}
+
+/// @brief Define by current pos + speed, next two pos
+/// @details Tangent m0 is the current speed/heading vector.
+///          Tangent m1 is
+///          a) [if p2 is valid]
+///             defined as (p2-p0)/2,
+///             with the factor 1/2 is passed through as parameter n.
+///          b) [else]
+///             assuming a straight continuous movement like from p0 to p1,
+///             hence the vector is (p1-p0)/∆ts
+template<>
+bool CSpline<positionTy>::set (double tsNow,
+                               const positionTy& _p0, double speed0_m, double vsi0_m,
+                               const positionTy& _p1,
+                               const positionTy& _p2,
+                               double n)
+{
+    // Starting point / tangent ideally is current value
+    positionTy p0, m0;
+    if (isValid()) {
+        p0 = val(tsNow);                    // continue from current values
+        m0 = slope(tsNow);
+    }
+    else {
+        p0 = _p0;                           // otherwise it is the given _p0, converted to local
+        p0.WorldToLocal();
+        tsNow = _p0.ts();                   // and we calculate with the timestamp given in that position
+        m0 = HeadingSpeedVec(_p0.heading(), std::max(speed0_m, 0.5));
+        m0.f.unitCoord = UNIT_LOCAL;
+    }
+
+    // End point, and next point
+    positionTy p1 = _p1; p1.WorldToLocal();
+    positionTy p2 = _p2; if (p2.hasPos()) p2.WorldToLocal();
+    
+    // ending tangent is ideally the average of next legs
+    positionTy m1 = p2.hasPos() ?
+        (p2 - p0) * (n / (p2.ts()-tsNow)) :
+        (p1 - p0) * (n / (p1.ts()-tsNow));
+    
+    // but if we have a fixed heading, then we may need to turn the tangent in that direction
+    const double m0ang = m0.angleXZ();
+    double m1ang = m1.angleXZ();
+    double m1len = NAN;
+    if (_p1.f.bHeadFixed &&
+        HeadingDiff(_p1.heading(), m1ang) > 1.0)
+    {
+        m1 = HeadingSpeedVec(m1ang = _p1.heading(), m1len = m1.lengthXZ());
+        m1.f.unitCoord = UNIT_LOCAL;
+    }
+    
+    // Y (altitude) values of tangents
+    const double dY = (p1.Y() - p0.Y()) / (p1.ts()-tsNow);
+    if (std::isnan(m0.Y())) {
+        if (std::isnan(vsi0_m))
+            m0.Y() = dY;
+        else
+            m0.Y() = vsi0_m;                // can/should override with current VSI for smooth movement
+    }
+    if (std::isnan(m1.Y())) m1.Y() = dY;
+    
+    // Now set the spline parameters
+    set (tsNow, p0, m0, _p1.ts(), p1, m1);
+
+    // Verify if spline is good, i.e. does not move too far outside the start/end heading range (like in loops or cusps)
+    bool bSplineGood = isGood(m0ang, m1ang, 3.0);                       // Start/End point's heading, Tolerance
+    if (!bSplineGood)
+    {
+        // It may help to adjust the starting speed (m0.length) towards m1.length.
+        // That will mean a sudden spead change...but we need to continue somehow:
+        const double m0len = m0.lengthXZ();
+        if (std::isnan(m1len)) m1len = m1.lengthXZ();
+        const double lenF = m1len / m0len - 1.0;                        // the full 100% factor to get from m0len to m1len
+        // Try a few variants of m0, with length developing towards m1len
+        for (double f: {0.2, 0.4, 0.66, 0.95})
+        {
+            positionTy m0_ = (f * lenF + 1.0) * m0;
+            set (tsNow, p0, m0_,
+                 _p1.ts(), p1, m1);
+            // Verify if spline is good, i.e. does not move too far outside the start/end heading range (like in loops or cusps)
+            bSplineGood = isGood(m0ang, m1ang, 3.0);                    // Start/End point's heading, Tolerance
+            if (bSplineGood)
+                break;
+        }
+    }
+    // Didn't find a good spline without loops and cusps?
+    if (!bSplineGood)
+        clear();
+
+#ifdef DEBUG
+    __head0  = _p0.heading();
+    __speed0 = speed0_m;
+    __p2     = p2;
+#endif
+    return bSplineGood;
+}
+
+// all other types don't work with this signature
+template<typename T>
+bool CSpline<T>::set (double, const positionTy&, double, double,
+                      const positionTy&, const positionTy&, double)
+{
+    static_assert(std::is_same<T,positionTy>::value == false, "Won't work if T is no positionTy");
+    return false;
+}
+
 
 /// Value at t with `_t0 <= t <= _t1`
 /// @returns `au^3 + bu^2 + cu + d` with `u = (t - t0)/dt`
@@ -875,6 +1182,55 @@ T CSpline<T>::slope (double t) const
     return ((3*a*u + 2*b)*u + c) / dt;
 }
 
+// Debug output
+std::string dbgTxt (double d, bool = false) { return std::to_string(d); }
+std::string dbgTxt (const positionTy& pt, bool bExt = false)
+{
+    if (bExt) {
+        char s[100];
+        snprintf(s, sizeof(s), " (%.0f°, %.1fm/s)", pt.angleXZ(), pt.lengthXZ());
+        return pt.dbgTxt() + s;
+    }
+    return pt.dbgTxt();
+}
+
+template<typename T>
+std::string CSpline<T>::dbgTxt() const
+{
+    if (!isValid())
+        return "<undefined>";
+    
+    char s[2000];
+    snprintf(s, sizeof(s),
+#ifdef DEBUG
+             "p0:      %s  m0:       %s {%.0f°, %.1fm/s}\n"
+#endif
+             "P(0.0) = %s  P'(0.0) = %s\n"
+             "P(0.1) = %s  P'(0.1) = %s\n"
+             "P(0.5) = %s  P'(0.5) = %s\n"
+             "P(0.9) = %s  P'(0.9) = %s\n"
+             "P(1.0) = %s  P'(1.0) = %s\n"
+#ifdef DEBUG
+             "p1:      %s  m1:       %s\n"
+             "p2:      %s"
+#endif
+             ,
+#ifdef DEBUG
+             ::dbgTxt(__p0).c_str(), ::dbgTxt(__m0, true).c_str(), __head0, __speed0,
+#endif
+             ::dbgTxt(val(t0         )).c_str(), ::dbgTxt(slope(t0         ), true).c_str(),
+             ::dbgTxt(val(t0 + 0.1*dt)).c_str(), ::dbgTxt(slope(t0 + 0.1*dt), true).c_str(),
+             ::dbgTxt(val(t0 + 0.5*dt)).c_str(), ::dbgTxt(slope(t0 + 0.5*dt), true).c_str(),
+             ::dbgTxt(val(t0 + 0.9*dt)).c_str(), ::dbgTxt(slope(t0 + 0.9*dt), true).c_str(),
+             ::dbgTxt(val(t0 +     dt)).c_str(), ::dbgTxt(slope(t0 +     dt), true).c_str()
+#ifdef DEBUG
+            ,::dbgTxt(__p1).c_str(), ::dbgTxt(__m1, true).c_str(),
+             ::dbgTxt(__p2).c_str()
+#endif
+             );
+    return s;
+}
+
 // Force compilation of the following:
 template struct CSpline<double>;        // 1D Hermite Spline
-template struct CSpline<ptTy>;          // 2D Hermite Spline
+template struct CSpline<positionTy>;    // 3D Hermite Spline

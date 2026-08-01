@@ -63,8 +63,6 @@
 #define RT_LOCALHOST            "0.0.0.0"
 constexpr size_t RT_NET_BUF_SIZE    = 8192;
 
-// constexpr double RT_SMOOTH_AIRBORNE = 65.0; // smooth 65s of airborne data
-// constexpr double RT_SMOOTH_GROUND   = 35.0; // smooth 35s of ground data
 constexpr double RT_VSI_AIRBORNE    = 80.0; ///< if VSI is more than this then we assume "airborne"
 
 /// [s] interval at which the parked-traffic request is re-issued so RT's
@@ -92,26 +90,7 @@ constexpr time_t RT_PARKED_REFRESH_INTVL_S = 300;
 #define RT_TRAFFIC_XATTPSX      "XATTPSX"
 #define RT_TRAFFIC_XGPSPSX      "XGPSPSX"
 
-// Constant for direct connection.
-//
-// Floor on the wait between traffic requests in milliseconds. The
-// per-response `rrl` value supplied by the RealTraffic server is the
-// authoritative rate limit (see `ProcessFetchedData`) and is honoured
-// directly when it is at or above this floor. The floor exists only
-// to defend against the server returning rrl=0 (or no rrl at all),
-// in which case we fall back to this conservative interval.
-//
-// RT supports 2 s polling in regular operation; the floor matches that
-// minimum so a 2 s `rrl` from the server is taken at face value rather
-// than overridden to a larger value. The previous 8 s floor predates
-// RT's documented 2 s capability and was capping the per-aircraft
-// position granularity at ~10-20 s, which the ground renderer can
-// observably struggle with (sideways-during-turn, backward routing
-// through SnapToTaxiways, jumpy liftoff). Tighter polling makes the
-// per-aircraft sample gap closer to the EHS heading update interval,
-// so the filtering layers added in earlier commits engage less often
-// and the visual quality improves overall.
-constexpr long RT_DRCT_DEFAULT_WAIT = 2000L;                                ///< [ms] Floor between traffic requests (RT's `rrl` controls the actual cadence)
+constexpr long RT_DRCT_DEFAULT_WAIT = long(SIMILAR_TS_INTVL) * 1000;        ///< [ms] Minimum wait between requests, makes no sende to query more often than we accept data
 constexpr std::chrono::seconds RT_DRCT_ERR_WAIT = std::chrono::seconds(5);  ///< standard wait between errors
 constexpr std::chrono::seconds RT_DRCT_ERR_RATE = std::chrono::seconds(10); ///< wait in case of rate violations, too many sessions
 constexpr std::chrono::minutes RT_DRCT_WX_WAIT = std::chrono::minutes(1);   ///< How often to update weather?
@@ -383,12 +362,6 @@ protected:
 #endif
     /// last simtime that we received UDP traffic
     double lastReceivedTime     = 0.0;
-    /// TEMPORARY (FEED_DIAG): per-aircraft last feed-timestamp accepted
-    /// by the channel. Used to verify that successive RT positions for
-    /// the same hex id arrive with monotonically increasing timestamps,
-    /// and to flag backwards / duplicate positions that would explain
-    /// rendered aircraft moving backwards. Cleared on connection start.
-    std::map<unsigned long, double> lastFeedTs;
     /// last known position to detect fast movement (to request buffered traffic and the like)
     positionTy lastKnownViewPos;
     /// Expecting buffered traffic first?

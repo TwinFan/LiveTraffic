@@ -34,12 +34,13 @@
 // previous and current cycle info
 struct cycleInfo {
     int     num;                // cycle numer (which is kind of an id)
+    bool    bLocalCoordChange;  ///< Did X-Plane's local coordinate system change this cycle?
     double  simTime;            // simulated time when the cycle started
     double  diffTime;           // the simulated time difference to previous cycle
 };
 
-cycleInfo prevCycle = { -1, -1, 0 };
-cycleInfo currCycle = { -1, -1, 0 };
+cycleInfo prevCycle = { -1, false, -1, 0 };
+cycleInfo currCycle = { -1, false, -1, 0 };
 
 #ifdef DEBUG
 /// Is the selected aircraft currently being calculated by a callback to LTAircraft::GetPlanePosition?
@@ -88,7 +89,7 @@ bool NextCycle (int newCycle)
         // simTime directly, so a small reversal is just a tiny stutter on
         // the next render, not a state-corrupting event. See
         // TIME_NONLINEAR_BACKWARD_S in Constants.h for the rationale.
-        if (currCycle.diffTime < TIME_NONLINEAR_BACKWARD_S) {
+        if (currCycle.diffTime < TIME_DIFF_TOLERATE) {
             // jumped backward...that has nothing to do with debugging
             dataRefs.SetReInitAll(true);
             SHOW_MSG(logWARN, ERR_TIME_NONLINEAR, currCycle.diffTime);
@@ -123,7 +124,7 @@ bool NextCycle (int newCycle)
     // See TIME_NONLINEAR_BACKWARD_S in Constants.h for the rationale
     // behind the asymmetric thresholds.
     if (dataRefs.GetNumAc() > 0 &&
-        (currCycle.diffTime < TIME_NONLINEAR_BACKWARD_S ||
+        (currCycle.diffTime < TIME_DIFF_TOLERATE ||
          currCycle.diffTime > dataRefs.GetFdBufPeriod()) ) {
         // too much time passed...we start over and reinit all aircraft
         dataRefs.SetReInitAll(true);
@@ -144,6 +145,23 @@ bool NextCycle (int newCycle)
     else
         XPMPDisableAircraftLabels();
     
+    // In case X-Plane's local coordiate system change set a flag,
+    // we need to invalidate local-coordinate-based calculations like Splines.
+    static positionTy posZeroLast;
+    positionTy posZero (0.0, 0.0, 0.0, NAN, NAN, NAN, NAN,
+                        GND_UNKNOWN, UNIT_LOCAL);
+    posZero.LocalToWorld();
+    if ((currCycle.bLocalCoordChange =
+         posZeroLast.hasPosAlt() &&
+         (!dequal(posZero.lat(),      posZeroLast.lat())   ||
+          !dequal(posZero.lon(),      posZeroLast.lon())   ||
+          !dequal(posZero.alt_m(),    posZeroLast.alt_m())  )
+       ))
+    {
+        LOG_MSG(logDEBUG, "X-Plane has moved its local coordinate system.");
+    }
+    posZeroLast = posZero;
+
     return true;
 }
 
@@ -271,17 +289,18 @@ void MovingParam::moveToBy (double _from, bool _increase, double _to,
         // set origin and desired target value
         valFrom = _from;
         valTo = _to;
-        bIncrease = _increase;
+        // We honor the _increase flag in case of wrap around parameters
+        bIncrease = bWrapAround ? _increase : (valFrom < valTo);
         
         // distance depends if we are going to wrap around on the way
         // standard (direct, no wrap-around) case first
-        if (( _increase && _from < _to) ||
-            (!_increase && _from > _to)) {
+        if (( bIncrease && _from < _to) ||
+            (!bIncrease && _from > _to)) {
             valDist = _to - _from;
         } else {
             // wrap around cases
             LOG_ASSERT(bWrapAround);
-            if (_increase)
+            if (bIncrease)
                 valDist = _to - _from + defDist; // (defMax - _from) + (_to - defMin)
             else
                 valDist = _to - _from - defDist; // -((_from - defMin) + (defMax - _to))
@@ -354,6 +373,20 @@ double MovingParam::get()
     return val;
 }
 
+/// How long would it take to make a move?
+double MovingParam::getTimeTo (double _to) const
+{
+    // how far to move?
+    double dist = std::abs(val - _to);
+    
+    // In a wrap-around case, there might be a shorter way
+    if (bWrapAround && dist > defDist/2)
+        dist = defDist - dist;                      // turn the other way round
+    
+    // Time it needs to make that move
+    return dist/defDist * defDuration;
+}
+
 
 double MovingParam::percDone () const
 {
@@ -376,404 +409,6 @@ std::string MovingParam::dbgTxt () const
              inMotion() ? "inMotion" : "-");
     return s;
 }
-
-
-//
-//MARK: AccelParam
-//
-AccelParam::AccelParam() :
-startSpeed(NAN), targetSpeed(NAN), acceleration(NAN), targetDeltaDist(NAN),
-startTime(NAN), accelStartTime(NAN), targetTime(NAN),
-currSpeed_m_s(NAN), currSpeed_kt(NAN)
-{}
-
-// set current speed, but blank out the rest
-void AccelParam::SetSpeed (double speed)
-{
-    currSpeed_m_s = speed;
-    currSpeed_kt = speed * KT_per_M_per_S;
-    startSpeed = targetSpeed = acceleration = NAN;
-    targetDeltaDist = NAN;
-    startTime = accelStartTime = targetTime = NAN;
-}
-
-// starts an acceleration with given parameters
-void AccelParam::StartAccel(double _startSpeed, double _targetSpeed,
-                            double _accel, double _startTime)
-{
-    // Sanity check
-    if (!(_accel > 0 ? _targetSpeed > _startSpeed : _targetSpeed < _startSpeed))
-        return;
-    
-    // reset
-    SetSpeed(_startSpeed);
-    
-    // set values
-    startSpeed = _startSpeed;
-    targetSpeed = _targetSpeed;
-    acceleration = _accel;
-    startTime = accelStartTime = std::isnan(_startTime) ? currCycle.simTime : _startTime;
-
-    // pre-calculate the target delta distance, needed for ratio-calculation
-    targetTime = startTime + (targetSpeed - startSpeed)/acceleration;
-    targetDeltaDist = getDeltaDist(targetTime);
-}
-
-// determine speed/acceleration/deceleration
-// Complication: The entire design idea is that we know positions
-//       at defined timestamp. We have to be there exactly at the defined time.
-//       We don't know the exact speed in that point, and even if so we
-//       wouldn't know the speed change over the course of the vector
-//       leading up to the target.
-//       Moreover, we 'only' work with constant acceleration, i.e. the
-//       speed changes linear from a start to an end. This way, despite
-//       changing speed all the time we travel the exact same distance
-//       as we would if we would keep the speed constant at the average
-//       between start and target speed.
-// Idea: We do know the average speed for a vector (distance divided by time).
-//       For the position connecting two vectors (our 'to' position)
-//       we just assume a target speed identical to the average speed
-//       between the current vector's and the next vector's speed.
-//       To make that work with our constant acceleration the start speed
-//       needs to be on the opposite site of the current vectors average
-//       speed to ensure we travel the right distance.
-//       That still means that we will change speeds momentarily when
-//       reaching/switching a position. But that sudden change should
-//       on average be a lot lower than if we would just change from
-//       one vector's average speed to the next.
-//       To further improve target speed accuracy we take the _weighted_
-//       average of vectors' speeds with a higher weight on the _shorter_
-//       vector to smooth out acceleration. (Acceleration/decelaration
-//       would be higher on shorter vectors in case of uniform distribution.)
-void AccelParam::StartSpeedControl(double _startSpeed, double _targetSpeed,
-                                   double _deltaDist,
-                                   double _startTime, double _targetTime,
-                                   const LTAircraft* pAc)
-{
-    // Sanity checks
-    if (_targetTime <= currCycle.simTime || _startTime >= _targetTime)
-        return;
-
-    const double deltaTime = _targetTime - _startTime;
-    const double avgSpeed = _deltaDist / deltaTime;
-    
-    // Sanity checks: ∆distance and ∆t should not be too close to zero
-    if (dequal(_deltaDist, 0) || dequal(deltaTime, 0)) {
-        SetSpeed(_targetSpeed);
-        return;
-    }
-
-    // If current speed and target speed are on opposite sides of
-    // average speed then we can continue with current speed
-    // up to a point from which we accelerate/decelerate to 'to'-position
-    // (formula documentation see Notes.txt)
-    // tx =  2/∆v * (vi * ∆t + ∆v/2 * tt - d)
-    
-    // decelerate (currently above avg, target below avg: keep current speed
-    // until it is time [tx] to deceleration)
-    if (_startSpeed > avgSpeed && avgSpeed > _targetSpeed)
-    {
-        // is startSpeed too fast? (too far on the other side of average?)
-        if (_startSpeed > avgSpeed + (avgSpeed - _targetSpeed))
-            // too fast, so we reduce startSpart to mirror targetSpeed on the other side of average speed
-            _startSpeed = avgSpeed + (avgSpeed - _targetSpeed);
-    }
-    // accelerate (currently below avg, target above)
-    else if (_startSpeed < avgSpeed && avgSpeed < _targetSpeed)
-    {
-        // is startSpeed too slow? (too far on the other side of average?)
-        if (_startSpeed < avgSpeed - (_targetSpeed - avgSpeed))
-            // too slow, increase to mirror targetSPeed
-            _startSpeed = avgSpeed - (_targetSpeed - avgSpeed);
-        
-    }
-    // no way of complying to input parameters under our conditions:
-    // set constant speed and return
-    else {
-        // output debug info on request
-        if (dataRefs.GetDebugAcPos(pAc->key())) {
-            LOG_MSG(logDEBUG,"CONSTANT SPEED due impossible speeds (start=%.1f,avg=%.1f=%.1fm/%.1fs,target=%.1f) for %s",
-                    _startSpeed,
-                    avgSpeed, _deltaDist, deltaTime,
-                    _targetSpeed,
-                    std::string(*pAc).c_str());
-        }
-        SetSpeed(avgSpeed);
-        return;
-    }
-    
-    // continue with dynamic speed:
-    // calc the time when to start speed change
-    const double deltaSpeed = _targetSpeed - _startSpeed;
-    const double tx = 2/deltaSpeed * (_startSpeed * deltaTime +
-                         deltaSpeed/2 * _targetTime -
-                         _deltaDist);
-    const double accel = deltaSpeed / (_targetTime - tx);
-    
-    // set object's values
-    if (tx <= _targetTime) {            // expected...but in rare edge cases it seems possible to be violated
-        SetSpeed(_startSpeed);          // reset, then set to calculated values:
-        startSpeed = _startSpeed;
-        targetSpeed = _targetSpeed;
-        acceleration = accel;
-        targetDeltaDist = _deltaDist;
-        startTime = _startTime;
-        accelStartTime = std::max(tx, _startTime);
-        targetTime = _targetTime;
-    //    if (dataRefs.GetDebugAcPos(pAc->key())) {
-    //        LOG_MSG(logDEBUG,"%s: start=%.1f, in %.1fs: accel=%.1f,target=%.1f) for %s",
-    //                acceleration >= 0.0 ? "ACCELERATION" : "DECELERATION",
-    //                startSpeed,
-    //                accelStartTime - startTime,
-    //                acceleration,
-    //                targetSpeed,
-    //                std::string(*pAc).c_str());
-    //    }
-    } else {
-        LOG_MSG(logERR, "tx <= _targetTime violated for %s (tx = %.1f | %.1f, %.1f, %.1f, %.1f, %.1f)",
-                pAc->key().c_str(), tx,
-                _startSpeed, _targetSpeed, _deltaDist, _startTime, _targetTime);
-        SetSpeed(avgSpeed);
-        return;
-    }
-}
-
-// *** Acceleration formula ***
-// The idea is: With a given acceleration (speed increases by that amount per second - or decreases if negative)
-// we need speed-diff/acceleration seconds to increase start speed to target speed.
-// At the beginning (∆t=0) speed is start speed, at the end (∆t=speed-diff/acceleration) speed is target speed.
-// => 𝑣(∆t) = startSpeed + acceleration × ∆t
-double AccelParam::updateSpeed ( double ts )
-{
-    // shortcut for constant speed
-    if (!isChanging())
-        return currSpeed_m_s;
-    
-    // by default use current sim time
-    if (std::isnan(ts))
-        ts = currCycle.simTime;
-    
-    // before acceleration time it's always start speed
-    if (ts < accelStartTime)
-        currSpeed_m_s = startSpeed;
-    // after targetTime it's always targetSpeed
-    else if (ts >= targetTime)
-        currSpeed_m_s = targetSpeed;
-    // inbetween the speed changes constantly over time:
-    // 𝑣(∆t) =  acceleration × ∆t + startSpeed
-    else
-        currSpeed_m_s = fma(acceleration, ts-accelStartTime, startSpeed);
-    
-    // convert to knots
-    currSpeed_kt = currSpeed_m_s * KT_per_M_per_S;
-    
-    // return m/s value
-    return currSpeed_m_s;
-}
-
-// The integral over 𝑣 provides us with the distance:
-// ∫𝑣(∆t) = 𝑑(∆t) = startSpeed × ∆t + ½ acceleration × ∆t²
-double AccelParam::getDeltaDist(double ts) const
-{
-    // by default use current sim time
-    if (std::isnan(ts))
-        ts = currCycle.simTime;
-    LOG_ASSERT(ts >= startTime);
-    
-    // shortcut for constant speed: 𝑑(∆t) = startSpeed × ∆t
-    if (std::isnan(accelStartTime))
-        return startSpeed * (ts - startTime);
-    
-    // before acceleration time there's a constant speed phase (at max until accelStartTime)
-    double dist = startSpeed * (std::min(accelStartTime, ts) - startTime);
-
-    // if ts is beyond accelStartTime
-    if (ts > accelStartTime) {
-        // distance travelled while accelerating after passing accelStartTime, max until targetTime
-        // 𝑑(∆t) = startSpeed × ∆t + ½ acceleration × ∆t²
-        //       = ∆t × (½ acceleration × ∆t + startSpeed)
-        const double deltaTS = std::min(ts,targetTime) - accelStartTime;
-        dist += deltaTS * fma(acceleration/2, deltaTS, startSpeed);
-    }
-    
-    // if ts beyond target time: add distance with constant target speed
-    if (ts > targetTime)
-        dist += (ts - targetTime) * targetSpeed;
-    
-    // return that distance
-    return dist;
-}
-
-// ratio is a value from 0.0 to 1.0 indicating which share of the
-// distance to travel till targetDist has passed
-// Useful in CalcPPos to determine PPos between 'from' and 'to'
-double AccelParam::getRatio (double deltaTS ) const
-{
-    return getDeltaDist(deltaTS) / targetDeltaDist;
-}
-
-//
-// MARK: Bezier Curves
-//
-
-// Define a quadratic Bezier Curve based on the given flight data positions
-void BezierCurve::Define (const positionTy& _start,
-                          const positionTy& _mid,
-                          const positionTy& _end)
-{
-    // init
-    start   = _start;
-    ptCtrl  = _mid;
-    end     = _end;
-    
-#ifdef DEBUG
-    if (gSelAcCalc)
-        LOG_MSG(logDEBUG, "Quadratic Bezier defined:\n%s",
-                dbgTxt().c_str());
-#endif
-
-    // Convert all coordinates to meter
-    ConvertToMeter();
-}
-
-// Define a quadratic Bezier Curve based on the given flight data positions, with the mid point being the intersection of the vectors
-bool BezierCurve::Define (const positionTy& _start,
-                          const positionTy& _end)
-{
-    // Find the mid point as the intersection of the vectors
-    // defined by the two positions and their headings
-    start = _start;                     // A = start = (0|0)
-    const positionTy posB = _start.destPos(vectorTy(_start.heading(), 1000.0));
-    ptTy b (posB.lon(), posB.lat());    // B = A + vector along A-heading
-    ConvertToMeter(b);
-    
-    // End point and its vector
-    ptTy c (_end.lon(), _end.lat());    // C = _end
-    const positionTy posD = _end.destPos(vectorTy(_end.heading(), 1000.0));
-    ptTy d (posD.lon(), posD.lat());    // D = _end + vector along C-heading
-    ConvertToMeter(c);
-    ConvertToMeter(d);
-
-    // find the intersection
-    ptTy mid = CoordIntersect(ptTy(0,0), b, c, d);
-    ConvertToGeographic(mid);
-    
-    // This intersection serves our Bezier curve purposes only if a few conditions
-    // are met:
-    Clear();                            // reset, just in case we bail
-    // 1. Must be in start-heading direction relative to start
-    if (std::abs(HeadingDiff(_start.angle(mid), _start.heading())) > 15.0)
-        return false;
-    // 2. Must be in reverse end-heading direction relative to end
-    if (std::abs(HeadingDiff(_end.angle(mid), _end.heading())) < 165.0)
-        return false;
-    // 3. Each leg (distance from _start/_end to mid) should be longer than, say,
-    //    twice the direct distance _start/_end
-    const double dist = _start.dist(_end);
-    const double startDist = _start.dist(mid);
-    const double endDist = _end.dist(mid);
-    if (startDist > 2.0*dist || endDist > 2.0*dist)
-        return false;
-    // Not too short legs either, otherwise progress along the line is too non-linear
-    if (startDist < 0.25*dist || endDist < 0.25*dist)
-        return false;
-    
-    // Define the Bezier curve
-    Define(_start, mid, _end);
-    return true;
-}
-
-// Convert the geographic coordinates to meters, with `start` being the origin (0|0) point
-/// @details The `start` point serves as origin and is - by definition - (0|0).
-///          The content of `start` will not be overwritten, it is necessary for reverse conversion.
-///          The other points are overwritten with the distance - in meters - to `start`.
-void BezierCurve::ConvertToMeter ()
-{
-    end.lat() = Lat2Dist(end.lat() - start.lat());
-    end.lon() = Lon2Dist(end.lon() - start.lon(), start.lat());
-    ConvertToMeter(ptCtrl);
-}
-
-/// Convert the given geographic coordinates to meters
-void BezierCurve::ConvertToMeter (ptTy& pt) const
-{
-    if (pt.isValid()) {
-        pt.y = Lat2Dist(pt.y - start.lat());
-        pt.x = Lon2Dist(pt.x - start.lon(), start.lat());
-    }
-}
-
-// Convert the given position back to geographic coordinates
-void BezierCurve::ConvertToGeographic (ptTy& pt) const
-{
-    if (pt.isValid()) {
-        pt.y = start.lat() + Dist2Lat(pt.y);
-        pt.x = start.lon() + Dist2Lon(pt.x, start.lat());
-    }
-}
-
-// Clear the definition, so that BezierCurve::isDefined() will return `false`
-void BezierCurve::Clear ()
-{
-    start.ts() = NAN;
-    end.ts() = NAN;
-    ptCtrl.clear();
-}
-
-// Return the position as per given timestamp, if the timestamp is between `start` and `end`
-bool BezierCurve::GetPos (positionTy& pos, double _calcTs)
-{
-    // not defined or not in the time range of this curve?
-    if (!isTsInbetween(_calcTs))
-        return false;
-    
-    // Calculate f between [0.0..1.0]
-    const double myF = (_calcTs - start.ts()) / (end.ts() - start.ts());
-    if (myF < 0.0 || myF > 1.0)
-        return false;
-    
-    // The position to return
-    double angle = NAN;
-    ptTy p = Bezier(myF, {0.0,0.0}, ptCtrl, end, &angle);
-    LOG_ASSERT(p.isValid());
-    
-    // Convert the result back into geographic coordinated
-    ConvertToGeographic(p);
-/*
-#ifdef DEBUG
-    if (gSelAcCalc) {
- //       if (std::abs(pos.heading()-angle) > 1.5)
-            LOG_MSG(logDEBUG, "_calcTs=%.1f, myF=%.4f, p={%s}, head=%.1f -> %.1f",
-                    _calcTs, myF, p.dbgTxt().c_str(), pos.heading(), angle);
-    }
-#endif
-*/
-    // Update pos
-    pos.lat() = p.y;
-    pos.lon() = p.x;
-    pos.alt_m() = start.alt_m() * (1-myF) + end.alt_m() * myF;
-    pos.heading() = angle;
-    
-    // We've updated the position
-    return true;
-}
-
-
-// Debug text output
-std::string BezierCurve::dbgTxt() const
-{
-    if (isDefined()) {
-        char s[250];
-        snprintf(s, sizeof(s), "(%.5f / %.5f / %.1f @ %.1f) {%.5f %.5f} (%.5f / %.5f / %.1f @ %.1f)",
-                 start.lat(), start.lon(), start.heading(), start.ts(),
-                 ptCtrl.y, ptCtrl.x,
-                 end.lat(), end.lon(), end.heading(), end.ts());
-        return s;
-    } else {
-        return "<undefined>";
-    }
-}
-
 
 //
 //MARK: LTAircraft::FlightModel
@@ -1334,14 +969,7 @@ probeNextTs(0), terrainAlt_m(0.0)
         CalcLabelInternal(statCopy);
         
         // init moving params where necessary.
-        // The pitch is initialised to the static ground attitude
-        // `GND_PITCH_DEG` whenever the aircraft starts its life on the
-        // ground (parked / taxiing) so the first rendered frame already
-        // looks correct — otherwise the MovingParam would briefly target
-        // 0° and produce a visible nose-bob before the ground-attitude
-        // override (in `CalcAcPos`) kicks in. Aircraft created in flight
-        // continue to start at neutral 0°.
-        pitch.SetVal(IsOnGrnd() ? GND_PITCH_DEG : 0);
+        pitch.SetVal(0);
         corrAngle.SetVal(0);
         
         // calculate our first position, must also succeed
@@ -1400,10 +1028,13 @@ void LTAircraft::CalcLabelInternal (const LTFlightData::FDStaticData& statDat)
 /// LTAircraft stringify for debugging output purposes
 LTAircraft::operator std::string() const
 {
-    char buf[1024];
-    snprintf(buf,sizeof(buf),"a/c %s\nturn: %s\nheading: %s\n%s Y: %.1fft %.0fkn %.0fft/m Phase: %02d %s\nposList:\n",
+    char buf[4048];
+    snprintf(buf,sizeof(buf),"a/c %s\nloc:\n%s\naltSpline:\n%s\nheading: %s\n%s Y: %.1fft %.0fkn %.0fft/m Phase: %02d %s\nposList:\n",
              labelInternal.c_str(),
-             turn.dbgTxt().c_str(),
+             // location: CSpline or Bezier or nothing
+             locSpline ? locSpline.dbgTxt().c_str() :
+             locBezier ? locBezier.dbgTxt().c_str() : "<undefined>",
+             altSpline.dbgTxt().c_str(),
              heading.dbgTxt().c_str(),
              ppos.dbgTxt().c_str(), GetTerrainAlt_ft(),
              GetSpeed_kt(),
@@ -1448,32 +1079,25 @@ std::string LTAircraft::GetFlightId() const
 //
 
 // position heading to (usually posList.back(), but ppos if ppos > posList.back())
-const positionTy& LTAircraft::GetToPos(double* pTrack) const
+const positionTy& LTAircraft::GetToPos() const
 {
-    // posList contains more than just the _current_ to-position, but even a future one (temporary state)
-    if ( posList.size() >= 3 ) {
-        if (pTrack)
-            *pTrack = posList[1].angle(posList[2]);
+    // "Normal" state: 2+ positions in the posList and ppos not yet reached the 2nd
+    if ( posList.size() >= 2 && ppos < posList.back() )
         return posList[1];
-    }
-    
-    // "Normal" state: 2 positions in the posList and ppos not yet reached the 2nd
-    if ( posList.size() == 2 && ppos < posList.back() ) {
-        // If we have a nextPos we can provide the track there
-        if (pTrack) {
-            if (posNext.isNormal())
-                *pTrack = posList[1].angle(posNext);
-            else
-                *pTrack = GetTrack();
-        }
-        return posList.back();
-    }
-    
-    // We passed our posList already and don't _exactly_ know where we are headed
-    if (pTrack)
-        *pTrack = GetTrack();
-    return ppos;
+    else
+        // flying somewhere...
+        return ppos;
 }
+
+/// Most future well-known position, posList.back() or ppos
+const positionTy& LTAircraft::GetNewestPos () const
+{
+    if (!posList.empty())
+        return posList.back();
+    else
+        return ppos;
+}
+
 
 // are we in desperate need of new positions?
 bool LTAircraft::OutOfPositions() const
@@ -1537,6 +1161,15 @@ bool LTAircraft::IsOnRwy() const
 }
 
 
+// returns heading (including wind and pushback correction)
+double LTAircraft::GetHeading() const
+{
+    return HeadingNormalize(ppos.heading() +
+                            corrAngle.is() +
+                            (ppos.f.bPushback ? 180.0 : 0.0));
+}
+
+
 // Lift produced for wake system, typically mass * 9.81, but blends in during rotate and blends out while landing
 float LTAircraft::GetLift() const
 {
@@ -1573,7 +1206,7 @@ bool LTAircraft::CalcPPos()
     // we need at least two: 'from' and 'to'
     while ( posList.size() < 2 ) {
         // try fetching new data, if succeeded repeated evaluation
-        switch ( fd.TryFetchNewPos(posList, posNextNext, rotateTs) ){
+        switch ( fd.TryFetchNewPos(posList, posNext, rotateTs) ){
             case LTFlightData::TRY_NO_DATA:
                 // no new data available...tell fd (maybe again) that we urgendtly need some!
                 fd.TriggerCalcNewPos(tsLastCalcRequested = currCycle.simTime);
@@ -1609,7 +1242,7 @@ bool LTAircraft::CalcPPos()
 
         // 0,5s before reaching last known position we try adding new positions
         if (lastPos.ts() <= currCycle.simTime + TIME_REQU_POS) {
-            if (fd.TryFetchNewPos(posList, posNextNext, rotateTs) == LTFlightData::TRY_SUCCESS) {
+            if (fd.TryFetchNewPos(posList, posNext, rotateTs) == LTFlightData::TRY_SUCCESS) {
                 // we got new position(s)!
                 bArtificalPos = false;
             }
@@ -1620,36 +1253,9 @@ bool LTAircraft::CalcPPos()
     // (Must have reach/passed posDeque[1] and there must be a third position,
     //  which can now serve as 'to')
     while ( posList[1].ts() <= currCycle.simTime && posList.size() >= 3 ) {
-        // Preserve the slot we are about to discard.
-        // Use in Spline computations.
-        posPrev = posList.front();
-
         // By just removing the first element (current 'from') from the deqeue
         // we make posDeque[2] the next 'to'
         posList.pop_front();
-
-        // Snapshot the spline's exit-tangent control point (P3)
-        // That is the _likely_ (though not _guaranteed_) position to be reached
-        // after 'to', to be used as Bezier/spline control point.
-        posNext = posNextNext;
-
-        // Now: If running point-to-point, ie. _not_ cutting corners with
-        // Bezier curves, then to absolutely ensure we continue seamlessly from current
-        // ppos we set posDeque[0] ('from') to ppos. Should be close anyway in normal
-        // situations. (It's not if the simulation was halted while feeding live
-        // data, then posList got completely outdated and ppos might jump beyond the entire list.)
-        if ( ppos < posList[1]) {
-            // Save some flags needed for later calculations
-            ppos.f.specialPos = posList.front().f.specialPos;
-            ppos.f.bCutCorner = posList.front().f.bCutCorner;
-            ppos.edgeIdx      = posList.front().edgeIdx;
-            // Then overwrite posDeque[0] if not currently turning using a Bezier
-            if (!turn.isTsInbetween(currCycle.simTime))
-                posList.front() = ppos;
-            // but even if turning by Bezier save the current heading
-            else
-                posList.front().heading() = ppos.heading();
-        }
         // flag: switched positions
         bPosSwitch = true;
     }
@@ -1661,168 +1267,169 @@ bool LTAircraft::CalcPPos()
     // from the first to the second
     positionTy& from  = posList[0];
     positionTy& to    = posList[1];
-    const double duration = to.ts() - from.ts();
-    const double prevHead = phase == FPH_UNKNOWN ? from.heading()    : ppos.heading();  // previous heading (needed for roll calculation)
 #ifdef DEBUG
     std::string debFrom ( from.dbgTxt() );
     std::string debTo   ( to.dbgTxt() );
     std::string debVec  ( from.between(to) );
 #endif
-    LOG_ASSERT_FD(fd,duration > 0);
 
     // *** position switch ***
     
     // some things only change when we work with new positions compared to last frame
     if ( bPosSwitch ) {
-        // *** vector we will be flying now from 'from' to 'to':
-        from.normalize();
-        to.normalize();
-        const vectorTy prevVec = vec;
-        vec = from.between(to);
-        LOG_ASSERT_FD(fd,!std::isnan(vec.speed) && !std::isnan(vec.vsi));
-        
-        // CSpline for altitude transition if not staying on ground
-        double m0 = NAN, m1 = NAN;                  // tangents, effectively climb-rate in m/s
-        if (from.IsOnGnd() && to.IsOnGnd())
-            altSpline.clear();
-        // Flying (or transitioning to/from flying)
-        else
-        {
-            if (from.IsOnGnd()) {                       // Lift off case -> starting tangent is close to 0 (exactly: the slop of the runway)
-                m0 = !std::isnan(prevVec.vsi) ? prevVec.vsi : 0.0;
-            }
-            else if (to.IsOnGnd()) {                    // touch down case -> ending tangent is close to 0 (slope of runway)
-                m1 = posNext.hasPosAlt() ?
-                     (posNext.alt_m() - to.alt_m()) / (posNext.ts() - to.ts()) :
-                     0.0;
-            }
-            if (std::isnan(m0)) m0 = GetVSI_m_s();      // standard case: continue with current climb rate
-            if (std::isnan(m1)) {                       // standard case: average climbrate between this and next segment
-                m1 = posNext.hasPosAlt() ?
-                (posNext.alt_m() - ppos.alt_m()) / (posNext.ts() - ppos.ts()) :
-                vec.vsi;                                // or this segment's rate if we don't yet know what comes next
-            }
-            // Initialize the altitude cSpline
-            altSpline.set(ppos.ts(), ppos.alt_m(), m0,
-                          to.ts(), to.alt_m(), m1);
-        }
-        
         // first time inits
         if (phase == FPH_UNKNOWN) {
+            // we start at the beginning from
+            ppos = from;
+            
             // check if starting on the ground
             bOnGrnd = from.IsOnGnd();
             
             // avg of the current vector
-            speed.SetSpeed(vec.speed);
+            speed_m = from.speed_m(to);
             
             // point to some reasonable heading
             heading.SetVal(ppos.heading() = from.heading());
         }
         
-        // *** ground status starts with that one of 'from'
-        ppos.f.onGrnd = from.f.onGrnd;
-        
-        // *** Pitch ***
-        
-        // We calculate a target/to pitch here just for backup. It will rarely be used.
-        // And actually...it is m1 if we could compute that...but then again,
-        // if we could compute m1 then we'll use a spline and don't need this
-        const double vsiTo =
-            to.IsOnGnd() ? 0.0 :
-            !std::isnan(m1) ? m1 :
-            posNext.hasPosAlt() ? (posNext.alt_m() - ppos.alt_m()) / (posNext.ts() - ppos.ts()) :
-            vec.vsi;
-        to.pitch() = std::clamp<double>(vsi2deg(vec.speed, vsiTo),
-                                        pMdl->PITCH_MIN, pMdl->PITCH_MAX);
-        if (!altSpline)
-            pitch.moveTo(to.pitch());
-        
-        // *** speed/acceleration/decelaration
-        
-        // Only skip acceleration control in case of short final, i.e. if currently off ground
-        // but next pos is on the ground, because in that case the
-        // next vector is the vector for roll-out on the ground
-        // with significantly reduced speed due to breaking, that speed
-        // is undesirable at touch-down; for short final we assume constant speed
-        bNeedSpeed = from.IsOnGnd() || !to.IsOnGnd();
-        if (!bNeedSpeed)
-            speed.SetSpeed(vec.speed);
+        // To absolutely ensure we continue seamlessly from current
+        // ppos we set posList[0] ('from') to ppos. Should be close anyway in normal
+        // situations. (It's not if the simulation was halted while feeding live
+        // data, then posList got completely outdated and ppos might jump beyond the entire list.)
 
-        // Not already controlled by a cut-corner Bezier curve
-        if (!turn.isTsInbetween(currCycle.simTime)) {
-            // Clear an outdated turn
-            turn.Clear();
+        // Save some flags needed for later calculations
+        ppos.f.specialPos = from.f.specialPos;
+        ppos.f.bPushback  = from.f.bPushback;
+        ppos.edgeIdx      = from.edgeIdx;
+        // Then overwrite posList[0]
+        from = ppos;
+
+        // *** vector we will be flying now from 'from' to 'to':
+        from.normalize();
+        to.normalize();
+        const vectorTy prevVec = vec;           // used in altitude spline calculation
+        vec = from.between(to);
+        LOG_ASSERT_FD(fd,!std::isnan(vec.speed) && !std::isnan(vec.vsi));
         
-            // *** Heading ***
-            
-            // Try a Bezier curve first, if that doesn't work...
-            //
-            // On the ground we use the lower `GND_BEZIER_MIN_HEAD_DIFF`
-            // threshold so that 1–2° taxi turns also get curve-tangent
-            // heading and are visually rendered as a smooth arc rather than
-            // as a heading walked via the linear MovingParam fallback. In
-            // the air we keep the original 2.5° threshold so en-route course
-            // corrections don't constantly enter/exit Bezier mode.
-            const double minHeadDiff = IsOnGrnd() ? GND_BEZIER_MIN_HEAD_DIFF
-                                                  : BEZIER_MIN_HEAD_DIFF;
-            // At high ground speed (landing rollout, takeoff roll, fast taxi)
-            // we deliberately skip Bezier and use straight-line interpolation
-            // instead. The Bezier's end-tangent comes from `to.heading()` which
-            // is the next slot's reported heading — when that next slot is on
-            // a turn-off taxiway and the current slot is on the runway, the
-            // Bezier arcs the path across the runway corner and the rendered
-            // aircraft visually slides off the runway with its nose pointing
-            // away from its direction of motion. Linear interpolation makes
-            // the renderer walk heading toward `vec.angle` (the motion vector
-            // — see the moveQuickestToBy call below) which is what an aircraft
-            // physically does on the ground at speed: nose along the track.
-            // See `GND_TRACK_HEADING_MIN_KT` in Constants.h for the rationale.
-            //
-            // We use the leg's AVERAGE speed (`vec.speed_kn()` = dist/dt) and
-            // NOT the current rendered speed. The rendered speed at leg-setup
-            // is the speed the aircraft is *coming into* the leg — so for a
-            // taxi-to-runway-entry leg where the aircraft taxis in slowly and
-            // exits at runway-roll speed (e.g., gs 5 kn → 12 kn over 47 m in
-            // 7.84 s, leg-average ~12 kn), the rendered start speed is 5 kn
-            // and would fail this threshold even though the leg is the very
-            // transition we want to handle straight-line. Using leg-average
-            // catches all legs whose endpoint speed crosses the threshold,
-            // which is what aligns the rendered nose with the runway from
-            // the moment the aircraft starts accelerating onto it.
-            const bool bGndFast = IsOnGrnd() &&
-                                  !std::isnan(vec.speed) &&
-                                  vec.speed_kn() >= GND_TRACK_HEADING_MIN_KT;
-            if (to.f.bCutCorner ||                                      // next position is to use a cut-corner curve?
-                vec.dist <= SIMILAR_POS_DIST ||                         // no reasonable leg distance and turn amount?
-                std::abs(HeadingDiff(ppos.heading(), to.heading())) < minHeadDiff ||
-                bGndFast ||                                             // high-speed ground motion: never Bezier
-                !turn.Define(ppos, to))                                 // or defining the Bezier failed for some other reason?
+        // *** Pushback start/end ***
+        if (ppos.f.bPushback != to.f.bPushback) {
+            // Current pos takes over already the new flag
+            ppos.f.bPushback = to.f.bPushback;
+            // Flip current heading as we are reversing direction of movement now.
+            // This goes as tangent into Spline calculation and must point in direction of movement.
+            // (GetHeading() flips the actual heading around again based on f.bPushback)
+            heading.SetVal(ppos.heading() = HeadingReverse(ppos.heading()));
+        }
+        
+        // *** Spline for 3D movement *** of considerable length.
+        //     Requires a certain distance for clear vectors,
+        //     otherwise planes would turn heading artificially.
+        if (vec.dist > SIMILAR_POS_DIST) {
+            if (!locSpline.set(currCycle.simTime,
+                               ppos, speed_m, GetVSI_m_s(),
+                               to, posNext))
             {
-                // ...start the turn from the initial heading to the vector heading
-                heading.defDuration = IsOnGrnd() ? pMdl->TAXI_TURN_TIME : pMdl->FLIGHT_TURN_TIME;
-                // Target heading...defaults to vector heading, i.e. point to where we go to
-                double h = vec.angle;
-                // only potentially override in low speed situations
-                if (!bGndFast) {
-                    // long leg: typically we stick to default vector heading
-                    if (vec.dist > SIMILAR_POS_DIST) {
-                        // Except:  to-heading points backwards? Might be push-back, so go backwards
-                        if (to.f.bHeadFixed && std::abs(HeadingDiff(vec.angle, to.heading())) > 90.0)
-                            h = HeadingNormalize(vec.angle + 180.0);
-                    }
-                    // short leg: turn half-way to to-heading
-                    else {
-                        h = HeadingAvg(ppos.heading(),to.heading());
-                    }
+                if (dataRefs.GetDebugAcPos(key())) {
+                    LOG_MSG(logDEBUG,DBG_SPLINE_INVALID, ppos.dbgTxt().c_str(), to.dbgTxt().c_str());
                 }
-                heading.moveQuickestToBy(ppos.heading(), h,
-                                         NAN, from.ts()+duration/2,     // by half the vector flight time
+                // Try a Bezier instead of a Spline
+                if (!locBezier.Define(ppos, to) &&
+                    dataRefs.GetDebugAcPos(key()))
+                {
+                    LOG_MSG(logDEBUG,DBG_BEZIER_INVALID, ppos.dbgTxt().c_str(), to.dbgTxt().c_str());
+                }
+                // Speed is going to be constant then
+                speed_m = vec.speed;
+            }
+        }
+        // on short legs used linear interpolation
+        else {
+            locSpline.clear();
+            locBezier.Clear();
+        }
+        
+        if (!locSpline && !locBezier) {
+            // *** Speed ***
+            //     is constant in case of linear interpolation.
+            //     (Otherwise the Spline is going to determine it dynamically.)
+            speed_m = vec.speed;
+
+            // *** Heading ***
+            //     On short legs (stationary, or time less than need for direct turn to target heading)
+            //     we just turn directly to target heading.
+            //     On longer legs turn first to track, later to target heading.
+            heading.SetVal(ppos.heading());
+            heading.defDuration = IsOnGrnd() ? pMdl->TAXI_TURN_TIME : pMdl->FLIGHT_TURN_TIME;
+            const double tTurn = heading.getTimeTo(to.heading());
+            const double tLeg = to.ts() - currCycle.simTime;
+            if (tLeg > tTurn && vec.dist > SIMILAR_POS_DIST) {
+                // Have time to first turn to track heading
+                heading.moveQuickestToBy(ppos.heading(), vec.angle,
+                                         currCycle.simTime,             // can start now
+                                         currCycle.simTime + tLeg/2.0,  // shall finish by mid of leg
+                                         true);                         // start immediately
+            } else {
+                // Have only time to turn directly to target heading
+                heading.moveQuickestToBy(ppos.heading(), to.heading(),
+                                         currCycle.simTime,             // can start now
+                                         to.ts(),                       // shall finish by end of leg
                                          true);                         // start immediately
             }
+
+            // ...start the turn from the initial heading to the vector heading
         }
         
         // *** Correction Angle for crosswind ***
         CalcCorrAngle();
+        
+        // *** Altitiude ***
+        
+        // If using 3D location spline then need nothing else
+        if (locSpline) {
+            altSpline.clear();
+        }
+        // Don't have a location spline...but may be able to use an altitude spline
+        else {
+            // CSpline for altitude transition if not staying on ground
+            double m0 = NAN, m1 = NAN;                  // tangents, effectively climb-rate in m/s
+            if (from.IsOnGnd() && to.IsOnGnd())
+                altSpline.clear();
+            // Flying (or transitioning to/from flying)
+            else
+            {
+                if (from.IsOnGnd()) {                       // Lift off case -> starting tangent is close to 0 (exactly: the slop of the runway)
+                    m0 = !std::isnan(prevVec.vsi) ? prevVec.vsi : 0.0;
+                }
+                else if (to.IsOnGnd()) {                    // touch down case -> ending tangent is close to 0 (slope of runway)
+                    m1 = posNext.hasPosAlt() ?
+                    (posNext.alt_m() - to.alt_m()) / (posNext.ts() - to.ts()) :
+                    0.0;
+                }
+                if (std::isnan(m0)) m0 = GetVSI_m_s();      // standard case: continue with current climb rate
+                if (std::isnan(m1)) {                       // standard case: average climbrate between this and next segment
+                    m1 = posNext.hasPosAlt() ?
+                    (posNext.alt_m() - ppos.alt_m()) / (posNext.ts() - ppos.ts()) :
+                    vec.vsi;                                // or this segment's rate if we don't yet know what comes next
+                }
+                // Initialize the altitude cSpline
+                altSpline.set(ppos.ts(), ppos.alt_m(), m0,
+                              to.ts(), to.alt_m(), m1);
+            }
+            
+            // *** Pitch ***
+            
+            // We calculate a target/to pitch here just for backup. It will rarely be used.
+            // And actually...it is m1 if we could compute that...but then again,
+            // if we could compute m1 then we'll use a spline and don't need this
+            const double vsiTo = from.IsOnGnd() && to.IsOnGnd() ? 0.0 :         // on ground: hard-coded to 0 (terrain altitude doesn't seem to be accurate enough)
+                                 !std::isnan(m1) ? m1 : vec.vsi;
+            to.pitch() = std::clamp<double>(vsi2deg(vec.speed, vsiTo),
+                                            pMdl->PITCH_MIN, pMdl->PITCH_MAX);
+            // Don't override any pre-programmed pitch movement (like de-flare)
+            if (!altSpline && !pitch.isProgrammed()) {
+                pitch.moveTo(to.pitch());
+            }
+        }
         
         // output debug info on request
         if (dataRefs.GetDebugAcPos(key())) {
@@ -1830,102 +1437,15 @@ bool LTAircraft::CalcPPos()
         }
     } // if ( bPosSwitch )
     
-    // Further computations make only sense if 'to' is still in the future
-    // (there seem to be case when this is not the case, and if only because the user pauses or changes time)
-    if ((bNeedSpeed || bNeedCCBezier) && to.ts() < currCycle.simTime) {
-        if (bNeedSpeed) speed.SetSpeed(vec.speed);
-        bNeedSpeed = bNeedCCBezier = false;
-    }
-    
-    // Need next position for speed or Bezier determination?
-    // (We don't need a next position if the next is "STOPPED", because then we know the target speed is zero.)
-    positionTy nextPos;
-    vectorTy nextVec;
-    if ((bNeedSpeed || bNeedCCBezier) && to.f.flightPhase != FPH_STOPPED_ON_RWY)
-    {
-        // Do we happen to have a next vector already in posList?
-        if (nextPos.isNormal()) {
-            nextVec = to.between(nextPos);
-        }
-        else {
-            // need to check with LTFlightData's posDeque:
-            switch ( fd.TryGetNextPos(to.ts()+1.0, nextPos) ) {
-                case LTFlightData::TRY_SUCCESS:
-                    // got the next position!
-                    // But it's from flight data's queue, so potentially doesn't yet have an altitude, we need one now
-                    if (nextPos.IsOnGnd() && std::isnan(nextPos.alt_m()))
-                        nextPos.alt_m() = fd.YProbe_at_m(nextPos);
-                    // Compute vector to it
-                    nextVec = to.between(nextPos);
-                    break;
-                case LTFlightData::TRY_NO_LOCK:
-                    // try again next frame (bNeedSpeed || bNeedBezier stays true)
-                    break;
-                case LTFlightData::TRY_NO_DATA:
-                case LTFlightData::TRY_TECH_ERROR:
-                    // no data or errors...well...then we just fly straight
-                    if (bNeedSpeed) speed.SetSpeed(vec.speed);
-                    bNeedSpeed = bNeedCCBezier = false;
-                    break;
-            }
-        }
-    }
-    
-    // *** acceleration / deceleration ***
-    if (bNeedSpeed && (nextVec.isValid() || to.f.flightPhase == FPH_STOPPED_ON_RWY))
-    {
-        // Target speed: Weighted average of current and next vector
-        const double toSpeed =
-            to.f.flightPhase == FPH_STOPPED_ON_RWY ? 0.0 :              // if we are to STOP, then target speed is zero
-            (vec.speed * nextVec.dist + nextVec.speed * vec.dist) /     // otherwise we consider this and the next leg
-            (vec.dist + nextVec.dist);
-        
-        // initiate speed control (if speed valid, could be NAN if both distances ae zero)
-        if (!std::isnan(toSpeed)) {
-            speed.StartSpeedControl(speed.m_s(),
-                                    toSpeed,
-                                    vec.dist,
-                                    from.ts(), to.ts(),
-                                    this);
-        }
-        // don't need to calc speed again
-        bNeedSpeed = false;
-    }
-    
-    // Update correction angle
-    corrAngle.get();
-    
-    // *** Cut Corner Bezier Curve ***
-    // We define them only if both legs are long enough.
-    // (Very short legs indicate a plane standing still waiting,
-    // we don't want such a plane to turn at all.)
-    if (bNeedCCBezier && nextVec.isValid())
-    {
-        bNeedCCBezier = false;
-
-        // Legs long enough?
-        if (vec.dist > SIMILAR_POS_DIST && nextVec.dist > SIMILAR_POS_DIST) {
-            positionTy _end = to;
-            _end.mergeCount = nextPos.mergeCount = 1;
-            _end |= nextPos;                        // effectively calculates mid-point between to and nextPos, taking care of proper heading, too
-            turn.Define(ppos,                       // start is right here and now
-                        to,                         // mid-point is end of current leg
-                        _end);                      // end-point is the mid between to and nextPos
-        }
-    }
-
     // *** The Factor ***
     
+    const double duration = to.ts() - from.ts();
+    const double prevHead  = phase == FPH_UNKNOWN ? from.heading() : ppos.heading();    // previous heading (needed for roll calculation)
+    const double prevAlt_m = phase == FPH_UNKNOWN ? from.alt_m()   : ppos.alt_m();      // previous altitude (needed for vsi calculation)
+    LOG_ASSERT_FD(fd,duration > 0);
+
     // How far have we traveled (in time) between from and to?
-    double f = NAN;
-    if (speed.isChanging()) {
-        // accelerating/decelerating: f follows a 2. degree polynomial
-        f = speed.getRatio();
-        speed.updateSpeed();
-    } else {
-        // standard case: we move steadily from 'from' to 'to', f is linear
-        f = (currCycle.simTime - from.ts()) / duration;
-    }
+    const double f = (currCycle.simTime - from.ts()) / duration;
     
     // *** Artifical stop ***
     
@@ -1933,94 +1453,93 @@ bool LTAircraft::CalcPPos()
     // (this also applies to artificial roll-out phase)
     if (f > 1.0 &&
         (phase == FPH_TAXI || phase >= FPH_TOUCH_DOWN) &&
-        speed.m_s() > 0.5 &&
-        !bArtificalPos)
+        !IsSpeedZero())
     {
-        // init deceleration down to zero
-        speed.StartAccel(speed.m_s(),
-                         0,
-                         pMdl->ROLL_OUT_DECEL);
-        
-        // the vector to the stopping point
-        vectorTy vecStop(ppos.heading(),            // keep current heading
-                         speed.getTargetDeltaDist());// distance needed to stop
-        
-        // add ppos and the stop point (ppos + above vector) to the list of positions
-        // (they will be activated with the next frame only)
-        posList.emplace_back(ppos);
-        posList.emplace_back(ppos.destPos(vecStop));
-        positionTy& stopPoint = posList.back();
-        stopPoint.ts() = speed.getTargetTime();
-        stopPoint.f.flightPhase = FPH_STOPPED_ON_RWY;
-        bArtificalPos = true;                   // flag: we are working with an artifical position now
-        turn.Clear();                           // (and certainly not with a Bezier curve)
+        // add two stop points (ppos + above vector) to the list of positions
+        // first one to decelerate down to 20% of speed
+        positionTy posStop = AccelCalcStopPoint(ppos, speed_m * 0.8, pMdl->ROLL_OUT_DECEL);
+        LTAptSnapIfOverRwy(posStop);            // Important only for auto-land, but that keeps the plane centered on the rwy
+        posList.push_back(posStop);
+        // second one for the remaining 20%
+        posStop = AccelCalcStopPoint(posStop, speed_m * 0.2, pMdl->ROLL_OUT_DECEL);
+        LTAptSnapIfOverRwy(posStop);            // Important only for auto-land, but that keeps the plane centered on the rwy
+        posList.push_back(posStop);
+        // The _same_ position again makes us stop down to zero
+        posStop.ts() += SIMILAR_TS_INTVL;
+        posStop.f.flightPhase = FPH_STOPPED_ON_RWY;
+        posList.push_back(posStop);
         if (dataRefs.GetDebugAcPos(key())) {
-            LOG_MSG(logDEBUG,DBG_INVENTED_STOP_POS,stopPoint.dbgTxt().c_str());
+            LOG_MSG(logDEBUG,DBG_INVENTED_STOP_POS,posStop.dbgTxt().c_str());
         }
+        posNext = positionTy();
+        bArtificalPos = true;                   // flag: we are working with an artifical position now
     }
     
-    // Try getting our current position from the Bezier curve
-    const double _calcTs = from.ts() * (1-f) + to.ts() * f;
-    if (f <= 1.0 && turn.GetPos(ppos, _calcTs)) {
-        // sync the changing heading between Bezier curve and MovingParam
-        heading.SetVal(ppos.heading());
+    // *** Plane Location / Heading ***
+    //     In most cases controlled by the Spline.
+    //     But not so if running out of positions (f > 1.0),
+    //     and if no Spline was defined due to too small movement.
+    if (f > 1.0 ||
+        currCycle.bLocalCoordChange)        // also remove splines in case the coordinate system change -> fall back to linear interpolation
+    {
+        if (locSpline) locSpline.clear();
+        if (altSpline) altSpline.clear();
+        if (locBezier) locBezier.Clear();
     }
-    // No bezier, no spline...just linear interpolation,
-    // heading comes from the moving parameter define during pos switch
+    
+    if (locSpline) {
+        // Ask the locSpline for the current location (this includes altitude)
+        ppos.setLoc(locSpline.val(currCycle.simTime));      // this is now local coordinates!
+        ppos.LocalToWorld();                                // convert back to world coordinates
+        // Heading/Speed vactor
+        const positionTy v = locSpline.slope(currCycle.simTime);
+        speed_m = v.lengthXZ();
+        heading.SetVal(ppos.heading() = v.angleXZ());
+    }
+    // is instead a Bezier curve defined?
+    else if (locBezier) {
+        locBezier.GetPos(ppos, currCycle.simTime);
+        heading.SetVal(ppos.heading());                     // Bezier set heading, tell our param, too
+    }
     else {
-        // Now we apply the factor so that with time we move from 'from' to 'to'.
+        // No Splines -> Linear interpolation
+        // Apply the factor so that with time we move from 'from' to 'to'.
         // Note that this calculation also works if we passed 'to' already
         // (due to no newer 'to' available): we just keep going the same way.
         // This is effectively a scaled vector sum, broken down into its components:
         ppos.lat()   = from.lat()   * (1 - f) + to.lat() * f;
         ppos.lon()   = from.lon()   * (1 - f) + to.lon() * f;
-        // we handle roll later separately
 
+        // *** Heading *** comes from the moving parameter define during pos switch
         // Get heading from moving param
         ppos.heading() = heading.get();
+        // Time to turn to target heading during a long leg?
+        if (f >= 0.5 && !heading.isProgrammed()) {
+            heading.moveQuickestToBy(ppos.heading(), to.heading(),
+                                     currCycle.simTime,             // can start now
+                                     to.ts(),                       // shall finish by end of leg
+                                     false);                        // start as late as possible
+        }
     }
     
-    // Altitude, VSI, and pitch follow the Altitude cSpline, if defined, otherwise linear
-    if (altSpline) {
-        ppos.alt_m() = altSpline.val(currCycle.simTime);
-        vsi = altSpline.slope(currCycle.simTime) / Ms_per_FTm;  // convert from m/s to ft/min
-        
-        // if there is no pre-programmed pitch movement
-        if (!pitch.inMotion()) {
-            double toPitch = vsi2deg(GetSpeed_m_s(), GetVSI_m_s());
-            toPitch += GetFlapsPos() * pMdl->PITCH_FLAP_ADD;
-            toPitch = std::clamp<double>(toPitch, pMdl->PITCH_MIN, pMdl->PITCH_MAX);
-            // During Rotate/Lift Off and Flare/RollOut we might have the nose higher than 'required' for the VSI,
-            // but absolutely avoid taking the nose down in these phases
-            if ((GetFlightPhase() != FPH_ROTATE &&
-                 GetFlightPhase() != FPH_LIFT_OFF &&
-                 GetFlightPhase() != FPH_FLARE &&
-                 GetFlightPhase() != FPH_TOUCH_DOWN &&      // During TouchDown/RollOut the nose is still up for some time,
-                 GetFlightPhase() != FPH_ROLL_OUT) ||       // don't interfere, is being taken down later
-                toPitch > GetPitch())
-            {
-                // For a small change just set it, else move there
-                if (std::abs(GetPitch() - toPitch) < 0.5)
-                    pitch.SetVal(ppos.pitch() = toPitch);
-                else {
-                    pitch.moveTo(toPitch);
-                    ppos.pitch()  = pitch.get();
-                }
-            }
-        }
-        else {
-            ppos.pitch()  = pitch.get();
+    // Update heading correction angle
+    corrAngle.get();
+    
+    // *** Altitude ***
+    //     follow the Location or Altitude cSpline, if defined, otherwise linear
+    if (locSpline || altSpline) {
+        // locSpline has set altitue already above in the "location" section
+        // but if we have a separate altSpline we need to process it now:
+        if (altSpline) {
+            ppos.alt_m() = altSpline.val(currCycle.simTime);
         }
     }
     // No altitude spline -> linear motion
     else {
         ppos.alt_m()  = from.alt_m() * (1 - f) + to.alt_m() * f;
-        vsi = vec.vsi_ft();
-        ppos.pitch() = pitch.get();
     }
 
-    // calculate timestamp can be a bit off, especially when acceleration is in progress,
-    // overwrite with current value as of now
+    // calculated timestamp can be a bit off, overwrite with current value as of now
     ppos.ts() = currCycle.simTime;
 
     // if we are runnig beyond 'to' we might become invalid (especially too low, too high)
@@ -2035,64 +1554,7 @@ bool LTAircraft::CalcPPos()
         return false;
     }
     
-    // *** Half-way through preparations ***
-    if (f >= 0.5 && f < 1.0)
-    {
-        // Cut Corner: half-way through prepare a quadratic curve to cut the corner...if needed
-        if (to.f.bCutCorner &&                             // only for cut-corner positions
-            !bNeedCCBezier &&                              // flag not already set?
-            !turn.isTsBeforeEnd(currCycle.simTime) &&      // Bezier not already defined?
-            vec.dist > SIMILAR_POS_DIST &&                 // reasonable leg distance and turn amount?
-            std::abs(HeadingDiff(ppos.heading(), to.heading())) >= BEZIER_MIN_HEAD_DIFF)
-        {
-            // set the flag to fetch the next leg. All the rest is done above
-            bNeedCCBezier = true;
-        }
-        // otherwise prepare turning heading to final heading (if not done already).
-        //
-        // On the ground at high leg-average speed (rollout, takeoff,
-        // fast taxi) we deliberately do NOT retarget heading to
-        // `to.heading()` here. The linear path set up at the start of
-        // the leg already aimed heading at `vec.angle` (the motion
-        // direction), which is the visually correct nose direction
-        // during high-speed ground travel. Retargeting to the next
-        // slot's reported heading would restart the same problem the
-        // Bezier-skip above is trying to avoid: rendered nose pointing
-        // away from the direction of motion. Once leg-average speed
-        // drops below `GND_TRACK_HEADING_MIN_KT`, this branch is
-        // allowed to fire and the aircraft can begin converging on
-        // the slot's reported orientation for the upcoming turn-off,
-        // gate manoeuvre, or other slow-speed activity.
-        //
-        // The condition uses `vec.speed_kn()` (leg-average) to match
-        // the bGndFast check at leg-setup above. Using the current
-        // rendered `GetSpeed_kt()` here would let the retarget fire
-        // during the acceleration phase of a takeoff leg before the
-        // rendered speed has caught up to the leg average, undoing
-        // the Bezier-skip choice for the very legs that need it most.
-        else if (!dequal(heading.toVal(), to.heading()) /* TODO: Really need this? We're now missing turns that we would have needed. Proper way is to make sure that to.heading is correct &&
-                 !(IsOnGrnd() &&
-                   !std::isnan(vec.speed) &&
-                   vec.speed_kn() >= GND_TRACK_HEADING_MIN_KT)*/)
-        {
-            heading.defDuration = IsOnGrnd() ? pMdl->TAXI_TURN_TIME : pMdl->FLIGHT_TURN_TIME;
-            heading.moveQuickestToBy(ppos.heading(), to.heading(), // target heading
-                                     NAN, to.ts(),      // by target timestamp
-                                     false);            // start as late as possible
-        }
-    }
-
-    // *** Attitude ***
-    
-    // Calculate roll based on heading change
-    CalcRoll(prevHead);
-
-#ifdef DEBUG
-    std::string debPpos ( ppos.dbgTxt() );
-#endif
-    LOG_ASSERT_FD(fd,ppos.isFullyValid());
-
-    // *** Height and Flight Model ***
+    // *** Height AGL and Flight Model ***
     // Now we know our new position, determine height above ground
     YProbe();
 
@@ -2104,66 +1566,59 @@ bool LTAircraft::CalcPPos()
         // safety measure:
         // on the ground we are...on the ground, not moving vertically
         ppos.alt_m() = terrainAlt_m;
-        vsi = 0;
         // but tires are rotating
         tireRpm.SetVal(std::min(TireRpm(GetSpeed_kt()),
                                 tireRpm.defMax));
+    }
+    
+    // *** Roll ***
+    
+    // Calculate roll based on heading change
+    CalcRoll(prevHead);
+    
+    // *** VSI / Pitch ***
+    //     can only be determined once sure about the altitude (like the above clamp to ground)
+    
+    // On the ground hard-coded to 0.0 (terrain altitude not accurate enough).
+    vsi = bOnGrnd ? 0.0 :
+          // In the air, delta-altitude is VSI (convert from m/s to ft/min)
+          (ppos.alt_m() - prevAlt_m) / (currCycle.diffTime * Ms_per_FTm);
 
-        // ------------------------------------------------------------------
-        // TODO: Reconsider...the world isn't flat everywhere. Properly done, pitch should come from altitude difference, always
-        // Hard-set ground attitude every frame to defeat feed-driven jitter.
-        //
-        // Why this exists: data feeds and the position-interpolation code
-        // path can produce small drifts in pitch and roll while an aircraft
-        // is sitting on (or rolling along) the ground. Real aircraft are
-        // mechanically held in a fixed attitude by their landing gear —
-        // they do not bank while taxiing and their pitch is determined by
-        // gear geometry rather than dynamic flight forces. So we forcibly
-        // clamp pitch and roll to the constants `GND_PITCH_DEG` /
-        // `GND_ROLL_DEG` defined in `Constants.h`, overriding whatever the
-        // interpolation/flight-model code produced earlier in this frame.
-        //
-        // Exceptions: phases where the nose is genuinely moving relative
-        // to the ground — rotation for take-off (`FPH_ROTATE`), lift-off
-        // itself (`FPH_LIFT_OFF`), the flare before touchdown
-        // (`FPH_FLARE`), the single-cycle touchdown event
-        // (`FPH_TOUCH_DOWN`), and the roll-out that immediately follows
-        // touchdown (`FPH_ROLL_OUT`). In all of these the flight-model
-        // code is actively driving the `pitch` MovingParam through a
-        // planned transition — `pitch.moveTo(ROTATE_PITCH_MAX_DEG)` on
-        // rotate, VSI-derived target on lift-off,
-        // `pitch.moveTo(PITCH_FLARE)` on flare,
-        // `pitch.moveTo(GND_PITCH_DEG)` on touchdown to walk the nose
-        // down smoothly during roll-out. Overriding pitch during any of
-        // these phases would visibly snap the nose. In particular:
-        //   - Without the `FPH_ROLL_OUT` exception, the de-rotation
-        //     animation gets clobbered one frame after touchdown
-        //     (touchdown is documented as a single-frame event) and
-        //     the aircraft appears to slam its nose-wheel down.
-        //   - Without the `FPH_LIFT_OFF` exception, an aircraft whose
-        //     phase advances ROTATE → LIFT_OFF *while still bOnGrnd*
-        //     (VSI crossed `VSI_STABLE` before the aircraft physically
-        //     left the runway — common on takeoff rolls where the
-        //     altitude is barometric and the smoothed value crosses
-        //     `MDL_CLOSE_TO_GND` a frame or two before the deque
-        //     bracket itself leaves the ground) gets its rotation pitch
-        //     forcibly reset to `GND_PITCH_DEG = 2°` for as many frames
-        //     as it takes for bOnGrnd to flip false. Visible as: nose
-        //     pitches up, briefly flips level on the runway, then
-        //     pitches up again once airborne. Reported on AAL2449.
-        if (phase != FPH_ROTATE &&
-            phase != FPH_LIFT_OFF &&
-            phase != FPH_FLARE  &&
-            phase != FPH_TOUCH_DOWN &&
-            phase != FPH_ROLL_OUT)
+    // if there is a pre-programmed pitch movement follow that
+    if (pitch.isProgrammed()) {
+        ppos.pitch()  = pitch.get();
+    }
+    else {
+        // dynamic pitch based on latest delta altitude (requires speed...if standing still then we use the vector's vsi)
+        double toPitch = bOnGrnd ? 0.0 :
+                         IsSpeedZero() ? vec.vsi : vsi2deg(GetSpeed_m_s(), GetVSI_m_s());
+        if (!bOnGrnd)                       // if in the air add pitch for extended flaps
+            toPitch += GetFlapsPos() * pMdl->PITCH_FLAP_ADD;
+        toPitch = std::clamp<double>(toPitch, pMdl->PITCH_MIN, pMdl->PITCH_MAX);
+        // During Rotate/LiftOff and Flare we might have the nose higher than 'required' for the VSI,
+        // but absolutely avoid taking the nose down in these phases
+        if ((GetFlightPhase() != FPH_ROTATE &&
+             GetFlightPhase() != FPH_LIFT_OFF &&
+             GetFlightPhase() != FPH_FLARE) ||
+            toPitch > GetPitch())
         {
-            ppos.pitch() = GND_PITCH_DEG;
+            // Limit the movement to an amount like MovingParam would do
+            double change = toPitch - ppos.pitch();
+            const double maxChange = (pitch.defDist / pitch.defDuration) * currCycle.diffTime;
+            if (std::abs(change) > maxChange)
+                change = std::copysign(maxChange, change);
+            pitch.SetVal(ppos.pitch() += change);
         }
     }
     
     // save this position for (next) camera view position
     CalcCameraViewPos();
     
+#ifdef DEBUG
+    std::string debPpos ( ppos.dbgTxt() );
+#endif
+    LOG_ASSERT_FD(fd,ppos.isFullyValid());
+
     // success
     return true;
 }
@@ -2180,6 +1635,9 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
     
     // present height (AGL in ft)
     double PHeight = GetPHeight_ft();
+    
+    // Current speed in knots is referred so often that we calculate it once only
+    const double speed_kt = GetSpeed_kt();
     
     // Are we on the ground or not?
     
@@ -2212,7 +1670,7 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
     
     // Parked?
     if (bOnGrnd &&                                      //     must be on ground
-        speed.m_s() < 2.0 &&                            // AND very slow
+        GetSpeed_m_s() < 2.0 &&                         // AND very slow
         !IsGroundVehicle() &&                           // AND NOT a car
         (ppos.f.specialPos == SPOS_STARTUP ||           // AND (   current pos is STARTUP)
          (posList.size() >= 2 &&                        //      OR (to AND from pos are STARTUP)
@@ -2222,27 +1680,29 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
         phase = FPH_PARKED;
     }
     // ELSE on the ground with low speed
-    else if ( bOnGrnd && speed.kt() <= pMdl->MAX_TAXI_SPEED )
+    else if ( bOnGrnd && speed_kt <= pMdl->MAX_TAXI_SPEED )
     {
         // if not artifically reducing speed (roll-out)
         if (!bArtificalPos) {
-            // Could be taxxing, could be pushback
-            if (GetToPos().f.flightPhase == FPH_PUSHBACK)
+            // Could be taxxing, could be intentionally stopped, could be pushback
+            if (GetToPos().f.bPushback)
                 phase = FPH_PUSHBACK;
+            else if (IsSpeedZero() && to.f.flightPhase == FPH_STOPPED_ON_RWY)
+                phase = FPH_STOPPED_ON_RWY;
             else
                 phase = FPH_TAXI;
         }
         // so we are rolling out artifically...have we stopped?
-        else if (speed.isZero())
+        else if (IsSpeedZero())
             phase = FPH_STOPPED_ON_RWY;
     }
     
     // on the ground with high speed or on a runway
-    if ( bOnGrnd && (speed.kt() > pMdl->MAX_TAXI_SPEED || IsOnRwy()))
+    if ( bOnGrnd && (speed_kt > pMdl->MAX_TAXI_SPEED || IsOnRwy()))
     {
         if ( bFPhPrev <= FPH_LIFT_OFF )     // before take off
             phase = FPH_TO_ROLL;
-        else if (speed.isZero())            // stopped on rwy
+        else if (IsSpeedZero())             // stopped on rwy
             phase = FPH_STOPPED_ON_RWY;
         else                                // else: rolling out
             phase = FPH_ROLL_OUT;
@@ -2275,7 +1735,7 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
     // climbing through flaps toggle speed
     if (VertDir == V_Climbing &&
         PHeight >= pMdl->AGL_GEAR_UP &&
-        speed.kt() >= pMdl->FLAPS_UP_SPEED) {
+        speed_kt >= pMdl->FLAPS_UP_SPEED) {
         phase = FPH_CLIMB;
     }
     
@@ -2289,26 +1749,26 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
     
     // sinking, but still above flaps toggle height
     if (VertDir == V_Sinking &&
-        speed.kt() > pMdl->FLAPS_DOWN_SPEED) {
+        speed_kt > pMdl->FLAPS_DOWN_SPEED) {
         phase = FPH_DESCEND;
     }
     
     // sinking through flaps toggle speed
     if (VertDir == V_Sinking &&
-        speed.kt() <= pMdl->FLAPS_DOWN_SPEED) {
+        speed_kt <= pMdl->FLAPS_DOWN_SPEED) {
         phase = FPH_APPROACH;
     }
     
     // sinking through gear-down height
     if (VertDir == V_Sinking &&
-        speed.kt() <= pMdl->FLAPS_DOWN_SPEED &&
+        speed_kt <= pMdl->FLAPS_DOWN_SPEED &&
         PHeight <= pMdl->AGL_GEAR_DOWN) {
         phase = FPH_FINAL;
     }
     
     // sinking through flare height
     if (VertDir == V_Sinking &&
-        speed.kt() <= pMdl->FLAPS_DOWN_SPEED &&
+        speed_kt <= pMdl->FLAPS_DOWN_SPEED &&
         PHeight <= pMdl->AGL_FLARE) {
         phase = FPH_FLARE;
     }
@@ -2384,12 +1844,7 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
         // (as we don't do any counter-measure in the next ENTERED-statements
         //  we can lift the nose only if we are exatly AT rotate phase)
         if (phase == FPH_ROTATE) {
-            // Cap the rotate-phase pitch target at `pMdl->PITCH_ROTATE`.
-            // Once the aircraft transitions to FPH_LIFT_OFF the in-air pitch logic in
-            // `LTFlightData::CalcNextPos` (line ~1700) takes over and
-            // walks pitch toward the VSI-derived target, clamped to
-            // `pMdl->PITCH_MAX` — so steep climbs can still reach the
-            // full 15°, just not while the gear is still on the runway.
+            // Pitch up
             pitch.moveTo(pMdl->PITCH_ROTATE);
             gearDeflection.defDuration = pitch.defDuration;
             gearDeflection.min();               // and start easing up on the wheels in about the same timeframe
@@ -2403,7 +1858,7 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
             tireRpm.min();                              // "move" to 0
         gearDeflection.defDuration = MDL_GEAR_DEFL_TIME;
         gearDeflection.min();
-        CalcCorrAngle();                        // might need to correct for cross wind
+        CalcCorrAngle();                        // might need to start correcting for cross wind
     }
     
     // entered Initial Climb
@@ -2460,32 +1915,10 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
         gearDeflection.max();           // start main gear deflection
         spoilers.max();                 // start deploying spoilers
         ppos.f.onGrnd = GND_ON;
-        // DEFERRED nose-down: do NOT call `pitch.moveTo(GND_PITCH_DEG)`
-        // here. Record the touchdown timestamp instead; the frame-level
-        // check further down in this function will fire the moveTo only
-        // after `TOUCHDOWN_HOLD_PITCH_S` seconds have elapsed, modelling
-        // the aerobrake during which real airliners keep the nose
-        // pitched up at `PITCH_FLARE` after the main gear is on the
-        // runway. Until that delayed moveTo fires, the MovingParam's
-        // last commanded target remains `PITCH_FLARE` (set on
-        // `FPH_FLARE` entry) and the ground-attitude override in
-        // `CalcAcPos` is bypassed for both `FPH_TOUCH_DOWN` and
-        // `FPH_ROLL_OUT`, so the pitch stays at flare value during the
-        // hold.
-        touchdownTs = currCycle.simTime;
-    }
-
-    // Deferred nose-down after touchdown (TOUCHDOWN_HOLD_PITCH_S hold).
-    // Fires once, then clears `touchdownTs` so subsequent frames do
-    // nothing. If for any reason the aircraft is destroyed mid-hold,
-    // the timestamp dies with it. If the aircraft re-touchdowns
-    // (e.g. porpoising) before we fire, the ENTERED(FPH_TOUCH_DOWN)
-    // block above simply re-stamps the timestamp, restarting the hold.
-    if (!std::isnan(touchdownTs) &&
-        currCycle.simTime >= touchdownTs + pMdl->PITCH_HOLD_TOUCHDOWN)
-    {
-        pitch.moveTo(GND_PITCH_DEG);
-        touchdownTs = NAN;
+        // DEFERRED nose-down: Wait for PITCH_HOLD_TOUCHDOWN seconds
+        pitch.moveToBy(NAN, false, 0.0, NAN,
+                       currCycle.simTime + pMdl->PITCH_HOLD_TOUCHDOWN + pitch.getTimeTo(0.0),
+                       false);
     }
     
     // roll-out
@@ -2500,7 +1933,7 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
 
     if (phase >= FPH_ROLL_OUT || phase == FPH_TAXI) {
         // stop reversers below 80kn
-        if (GetSpeed_kt() < pMdl->MIN_REVERS_SPEED) {
+        if (speed_kt < pMdl->MIN_REVERS_SPEED) {
             SetThrustRatio(0.1f);
             reversers.min();
         }
@@ -2557,39 +1990,38 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
 ///          If we are turning more slowly then we apply less bank angle.
 void LTAircraft::CalcRoll (double _prevHeading)
 {
+    double newRoll = NAN;
+    
     // How much of a turn did we do since last frame?
     const double partOfCircle = HeadingDiff(_prevHeading, ppos.heading()) / 360.0;
-    const double timeFullCircle = currCycle.diffTime / partOfCircle;  // at current turn rate (if small then we turn _very_ fast!)
+    const double timeFullCircle = std::abs(partOfCircle) < 0.00000001 ? NAN :   // Minuscle heading change, avoids divison by zero
+                                  currCycle.diffTime / partOfCircle;            // at current turn rate (if small then we turn _very_ fast!)
 
     // On the ground we should actually better be levelled, but we turn the nose wheel.
-    // Note: this assignment is "early" — the final ground-attitude clamp in
-    // `CalcAcPos` (the `bOnGrnd` block) will re-assert `GND_ROLL_DEG` after
-    // `CalcFlightModel` has run, so anything we write here is just a sane
-    // intermediate. We still set it explicitly so log output / debug dumps
-    // in between these two points show the correct value.
     if (IsOnGrnd()) {
         // except...if we are a stopped glider ;-)
         if (GetSpeed_m_s() < 0.2 && pMdl->isGlider())
-            ppos.roll() = MDL_GLIDER_STOP_ROLL;
+            newRoll = MDL_GLIDER_STOP_ROLL;
         else
-            ppos.roll() = GND_ROLL_DEG;
+            newRoll = 0.0;
         
         // Nose wheel steering: Hm...we would need to know a lot about the plane's
         // geometry to do that exactly right...so we just guess: 30° for a standard turn:
         SetNoseWheelAngle(std::isnan(timeFullCircle) ? 0.0f :
                           30.0f * float(pMdl->TAXI_TURN_TIME / timeFullCircle));
-        return;
+    }
+    else {
+        // In the air we make sure nose wheel looks straight
+        SetNoseWheelAngle(0.0f);
+        
+        // For the roll we assume that max bank angle is applied for the tightest turn.
+        // If we are turning more slowly then we apply less bank angle.
+        newRoll = (std::isnan(timeFullCircle) ? 0.0 :
+                   std::abs(timeFullCircle) < pMdl->MIN_FLIGHT_TURN_TIME ? std::copysign(pMdl->ROLL_MAX_BANK,timeFullCircle) :
+                   pMdl->ROLL_MAX_BANK * pMdl->MIN_FLIGHT_TURN_TIME / timeFullCircle);
     }
     
-    // In the air we make sure nose wheel looks straight
-    SetNoseWheelAngle(0.0f);
-    
-    // For the roll we assume that max bank angle is applied for the tightest turn.
-    // If we are turning more slowly then we apply less bank angle.
-    const double newRoll = (std::isnan(timeFullCircle) ? ppos.roll() :
-                            std::abs(timeFullCircle) < pMdl->MIN_FLIGHT_TURN_TIME ? std::copysign(pMdl->ROLL_MAX_BANK,timeFullCircle) :
-                            pMdl->ROLL_MAX_BANK * pMdl->MIN_FLIGHT_TURN_TIME / timeFullCircle);
-    // safeguard against to harsh roll rates:
+    // safeguard against to harsh roll rates (similar to MovingParam):
     if (std::abs(ppos.roll()-newRoll) > currCycle.diffTime * pMdl->ROLL_RATE) {
         if (newRoll < ppos.roll()) ppos.roll() -= currCycle.diffTime * pMdl->ROLL_RATE;
         else                       ppos.roll() += currCycle.diffTime * pMdl->ROLL_RATE;
@@ -2977,11 +2409,14 @@ void LTAircraft::CalcCameraViewPos()
 {
     if (IsInCameraView() && !dataRefs.ShallUseExternalCamera()) {
         posExt = ppos;
+        
+        // Override heading with 'official' heading, which includes correction for wind and pushback
+        posExt.heading() = GetHeading();
 
         // move position back along the longitudinal axes
-        posExt += vectorTy(ppos.heading(),      extOffs.x);
+        posExt += vectorTy(posExt.heading(),      extOffs.x);
         // move position a bit to the side
-        posExt += vectorTy(ppos.heading() + 90, extOffs.z);
+        posExt += vectorTy(posExt.heading() + 90, extOffs.z);
         // and move a bit up
         posExt.alt_m() +=                       extOffs.y;
 

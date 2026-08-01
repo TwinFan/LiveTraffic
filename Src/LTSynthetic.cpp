@@ -306,7 +306,7 @@ bool SyntheticConnection::ProcessFetchedData ()
             fd.UpdateData(parkDat.stat, parkDat.pos.dist(dataRefs.GetViewPos()));
             // to speed up creation of the actual aircraft we send the position for a past timestamp first
             dyn.ts = parkDat.pos.ts() = tNow - dataRefs.GetFdBufPeriod();
-            fd.AddDynData(dyn, 0, 0, &parkDat.pos);
+            fd.AddDynData(dyn, &parkDat.pos);
             LOG_MSG(logDEBUG, "Created parked aircraft %s", key.c_str());
         }
 
@@ -314,7 +314,7 @@ bool SyntheticConnection::ProcessFetchedData ()
         // We reduce timestamp a bit so we don't appear better than live stream's data,
         // which can't be current up to the minute
         dyn.ts = parkDat.pos.ts() = tNow - double(dataRefs.GetFdRefreshIntvl()/2);
-        fd.AddDynData(dyn, 0, 0, &parkDat.pos);
+        fd.AddDynData(dyn, &parkDat.pos);
         
         // next plane
         ++i;

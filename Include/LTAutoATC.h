@@ -61,6 +61,7 @@ class AutoATCConnection : public LTFlightDataChannel
 public:
     AutoATCConnection ();                                   ///< Constructor
     std::string GetURL (const positionTy& pos) override;    ///< returns the URL to AutoATC traffic by position
+    bool DoHoverDetection () const override { return false; }
     bool ProcessFetchedData () override;                    ///< Process response, forwarding to the processing queues
 protected:
     void Main () override;                                  ///< virtual thread main function
