@@ -572,7 +572,6 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     // debug options
     {"livetraffic/dbg/ac_filter",                   DataRefs::LTGetInt, DataRefs::LTSetDebugAcFilter, GET_VAR, false },
     {"livetraffic/dbg/ac_pos",                      DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
-    {"livetraffic/dbg/diagnostic",                  DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
     {"livetraffic/dbg/log_raw_fd",                  DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, false },
     {"livetraffic/dbg/log_weather",                 DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, false },
     {"livetraffic/dbg/model_matching",              DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
@@ -676,7 +675,6 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         // debug options
         case DR_DBG_AC_FILTER:              return &uDebugAcFilter;
         case DR_DBG_AC_POS:                 return &bDebugAcPos;
-        case DR_DBG_DIAGNOSTIC:             return &bDebugDiagnostic;
         case DR_DBG_LOG_RAW_FD:             return &bDebugLogRawFd;
         case DR_DBG_LOG_WEATHER:            return &bDebugWeather;
         case DR_DBG_MODEL_MATCHING:         return &bDebugModelMatching;

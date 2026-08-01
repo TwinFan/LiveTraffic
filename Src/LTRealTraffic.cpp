@@ -874,38 +874,7 @@ bool RealTrafficConnection::ProcessTrafficBuffer (const JSON_Object* pBuf)
             // add the static data
             fd.UpdateData(std::move(stat), pos.dist(posView));
 
-            // --- FEED_DIAG (HTTP-Direct path) ---
-            // Per-aircraft monotonicity + source check. We want to see
-            // every position the channel accepts: hex, callsign, feed
-            // timestamp, msg_type/source (e.g. V_adsb_icao), age of
-            // position (`seen` / PosAge), elapsed dt since the previous
-            // accepted feed timestamp for the same hex, and a flag for
-            // OK / BACKWARDS / REPEAT / NEW. Helps identify backwards
-            // feeds sneaking in that produce backwards rendered motion.
-            if (dataRefs.ShallLogDiagnostics())
-            {
-                const std::string srcMsg = jag_s(pJAc, RT_DRCT_MsgSrcType);
-                const std::string callDg = jag_s(pJAc, RT_DRCT_CallSign);
-                const double      srcAge = jag_n(pJAc, RT_DRCT_PosAge);
-                const auto        itLast = lastFeedTs.find(fdKey.num);
-                const double      prevTs = (itLast == lastFeedTs.end()) ? NAN : itLast->second;
-                const double      dtFeed = std::isnan(prevTs) ? NAN : (posTime - prevTs);
-                const char*       flag   = std::isnan(prevTs)  ? "NEW"
-                                         : (dtFeed > 0.0)      ? "OK"
-                                         : (dtFeed < 0.0)      ? "BACKWARDS"
-                                         :                       "REPEAT";
-                LOG_MSG(logDEBUG,
-                        "FEED_DIAG %s cs=%s ts=%.1f src=%s seen=%.1f dt=%+.2f alt=%.0fft gnd=%d vsi=%+.0ffpm %s [HTTP]",
-                        fdKey.c_str(), callDg.c_str(),
-                        posTime, srcMsg.c_str(), srcAge, dtFeed,
-                        pos.alt_ft(),
-                        pos.f.onGrnd == GND_ON ? 1 : 0,
-                        dyn.vsi,
-                        flag);
-                lastFeedTs[fdKey.num] = posTime;
-            }
-
-            // add the dynamic data
+           // add the dynamic data
             fd.AddDynData(dyn, &pos);
 
         } catch(const std::system_error& e) {
@@ -2267,39 +2236,6 @@ bool RealTrafficConnection::ProcessRTTFC (LTFlightData::FDKeyTy& fdKey,
 
         // add the static data
         fd.UpdateData(std::move(stat), dist);
-
-        // --- FEED_DIAG (UDP RTTFC path) ---
-        // Per-aircraft monotonicity + source check; see the HTTP variant
-        // for details. `seen` (RT_RTTFC_SEEN) and msg_type are bounds-
-        // checked because the compact 18-field RT App variant strips
-        // them — for short messages we log empty/NAN placeholders so the
-        // line still shows the timestamp and monotonicity flag.
-        if (dataRefs.ShallLogDiagnostics())
-        {
-            std::string srcMsg;
-            double      srcAge = NAN;
-            if (tfc.size() > RT_RTTFC_MSG_TYPE)
-                srcMsg = tfc[RT_RTTFC_MSG_TYPE];
-            if (tfc.size() > RT_RTTFC_SEEN && !tfc[RT_RTTFC_SEEN].empty()) {
-                try { srcAge = std::stod(tfc[RT_RTTFC_SEEN]); } catch (...) {}
-            }
-            const auto   itLast = lastFeedTs.find(fdKey.num);
-            const double prevTs = (itLast == lastFeedTs.end()) ? NAN : itLast->second;
-            const double dtFeed = std::isnan(prevTs) ? NAN : (posTime - prevTs);
-            const char*  flag   = std::isnan(prevTs)  ? "NEW"
-                                : (dtFeed > 0.0)      ? "OK"
-                                : (dtFeed < 0.0)      ? "BACKWARDS"
-                                :                       "REPEAT";
-            LOG_MSG(logDEBUG,
-                    "FEED_DIAG %s cs=%s ts=%.1f src=%s seen=%.1f dt=%+.2f alt=%.0fft gnd=%d vsi=%+.0ffpm %s [UDP]",
-                    fdKey.c_str(), tfc[RT_RTTFC_CS_ICAO].c_str(),
-                    posTime, srcMsg.c_str(), srcAge, dtFeed,
-                    pos.alt_ft(),
-                    pos.f.onGrnd == GND_ON ? 1 : 0,
-                    dyn.vsi,
-                    flag);
-            lastFeedTs[fdKey.num] = posTime;
-        }
 
         // add the dynamic data
         fd.AddDynData(dyn, &pos);

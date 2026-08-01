@@ -362,12 +362,6 @@ protected:
 #endif
     /// last simtime that we received UDP traffic
     double lastReceivedTime     = 0.0;
-    /// TEMPORARY (FEED_DIAG): per-aircraft last feed-timestamp accepted
-    /// by the channel. Used to verify that successive RT positions for
-    /// the same hex id arrive with monotonically increasing timestamps,
-    /// and to flag backwards / duplicate positions that would explain
-    /// rendered aircraft moving backwards. Cleared on connection start.
-    std::map<unsigned long, double> lastFeedTs;
     /// last known position to detect fast movement (to request buffered traffic and the like)
     positionTy lastKnownViewPos;
     /// Expecting buffered traffic first?
