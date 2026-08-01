@@ -291,7 +291,7 @@ public:
     inline double GetReverserPos() const { return reversers.is(); }
     inline double GetSpeed_kt() const { return speed_m * KT_per_M_per_S; }  ///< kt
     inline double GetSpeed_m_s() const { return speed_m; }                  ///< m/s
-    inline bool IsSpeedZero() const { return speed_m < 0.1; }               ///< effectively not moving any longer?
+    inline bool IsSpeedZero() const { return speed_m < 0.5; }               ///< effectively not moving any longer?
     inline double GetVSI_ft() const { return vsi; }                         // ft/m
     inline double GetVSI_m_s() const { return vsi * Ms_per_FTm; }           // m/s
     inline double GetPitch() const { return ppos.pitch(); }

@@ -276,7 +276,7 @@ positionTy AccelCalcStopPoint (const positionTy& pos, double speed_m, double acc
     
     // Distance travelled while decellerating constantly to zero.
     // (Think of the triangle [0,0] [0,speed_m] [dt,0] on a coordinate system with x = time and y = speed.)
-    const double dist = speed_m * accel_m * 0.5;
+    const double dist = speed_m * dt * 0.5;
     positionTy posStop = pos + vectorTy(pos.heading(), dist);
     posStop.ts() = pos.ts() + dt;
     return posStop;

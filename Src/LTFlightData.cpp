@@ -593,7 +593,8 @@ void LTFlightData::DataCleansing (bool& bChanged)
         {
             // Try to find a rwy this plane might be headed for
             // based on the last known position
-            posRwy = LTAptFindRwy(mdl, last, prev.speed_m(last), rwyId);
+            posRwy = LTAptFindRwy(mdl, last, prev.speed_m(last), rwyId,
+                                  dataRefs.GetDebugAcPos(key()) ? key().key : "");
             if (posRwy.isNormal()) {            // found a suitable runway?
                 // Now, with this runway, check/correct all previous positions
                 for (positionTy& pos: posDeque) {
@@ -811,8 +812,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
                         // and never too close to the touch-down point...
                         // we need room for the alignment point with the runway
                         const double d_ts = posRwy.ts() - simTime;
-                        if (d_ts > (double)dataRefs.GetFdRefreshIntvl() &&
-                            vecRwy.dist > 3 * ART_RWY_ALIGN_DIST)
+                        if (d_ts > 1.5 * (double)dataRefs.GetFdRefreshIntvl())
                         {
                             // shorten the distance so it only takes as long as a refresh interval
                             vecRwy.dist *= (double)dataRefs.GetFdRefreshIntvl() / d_ts;
@@ -842,6 +842,8 @@ bool LTFlightData::CalcNextPos ( double simTime )
                             posBefore.pitch() = 0.0;
                             posBefore.f.onGrnd = GND_OFF;
                             posBefore.f.flightPhase = FPH_FINAL;
+                            posBefore.f.specialPos = SPOS_NONE;
+                            posBefore.edgeIdx = ULONG_MAX;
                             
                             // Add both position to the queue
                             if (dataRefs.GetDebugAcPos(key()))
@@ -855,25 +857,6 @@ bool LTFlightData::CalcNextPos ( double simTime )
                                         std::string(posRwy).c_str());
                             posDeque.push_back(posRwy);     // make a copy, we want to keep posRwy!
                         }
-                        bChanged = true;
-                    }
-                }
-                // No more positions on the ground: Make the a/c stop
-                // by adding the last known position just once again as artifical stop.
-                else if (pAc->IsOnGrnd()) {
-                    positionTy stopPos = pAc->GetNewestPos();
-                    if (stopPos.IsOnGnd() &&
-                        stopPos.f.flightPhase != FPH_TOUCH_DOWN &&      // don't copy touch down pos, that looks ugly, and hinders auto-land/stop
-                        stopPos.f.flightPhase != FPH_STOPPED_ON_RWY &&  // avoid adding several stops
-                        stopPos.ts() <= simTime + 3.0)                  // and time's running out for the plane's to-position
-                    {
-                        stopPos.ts() += 5.0;                            // just set some time after to-position
-                        stopPos.f.flightPhase = FPH_STOPPED_ON_RWY;     // indicator for aritifical stop (not only on rwy now...)
-                        if (dataRefs.GetDebugAcPos(key()))
-                            LOG_MSG(logDEBUG, "%s: Added stop-position %s",
-                                    keyDbg().c_str(),
-                                    std::string(stopPos).c_str());
-                        posDeque.emplace_back(std::move(stopPos));      // add it to the deque
                         bChanged = true;
                     }
                 }
@@ -2707,9 +2690,9 @@ bool LTFlightData::AircraftMaintenance ( double simTime )
                 // i.e. during approach and landing we don't destroy the aircraft
                 //      if it is approaching some runway
                 //      until it finally stopped on the runway
-                if ((pAc->GetFlightPhase() >= FPH_LANDING ||
-                        (pAc->GetFlightPhase() >= FPH_APPROACH && posRwy.isNormal())) &&
-                    pAc->GetFlightPhase() < FPH_STOPPED_ON_RWY)
+                if ((pAc->GetFlightPhase() >= FPH_FINAL ||
+                    (pAc->GetFlightPhase() >= FPH_DESCEND && HasRwyPos())) &&
+                    pAc->GetFlightPhase() <= FPH_ROLL_OUT)
                 {
                     return false;
                 }

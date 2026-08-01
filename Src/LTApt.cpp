@@ -744,6 +744,21 @@ public:
         return ULONG_MAX;
     }
     
+    /// Get the edge pointing in the given direction
+    size_t GetNodeEdgeWithHeading (const TaxiNode& n, double h,
+                                   double tolerance = 10.0) const
+    {
+        const double hMin = HeadingNormalize(h-tolerance);
+        const double hMax = HeadingNormalize(h+tolerance);
+        for (size_t eIdx: n.vecEdges) {
+            const TaxiEdge& e = vecTaxiEdges.at(eIdx);
+            if (HeadingIsBetween(e.angle, hMin, hMax) ||
+                HeadingIsBetween(HeadingReverse(e.angle), hMin, hMax))
+                return eIdx;
+        }
+        return ULONG_MAX;
+    }
+    
     /// Helper function to FindClosestEdge for computing the real world coordinates of the base point on the found edge
     positionTy ComputeBasePt(const positionTy &_pos,
                              const distToLineTy &bestDist, size_t bestEdgeIdx,
@@ -2720,11 +2735,9 @@ positionTy LTAptFindRwy (const LTAircraft::FlightModel& _mdl,
                                    bestRwyEndPt->heading,
                                    _mdl.PITCH_FLARE,
                                    0.0,
-                                   GND_ON,
-                                   UNIT_WORLD, UNIT_DEG,
-                                   FPH_TOUCH_DOWN);
-    retPos.f.bHeadFixed = true;
-    retPos.f.specialPos = SPOS_RWY;
+                                   { FPH_TOUCH_DOWN, true, false,
+                                     GND_ON, UNIT_WORLD, UNIT_DEG, SPOS_RWY},
+                                   bestApt->GetNodeEdgeWithHeading(*bestRwyEndPt, bestRwyEndPt->heading));
     _rwyId = bestApt->GetId();
     _rwyId += '/';
     _rwyId += bestRwyEndPt->id;

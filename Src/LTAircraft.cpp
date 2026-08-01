@@ -1435,23 +1435,24 @@ bool LTAircraft::CalcPPos()
     // (this also applies to artificial roll-out phase)
     if (f > 1.0 &&
         (phase == FPH_TAXI || phase >= FPH_TOUCH_DOWN) &&
-        speed_m > 0.5 &&
-        !bArtificalPos)
+        !IsSpeedZero())
     {
-        // add a stop point (ppos + above vector) to the list of positions
-        positionTy posStop = AccelCalcStopPoint(ppos, speed_m, pMdl->ROLL_OUT_DECEL);
+        // add two stop points (ppos + above vector) to the list of positions
+        // first one to decelerate down to 20% of speed
+        positionTy posStop = AccelCalcStopPoint(ppos, speed_m * 0.8, pMdl->ROLL_OUT_DECEL);
+        LTAptSnapIfOverRwy(posStop);            // Important only for auto-land, but that keeps the plane centered on the rwy
+        posList.push_back(posStop);
+        // second one for the remaining 20%
+        posStop = AccelCalcStopPoint(posStop, speed_m * 0.2, pMdl->ROLL_OUT_DECEL);
+        LTAptSnapIfOverRwy(posStop);            // Important only for auto-land, but that keeps the plane centered on the rwy
+        posList.push_back(posStop);
+        // The _same_ position again makes us stop down to zero
+        posStop.ts() += SIMILAR_TS_INTVL;
         posStop.f.flightPhase = FPH_STOPPED_ON_RWY;
-        posList.push_back(ppos);
         posList.push_back(posStop);
         if (dataRefs.GetDebugAcPos(key())) {
             LOG_MSG(logDEBUG,DBG_INVENTED_STOP_POS,posStop.dbgTxt().c_str());
         }
-        // for Spline computations, we need a very slow, but directed vector after the stop point
-        posStop += vectorTy(posStop.heading(), SIMILAR_POS_DIST, NAN, 1.0 / KT_per_M_per_S);
-        posList.push_back(posStop);
-        // add that last one again at the same position, 5s later, to ensure an absolute stop
-        posStop.ts() += 5.0;
-        posList.push_back(posStop);
         posNext = positionTy();
         bArtificalPos = true;                   // flag: we are working with an artifical position now
     }
@@ -1663,9 +1664,11 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
     {
         // if not artifically reducing speed (roll-out)
         if (!bArtificalPos) {
-            // Could be taxxing, could be pushback
+            // Could be taxxing, could be intentionally stopped, could be pushback
             if (GetToPos().f.bPushback)
                 phase = FPH_PUSHBACK;
+            else if (IsSpeedZero() && to.f.flightPhase == FPH_STOPPED_ON_RWY)
+                phase = FPH_STOPPED_ON_RWY;
             else
                 phase = FPH_TAXI;
         }
