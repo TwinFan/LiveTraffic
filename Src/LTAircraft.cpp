@@ -34,12 +34,13 @@
 // previous and current cycle info
 struct cycleInfo {
     int     num;                // cycle numer (which is kind of an id)
+    bool    bLocalCoordChange;  ///< Did X-Plane's local coordinate system change this cycle?
     double  simTime;            // simulated time when the cycle started
     double  diffTime;           // the simulated time difference to previous cycle
 };
 
-cycleInfo prevCycle = { -1, -1, 0 };
-cycleInfo currCycle = { -1, -1, 0 };
+cycleInfo prevCycle = { -1, false, -1, 0 };
+cycleInfo currCycle = { -1, false, -1, 0 };
 
 #ifdef DEBUG
 /// Is the selected aircraft currently being calculated by a callback to LTAircraft::GetPlanePosition?
@@ -144,6 +145,23 @@ bool NextCycle (int newCycle)
     else
         XPMPDisableAircraftLabels();
     
+    // In case X-Plane's local coordiate system change set a flag,
+    // we need to invalidate local-coordinate-based calculations like Splines.
+    static positionTy posZeroLast;
+    positionTy posZero (0.0, 0.0, 0.0, NAN, NAN, NAN, NAN,
+                        GND_UNKNOWN, UNIT_LOCAL);
+    posZero.LocalToWorld();
+    if ((currCycle.bLocalCoordChange =
+         posZeroLast.hasPosAlt() &&
+         (!dequal(posZero.lat(),      posZeroLast.lat())   ||
+          !dequal(posZero.lon(),      posZeroLast.lon())   ||
+          !dequal(posZero.alt_m(),    posZeroLast.alt_m())  )
+       ))
+    {
+        LOG_MSG(logDEBUG, "X-Plane has moved its local coordinate system.");
+    }
+    posZeroLast = posZero;
+
     return true;
 }
 
@@ -1461,7 +1479,9 @@ bool LTAircraft::CalcPPos()
     //     In most cases controlled by the Spline.
     //     But not so if running out of positions (f > 1.0),
     //     and if no Spline was defined due to too small movement.
-    if (f > 1.0) {
+    if (f > 1.0 ||
+        currCycle.bLocalCoordChange)        // also remove splines in case the coordinate system change -> fall back to linear interpolation
+    {
         if (locSpline) locSpline.clear();
         if (altSpline) altSpline.clear();
         if (locBezier) locBezier.Clear();

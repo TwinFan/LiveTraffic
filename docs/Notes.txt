@@ -3,9 +3,6 @@ TODO
 
 Bug
 -----
-Handle change of local coordinate system for CSplines (and maybe Beziers)
-(at least clear Splines and Beziers, so that planes revert to linear interpolation for the rest of the leg)
-
 Leaving rwy after touch-down is often too early, short-cutting the corner
 Idea: In this case take the beginning point of the taxi edge into the path
 instead of the mid point of the edge
