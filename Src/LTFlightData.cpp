@@ -242,6 +242,21 @@ bool LTFlightData::FDStaticData::isStaticObject() const
     return acTypeIcao == STATIC_OBJECT_TYPE;
 }
 
+/// is this something with a rotor, like helicopter or gyrocopter?
+bool LTFlightData::FDStaticData::hasRotor() const
+{
+    return pDoc8643 && pDoc8643->hasRotor();
+}
+
+/// is this a plane that is available for pushback?
+bool LTFlightData::FDStaticData::doesPushback() const
+{
+    // not ground, static, or heli/gyro, and not WTC = "L"/"-", which covers all the small props
+    return !isGrndVehicle() && !isStaticObject() && !hasRotor() &&
+           (pDoc8643 && pDoc8643->wtc != "L" && pDoc8643->wtc != "-");
+}
+
+
 // is critical info for model matching available?
 bool LTFlightData::FDStaticData::hasMdlMatchInfo() const
 {
@@ -781,6 +796,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
                 // If descending: Try finding a runway to land on
                 if (pAc->GetVSI_ft() < -pAc->pMdl->VSI_STABLE)
                 {
+                    // *** Auto-Land ***
                     const positionTy& acTo = pAc->GetToPos();
                     posRwy = LTAptFindRwy(*pAc, rwyId, dataRefs.GetDebugAcPos(key()));
                     if (posRwy.isNormal()) {
@@ -896,7 +912,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
 #endif
         
         // *** Pushback Detection (no snapping!) ***
-        if (!posDeque.empty()) {
+        if (!posDeque.empty() && statData.doesPushback() && !mdl.isGlider())  {
             // Is pushback already going on and traces of it in our posDeque?
             // ok, that's awkward...we reverse iterate our posDeque with a forward iterator...but we need to find the _last_ occurence of pPushback, and from there then later move forward
             dequePositionTy::iterator iIsPbAlready = std::prev(posDeque.end());
@@ -1449,7 +1465,8 @@ void LTFlightData::CalcHeading (dequePositionTy::iterator it)
     
     if (prePos) {
         vecTo = prePos->between(*it);
-        if (vecTo.dist < SIMILAR_POS_DIST)      // distance from predecessor to it too short
+        if (!it->f.bPushback &&                 // in pushback we take all, also small, turns
+            vecTo.dist < SIMILAR_POS_DIST)      // distance from predecessor to it too short
         {
             it->heading() = prePos->heading();  // by default don't change heading for this short distance to avoid turning planes "on the spot"
             if (!std::isnan(it->heading()))     // if we now have a heading -> just use it
@@ -1461,7 +1478,8 @@ void LTFlightData::CalcHeading (dequePositionTy::iterator it)
     // is there a successor to it?
     if (std::next(it) != posDeque.cend()) {
         vecFrom = it->between(*std::next(it));
-        if (vecFrom.dist < SIMILAR_POS_DIST)    // clear the vector if too short
+        if (!it->f.bPushback &&
+            vecFrom.dist < SIMILAR_POS_DIST)    // clear the vector if too short
             vecFrom = vectorTy();
     }
     
@@ -1513,7 +1531,7 @@ bool LTFlightData::HoverDetection (positionTy& pos)
         return false;
 
     // only do for fixed-wing aircraft
-    if (statData.pDoc8643 && statData.pDoc8643->hasRotor())
+    if (statData.hasRotor())
         return false;
     
     // The max hover height is about 12s of "initial climb"

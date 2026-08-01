@@ -68,9 +68,9 @@ class Doc8643 {
 public:
     std::string manufacturer;
     std::string model;
-    std::string typeDesignator;
-    std::string classification;
-    std::string wtc;
+    std::string typeDesignator;     ///< like "C172" or "A20N", the official 3-4 letter code for the aircraft type designation
+    std::string classification;     ///< like "L1P", "M2J": Plane Type (L=Land, H=Heli...) plus engine number and type
+    std::string wtc;                ///< ike "L", "L/M", "M", "H": Wake Turbulence Category
 public:
     Doc8643 () {}
     Doc8643 (std::string&& _manufacturer,

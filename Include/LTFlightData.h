@@ -193,6 +193,10 @@ public:
         bool isGrndVehicle() const;
         /// is this a static object? (marked by a/c type being TWR)
         bool isStaticObject() const;
+        /// is this something with a rotor, like helicopter or gyrocopter?
+        bool hasRotor() const;
+        /// is this a plane that is available for pushback?
+        bool doesPushback() const;
         /// is critical info for model matching available?
         bool hasMdlMatchInfo() const;
         /// is some route info available?

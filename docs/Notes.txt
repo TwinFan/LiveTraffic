@@ -4,8 +4,9 @@ TODO
 Bug
 -----
 
-Pushback and SUP position still conflict in the first moments of pushback
--> See Analysis.txt
+Pushback: Deactive for small planes, cars, and helis
+
+Auto-Land stops on touch-down
 
 Leaving rwy after touch-down is often too early, short-cutting the corner
 Idea: In this case take the beginning point of the taxi edge into the path
@@ -13,17 +14,11 @@ instead of the mid point of the edge
 Also...when the nextPos is not on rwy then we should no longer prefer rwy positions,
 we now stick really long on the rwy. That is good for getting onto the rwy, but not off.
 
-Auto-Land stops on touch-down
-
 Handle change of local coordinate system for CSplines (and maybe Beziers)
 (at least clear Splines and Beziers, so that planes revert to linear interpolation for the rest of the leg)
 
 Refactor
 -------
-Pushback (might need to go together with CalcHeading refactor)
-  When parked, increase no-jitter zone to 2 x SIMILAR_POS
-  But save a pos if it is once out of SIMILAR_POS...we need that again when we receive the 2x out of position
-  Idea: Just set a "ReverseHeading" flag in positionTy, that is only pulled when handing over heading to XPMP2::Aircraft
 Remove "Special Logging" introduced for Balt
 Stop on Runway
   There are apparently two ways...why? Can't we reduce it to one?
