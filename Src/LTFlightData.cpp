@@ -1812,29 +1812,20 @@ void LTFlightData::AddNewPos ( positionTy& pos )
 
             // Position is too close to previous position?
             const double dist2 = latestPos.distRoughSqr(pos);
-            if (dist2 <= sqr(SIMILAR_POS_DIST) &&
-                // and not in pushback, or last used update very long ago approaching buffering period
-                // (in pushback we just swallow very small changes, hoping for another update coming thereafter,
-                //  but not introducing intermittend stop points)
-                (!latestPos.f.bPushback ||
-                 (tsDiff >= dataRefs.GetFdBufPeriod() * 0.75)))
+            const bool bParked = IsParked();
+            const double maxDist2 =                   // max allowed distances depends on Pushback, Parked, and other
+            latestPos.f.bPushback ? sqr(SIMILAR_POS_DIST_PUSHBACK) :
+            bParked               ? sqr(SIMILAR_POS_DIST_PARKED)   :
+                                    sqr(SIMILAR_POS_DIST);
+            if (dist2 <= maxDist2)
             {
+                // if parked remember this position...it still might be the start of pushback
+                if (dist2 >= sqr(SIMILAR_POS_DIST) && bParked)
+                    posLeaveParking = pos;
                 // effectively overwrite with latest position (-> don't actually move)
                 // but update with current timestamp (-> keep plane alive)
                 pos = latestPos;
                 pos.ts() = posTs;
-            }
-            
-            // Position is fairly close, and we are parked?
-            if (dist2 <= sqr(SIMILAR_POS_DIST_PARKED) && IsParked()) {
-                // still don't move, but remember that we had this position,
-                // it could be the start of pushback
-                posLeaveParking = pos;
-                if (!latestPos.f.bPushback ||
-                    (tsDiff >= dataRefs.GetFdBufPeriod() * 0.75)) {
-                    pos = latestPos;
-                    pos.ts() = posTs;
-                }
             }
         }
 

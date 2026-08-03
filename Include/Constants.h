@@ -77,6 +77,7 @@ constexpr double TIME_DIFF_TOLERATE = -1.0;     ///< [s] backward sim-time jump 
 constexpr double SIMILAR_TS_INTVL = 6;          // seconds: Less than that difference and position-timestamps are considered "similar" -> positions are merged rather than added additionally
 constexpr double SIMILAR_POS_DIST = 10;         // [m] if distance between positions less than this then favor heading from flight data over vector between positions
 constexpr double SIMILAR_POS_DIST_PARKED = 30;  // [m] in case previous pos is 'parked' then next pos needs to be further away than this to leave parking / often: pushback
+constexpr double SIMILAR_POS_DIST_PUSHBACK = 5; // [m] Reduced "simialr" distance during pushback as we need finer coordinates here but still must not turn aircraft on the spot
 constexpr double MAX_PB_SPEED       = 5;        // [kn] Anything faster than this is no longer pushback
 constexpr double CLOSE_POS_TS_INTVL = 12;       // [s] if two positions are closer to each other than this on a straight line, we remove the middle one as it doesn't add value
 constexpr double MAX_RWY_HOVER_CLIMB_DUR = 6;   // [s] An "initial climb" of this length defines the height AGL up to which HoveDetection considers a position a potential hover
