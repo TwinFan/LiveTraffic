@@ -32,7 +32,7 @@
 // MARK: Navigraph Constants
 #define NVGR_NAME               "Navigraph"
 #define NVGR_CHECK_NAME         "Flightradar24 Tracker"
-#define NVGR_CHECK_URL          "https://www.flightradar24.com/%.3f,%.3f"
+#define NVGR_CHECK_URL          "https://www.flightradar24.com/%.2f,%.2f/9"
 #define NVGR_CHECK_POPUP        "Check Flightradar's coverage"
 
 // Request Device Authorization
