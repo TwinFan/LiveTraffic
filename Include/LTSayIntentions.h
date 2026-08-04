@@ -64,6 +64,7 @@ protected:
 public:
     SayIntentionsConnection ();                             ///< Constructor
     std::string GetURL (const positionTy& pos) override;    ///< returns the constant URL to SayIntentions traffic
+    bool DoHoverDetection () const override { return false; }
     bool ProcessFetchedData () override;                    ///< Process response, selecting traffic around us and forwarding to the processing queues
 protected:
     void Main () override;                                  ///< virtual thread main function

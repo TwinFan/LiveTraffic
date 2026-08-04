@@ -133,7 +133,7 @@
 
     <h2>v4</h2>
 
-    <h3>v4.6.1</h3>
+    <h3>v4.6.2</h3>
     
     <P>
     <b>Update:</b> In case of doubt you can always just copy all files from the archive
@@ -148,8 +148,23 @@
     <P>Change log:</P>
     
     <ul>
-        <li>Fixed a but in Navigraph Token handling that could cause you to
-            receive HTTP 401 errors, but no actual Navigraph data.</li>
+        <li><b>Navigraph</b>:
+            <ul>
+                <li>Renamed "Navigraph/FR24" channel to "Navigraph" for compliance reasons.</li>
+                <li>Fixed a bug in Navigraph Token handling that could cause you to
+                    receive HTTP 401 errors, but no actual Navigraph data.</li>
+            </ul>
+        </li>
+        <li><b>Refactored all plane movement</b>:
+            <ul>
+                <li>You should see smooth(er) movement
+                    in all 3 dimension and around all 3 axes.</li>
+                <li>Improved taxiway routing, especially across junctions.</li>
+                <li>Pushback is still a bit hit-and-miss, though.
+                    This slow movement with tight turns requires very accurate
+                    tracking data for precise modelling.</li>
+            </ul>
+        </li>
     </ul>
 
     <h3>v4.6.0</h3>
@@ -167,7 +182,8 @@
     <P>Change log:</P>
     
     <ul>
-        <li>Added new <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/navigraph">channel <b>Navigraph/FR24</b></a>.
+        <li>Added new <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/navigraph">channel <b>Navigraph</b></a>
+            offering Flightradar24 data.
             You need a <a href="https://navigraph.com/available-products">Navigraph Unlimited subscription</a>.
             Refresh is restricted by Navigraph to 20s period / 150km (80nm) range.</li>
         <li><b><a href="https://twinfan.gitbook.io/livetraffic/setup/installation/opensky">OpenSky</a> Masterdata</b> is needed for OpenSky and some other simpler channels like ADSBHub to find the aircraft type

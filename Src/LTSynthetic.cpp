@@ -253,8 +253,16 @@ bool SyntheticConnection::ProcessFetchedData ()
         SynDataTy& parkDat = i->second;
 
         // not matching a/c filter? -> skip it
-        if ((!acFilter.empty() && (key != acFilter)) )
+        if ((!acFilter.empty() && (key != acFilter)) ) {
+            ++i;
             continue;
+        }
+        
+        // Remove a duplicate placeholder?
+        if (mapRemoveDupPlaceholder(key, i->second.stat.call)) {
+            i = mapSynData.erase(i);
+            continue;
+        }
         
         // Only process planes in search distance
         // We keep the data in memory, just in case we come back, but we don't feed data for unneeded planes
@@ -298,7 +306,7 @@ bool SyntheticConnection::ProcessFetchedData ()
             fd.UpdateData(parkDat.stat, parkDat.pos.dist(dataRefs.GetViewPos()));
             // to speed up creation of the actual aircraft we send the position for a past timestamp first
             dyn.ts = parkDat.pos.ts() = tNow - dataRefs.GetFdBufPeriod();
-            fd.AddDynData(dyn, 0, 0, &parkDat.pos);
+            fd.AddDynData(dyn, &parkDat.pos);
             LOG_MSG(logDEBUG, "Created parked aircraft %s", key.c_str());
         }
 
@@ -306,7 +314,7 @@ bool SyntheticConnection::ProcessFetchedData ()
         // We reduce timestamp a bit so we don't appear better than live stream's data,
         // which can't be current up to the minute
         dyn.ts = parkDat.pos.ts() = tNow - double(dataRefs.GetFdRefreshIntvl()/2);
-        fd.AddDynData(dyn, 0, 0, &parkDat.pos);
+        fd.AddDynData(dyn, &parkDat.pos);
         
         // next plane
         ++i;

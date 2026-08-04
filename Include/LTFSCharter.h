@@ -112,11 +112,9 @@ public:
     bool InitCurl () override;
     void CleanupCurl () override;
     std::string GetURL (const positionTy& pos) override;
+    bool DoHoverDetection () const override { return false; }
     void ComputeBody (const positionTy& pos) override;
     bool ProcessFetchedData () override;
-//    // shall data of this channel be subject to LTFlightData::DataSmoothing?
-//    virtual bool DoDataSmoothing (double& gndRange, double& airbRange) const
-//    { gndRange = FSC_SMOOTH_GROUND; airbRange = FSC_SMOOTH_AIRBORNE; return true; }
     
     /// Extracts `status` and potential error texts from FSC's response in `netData`
     bool ExtractErrorTexts ();

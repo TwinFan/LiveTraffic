@@ -193,6 +193,10 @@ public:
         bool isGrndVehicle() const;
         /// is this a static object? (marked by a/c type being TWR)
         bool isStaticObject() const;
+        /// is this something with a rotor, like helicopter or gyrocopter?
+        bool hasRotor() const;
+        /// is this a plane that is available for pushback?
+        bool doesPushback() const;
         /// is critical info for model matching available?
         bool hasMdlMatchInfo() const;
         /// is some route info available?
@@ -259,89 +263,21 @@ protected:
     FDKeyTy acKey;                  ///< the planes unique identifier, publicly visible
     FDKeyTy acPrivateKey;           ///< (optional) the true but private, ie. non-public identifier of the plane, for purposes of matching against public planes
 
-    // last used Receiver ID, identifies the receiver of the signal of this flight data
-    int             rcvr;
-    int             sig;            // signal level
-    
     std::string     labelStat;      // static part of the a/c label
     DataRefs::LabelCfgTy labelCfg = { 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0 };  // the configuration the label was saved for
     
 protected:
     // DYNAMIC DATA (protected, access will be mutex-controlled for thread-safety)
     // buffered positions / dynamic data as deque, sorted by timestamp
-    // first element is oldest and current (the 'from' position/data)
-    // second is pos a/c is currently headed for, and the others then further on into the future
+    // deques are filled at the back and read from the font,
+    // so front() is the one with the lowest timestamp.
     dequePositionTy         posDeque, posToAdd;
     dequeFDDynDataTy        dynDataDeque;
     double                  rotateTS;
     double                  youngestTS;
+    positionTy              posLeaveParking;    ///< (potentially) the first position by which plane leaves parking
     positionTy              posRwy;     ///< determined rwy (likely) to land on (position)
     std::string             rwyId;      ///< determined rwy (likely) to land non (human-readable text)
-
-    // ---- Ground holding state (see Constants.h `GND_HOLDING_TIMEOUT_S`) -----
-    // Once an aircraft has been continuously stationary on the ground for
-    // longer than the holding timeout, `bGroundHolding` flips to true and
-    // subsequent feed updates that fall within the "trivial jitter" envelope
-    // (small distance + low groundspeed) are dropped by `AddNewPos` rather
-    // than being appended to `posToAdd`. The streak start timestamp is the
-    // wall-clock `pos.ts()` of the first stationary slot we observed; it is
-    // reset to 0 whenever the aircraft moves meaningfully or leaves ground.
-    /// First timestamp of the current stationary-on-ground streak (sec).
-    /// 0 means "not currently in a stationary streak".
-    double                  groundHoldingSinceTs = 0.0;
-    /// True once the streak has lasted longer than `GND_HOLDING_TIMEOUT_S`.
-    /// While true, trivial feed updates are suppressed in `AddNewPos`.
-    bool                    bGroundHolding       = false;
-    /// Count of consecutive non-stationary updates seen while in holding.
-    /// We do not exit holding on the first one — see `GND_HOLDING_EXIT_CONSEC`.
-    /// Feed jitter can briefly produce a single 2 kt sample for a truly
-    /// parked aircraft; requiring multiple consecutive non-stationary slots
-    /// before exiting avoids those false-exits.
-    int                     groundNonStationaryCnt = 0;
-
-    // ---- Pushback state (simplified state machine) -----------------------
-    // PB_NONE   : not in pushback (taxiing, parked, airborne).
-    // PB_ACTIVE : currently being pushed; aircraft is moving and the
-    //             heading is overridden to `track + 180°` so the tail
-    //             leads the direction of motion. Naturally tracks
-    //             rotating pushes because the nose is recomputed every
-    //             motion slot.
-    // PB_PAUSED : was in pushback, now stationary. The next motion slot
-    //             decides: aligned with held nose ⇒ taxi (EXIT); against
-    //             held nose ⇒ tug continuing (back to PB_ACTIVE).
-    //
-    // Entry signal: `bGateParked` is true (we have observed a
-    // SPOS_STARTUP slot — the aircraft is parked at a gate) AND a slot
-    // with meaningful motion arrives. Exit clears `bGateParked` so the
-    // aircraft must return to a gate before another pushback can fire.
-    enum PushbackStateE { PB_NONE = 0, PB_ACTIVE, PB_PAUSED };
-    PushbackStateE          pbState              = PB_NONE;
-    /// [°] last nose direction computed during pushback. May be sourced
-    /// either from the feed (`feedHdg` — true-nose case) or derived from
-    /// motion (`HeadingNormalize(track + 180°)` — course-feed case). The
-    /// choice is locked once at PB_NONE→PB_ACTIVE entry (see
-    /// `pbUseFeedNose`) and is NOT re-evaluated mid-push, to avoid the
-    /// per-slot flip-flop that produced visible spinning in earlier
-    /// revisions. Held through PB_PAUSED so the exit-direction test
-    /// (resumed motion vs this nose) has a stable reference even if the
-    /// pause lasted many slots.
-    double                  pbHeldNose           = NAN;
-    /// True when the nose source for this pushback is the FEED heading
-    /// (`it->heading()` captured before override). False when the source
-    /// is the position-derived motion track (`track + 180°`). Decided
-    /// once at PB_NONE→PB_ACTIVE entry by comparing the first-motion
-    /// feedHdg against the prior parked heading: if they are within
-    /// ~30° the feed is reporting true nose (rotates accurately during
-    /// the push) — trust it. Otherwise the feed is reporting course-
-    /// over-ground (≈ motion direction during push, useless as a nose
-    /// reference) — derive nose from track. Locked for the duration of
-    /// the push; cleared on exit (PB_NONE) or airborne transition.
-    bool                    pbUseFeedNose        = false;
-    /// True once a SPOS_STARTUP slot has been added to the deque (i.e.
-    /// the aircraft is/was parked at an apt.dat startup location).
-    /// Required for `PB_NONE → PB_ACTIVE` entry. Cleared on the same
-    /// frame the state machine exits to `PB_NONE`.
-    bool                    bGateParked          = false;
 
     // STATIC DATA (protected, access will be mutex-controlled for thread-safety)
     FDStaticData            statData;
@@ -390,10 +326,11 @@ protected:
     
 public:
     LTFlightData();
-    LTFlightData(const LTFlightData&);
     ~LTFlightData();
-    
-    LTFlightData& operator=(const LTFlightData&);
+        
+    // No copying
+    LTFlightData(const LTFlightData&) = delete;
+    LTFlightData& operator=(const LTFlightData&) = delete;
     
     bool IsValid() const { return bValid; }
     void SetInvalid(bool bAlsoAc = true);
@@ -424,7 +361,6 @@ public:
     
     // based on buffered positions calculate the next position to fly to in a separate thread
     void DataCleansing (bool& bChanged);
-    void DataSmoothing (bool& bChanged);
     void SnapToTaxiways (bool& bChanged);   ///< shift ground positions to taxiways, insert positions at taxiway nodes
     bool CalcNextPos ( double simTime );
     static void CalcNextPosMain ();
@@ -435,11 +371,18 @@ public:
     static void AppendAllNewPos();      // called from main thread, can calc terrain
     void AppendNewPos();                // called from AppendAllNewPos
 
-    // check if thisPos would be OK after lastPos
-    bool IsPosOK (const positionTy& lastPos,
-                  const positionTy& thisPos,
-                  double* pHeading = nullptr,
-                  bool* pbChanged = nullptr);
+    /// @brief Hover check: Force a position on the ground if hovering low over runway
+    /// @returns if position should be entirely ignored
+    bool HoverDetection (positionTy& pos);
+    
+    /// @brief check if thisPos would be OK after lastPos
+    /// @param trackToPrevPos Track heading plane takes to lastPos (needed to calculate turn at point lastPos)
+    /// @param prevPos Previous position just before `thisPos`
+    /// @param thisPos The position to verify, to be added after `lastPos`
+    /// @returns if `thisPos` is OK to be added after `prevPos`
+    bool IsPosOK (double trackToPrevPos,
+                  const positionTy& prevPos,
+                  const positionTy& thisPos);
     
     // youngest ts, i.e. timestamp of youngest used good position
     inline double GetYoungestTS() const { return youngestTS; }
@@ -456,6 +399,8 @@ public:
     tryResult TryFetchNewPos ( dequePositionTy& posList, positionTy& posNext, double& rotateTS );
     // const access to posDeque
     const dequePositionTy& GetPosDeque() const { return posDeque; }
+    /// Get the most future position available (can still be invalid)
+    positionTy GetMostFuturePos () const;
     
     // determine Ground-status based on dynDataDeque, requires lock for access, so may fail if locked
     bool TryDeriveGrndStatus (positionTy& pos);
@@ -478,7 +423,7 @@ public:
     std::string Positions2String () const;
     
     // access dynamic data (other than position)
-    void AddDynData ( const FDDynamicData& inDyn, int rcvr, int sig, positionTy* pos = nullptr ); // new data read from stream to be stored
+    void AddDynData ( const FDDynamicData& inDyn, positionTy* pos = nullptr ); // new data read from stream to be stored
     // access to current dynData, i.e. dnDataDeque[0]
     bool TryGetSafeCopy ( FDDynamicData& outDyn ) const;    // tries to get a copy, fails if lock unavailable
     FDDynamicData WaitForSafeCopyDyn(bool bFirst = true) const;  // waits for lock and returns a copy
@@ -486,11 +431,13 @@ public:
     bool GetCurrChannel (const LTChannel* &pChn) const;
     dataRefsLT GetCurrChannel () const;                     ///< Current channel's id
     
-    inline int GetRcvr() const { return rcvr; }
-    
     /// @brief For the last queue position, if it is on the ground, return its altitude
     /// @returns `NAN` if last queue pos is not on the ground, or its altitude [m] if it is
     double GetLastPosGndAlt_m () const;
+    
+    /// @brief Returns `true` if an aircraft exists with flight phase `FPH_PARKED`
+    /// @param[out] ppParkedPos (optional) retrieves a pointer to the position because of which it was decided that the aircraft is parked
+    bool IsParked (const positionTy** ppParkedPos = nullptr) const;
     
     /// @brief In case of "larger" aircraft, upgrade to use Mode S
     /// @returns if the value has been modified
@@ -587,5 +534,9 @@ LTFlightData* mapFdAc (const LTFlightData::FDKeyTy& key,
 inline bool mapFdHasAc (const LTFlightData::FDKeyTy& key,
                  bool bMustHaveAc = false)
 { return mapFdAc(key,bMustHaveAc) != nullptr; }
+
+/// Remove a duplicate placeholder (0xFF....) plane
+bool mapRemoveDupPlaceholder (const LTFlightData::FDKeyTy& fdKey,
+                              const std::string& _call);
 
 #endif /* LTFlightData_h */

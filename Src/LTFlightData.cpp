@@ -242,6 +242,21 @@ bool LTFlightData::FDStaticData::isStaticObject() const
     return acTypeIcao == STATIC_OBJECT_TYPE;
 }
 
+/// is this something with a rotor, like helicopter or gyrocopter?
+bool LTFlightData::FDStaticData::hasRotor() const
+{
+    return pDoc8643 && pDoc8643->hasRotor();
+}
+
+/// is this a plane that is available for pushback?
+bool LTFlightData::FDStaticData::doesPushback() const
+{
+    // not ground, static, or heli/gyro, and not WTC = "L"/"-", which covers all the small props
+    return !isGrndVehicle() && !isStaticObject() && !hasRotor() &&
+           (pDoc8643 && pDoc8643->wtc != "L" && pDoc8643->wtc != "-");
+}
+
+
 // is critical info for model matching available?
 bool LTFlightData::FDStaticData::hasMdlMatchInfo() const
 {
@@ -351,20 +366,12 @@ std::recursive_mutex LTFlightData::exportFdMutex;
 
 // Constructor
 LTFlightData::LTFlightData () :
-rcvr(0),sig(0),
 rotateTS(NAN),
 // created "now"...if no positions are ever added then it will be removed after 2 x outdated interval
 youngestTS(dataRefs.GetSimTime() + 2 * dataRefs.GetAcOutdatedIntvl()),
 pAc(nullptr), probeRef(NULL),
 bValid(true)
 {}
-
-// Copy Constructor (needed for emplace into map) doesn't copy mutex
-LTFlightData::LTFlightData(const LTFlightData& fd)
-{
-    // all logic is in the copy assignment operator
-    *this = fd;
-}
 
 // Destructor makes sure lock is available and aircraft is removed, too
 LTFlightData::~LTFlightData()
@@ -381,33 +388,6 @@ LTFlightData::~LTFlightData()
     } catch(const std::system_error& e) {
         LOG_MSG(logERR, ERR_LOCK_ERROR, key().c_str(), e.what());
     }
-}
-
-// Copy assignment operator copies all but the mutex
-LTFlightData& LTFlightData::operator=(const LTFlightData& fd)
-{
-    try {
-        // access guarded by a mutex
-        std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
-        // copy data
-        acKey               = fd.acKey;             // key
-        rcvr                = fd.rcvr;
-        sig                 = fd.sig;
-        labelStat           = fd.labelStat;
-        labelCfg            = fd.labelCfg;
-        posDeque            = fd.posDeque;          // dynamic data
-        posToAdd            = fd.posToAdd;
-        dynDataDeque        = fd.dynDataDeque;
-        rotateTS            = fd.rotateTS;
-        youngestTS          = fd.youngestTS;
-        statData            = fd.statData;          // static data
-        pAc                 = fd.pAc;
-        probeRef            = fd.probeRef;
-        bValid              = fd.bValid;
-    } catch(const std::system_error& e) {
-        LOG_MSG(logERR, ERR_LOCK_ERROR, key().c_str(), e.what());
-    }
-    return *this;
 }
 
 // set this FD invalid (which will cause it's removal)
@@ -603,7 +583,7 @@ void LTFlightData::DataCleansing (bool& bChanged)
     if ((pAc && !posDeque.empty()) || (posDeque.size() >= 2))
     {
         positionTy& last = posDeque.back();
-        const positionTy& prev = posDeque.size() >= 2 ? *std::prev(posDeque.cend(),2) : pAc->GetToPos();
+        const positionTy& prev = posDeque.size() >= 2 ? *std::prev(posDeque.cend(),2) : pAc->GetNewestPos();
         double terrain_alt_m = pAc ? pAc->GetTerrainAlt_m() : NAN;
         if (!prev.IsOnGnd() &&                      // too late? ;-) position shall not already be on the ground
             !std::isnan(last.alt_m()) &&            // do we have an altitude at all?
@@ -613,7 +593,8 @@ void LTFlightData::DataCleansing (bool& bChanged)
         {
             // Try to find a rwy this plane might be headed for
             // based on the last known position
-            posRwy = LTAptFindRwy(mdl, last, prev.speed_m(last), rwyId);
+            posRwy = LTAptFindRwy(mdl, last, prev.speed_m(last), rwyId,
+                                  dataRefs.GetDebugAcPos(key()) ? key().key : "");
             if (posRwy.isNormal()) {            // found a suitable runway?
                 // Now, with this runway, check/correct all previous positions
                 for (positionTy& pos: posDeque) {
@@ -651,7 +632,8 @@ void LTFlightData::DataCleansing (bool& bChanged)
         
         // position _before_ the first position in the deque
         if (pAc) {
-            pos1 = pAc->GetToPos(&h1);
+            pos1 = pAc->GetNewestPos();
+            h1 = pos1.heading();
             // if (still) the to-Pos is current iter pos then increment
             // (could be that plane's current 'to' is still the first
             //  in out queue)
@@ -662,8 +644,7 @@ void LTFlightData::DataCleansing (bool& bChanged)
             // in this case we have at least 3 positions
             pos1 = *std::next(iter);
             vectorTy v1 = iter->between(pos1);
-            h1 = v1.dist > SIMILAR_POS_DIST ?
-            v1.angle : pos1.heading();
+            h1 = v1.dist > SIMILAR_POS_DIST ? v1.angle : pos1.heading();
             std::advance(iter, 2);
         }
         
@@ -671,254 +652,49 @@ void LTFlightData::DataCleansing (bool& bChanged)
         while (iter != posDeque.end())
         {
             // is pos not OK compared to previous one?
-            const double tempH = h1;
-            if (!IsPosOK(pos1, *iter, &h1, &bChanged))
+            if (!IsPosOK(h1, pos1, *iter))
             {
                 // remove pos and move on to next one
                 if (dataRefs.GetDebugAcPos(key()))
                     LOG_MSG(logDEBUG,DBG_REMOVED_NOK_POS,iter->dbgTxt().c_str());
                 iter = posDeque.erase(iter);
-                h1 = tempH;
             } // if invalid pos
             else
             {
                 // just move on to next position in deque
-                // (heading h1 has been updated by IsPosOK to heading from pos1 to iter already
+                h1 = pos1.angle(*iter);             // save track heading for what becomes `pos1` in the next line
                 pos1 = *iter;
                 ++iter;
             }
         } // inner while loop over positions
     } // outer if of data cleansing
-    
-    // *** Hovering-along-the-runway detection ***
-    
-    // RealTraffic's data sometimes has the issue that after approach
-    // a plane does not touch down but instead there is actual tracking
-    // data that lets the plane fly along the runway a few dozen feet
-    // above ground. Looks like calculated predictive data for
-    // case of missing ADS-B data... But prevents LiveTraffic from
-    // just using its autoland feature, which would look a lot better.
-    // So let's remove that hovering stuff
-    
-    const LTChannel* pChn = nullptr;
-    if (pAc && !posDeque.empty() &&
-        FPH_APPROACH <= pAc->GetFlightPhase() &&
-        pAc->GetFlightPhase() < FPH_LANDING &&
-        GetCurrChannel(pChn) && pChn->DoHoverDetection())
-    {
-        // We have a plane which is in approach.
-        const double maxHoverAlt_m = pAc->GetTerrainAlt_m() + (MAX_HOVER_AGL * M_per_FT);
-        
-        // What we now search for is data at level altitude following a descend.
-        // So we follow our positions as long as they are descending.
-        // Then we remove all data which is hovering at level altitude
-        // some few dozen feet above ground.
-        
-        // this increments iter as long as the next pos is descending
-        positionTy prevPos = pAc->GetToPos();       // we start comparing with current 'to'-pos of aircraft
-        dequePositionTy::const_iterator iter;
-        for (iter = posDeque.cbegin();              // start at the beginning
-             
-             iter != posDeque.cend() &&             // it's not yet the end, AND
-             !iter->IsOnGnd() &&                    // not on ground, AND
-             iter->vsi_ft(prevPos) < -mdl.VSI_STABLE; // descending considerably
-             
-             prevPos = *iter++ );                   // increment
-        
-        // 'prevPos' now is the last pos of the descend and will no longer change
-        // 'iter' points to the first pos _after_ descend
-        // and is the first deletion candidate.
-        // Delete all positions hovering above the runway.
-        while (iter != posDeque.cend() &&                         // not the end,
-               !iter->IsOnGnd() &&                                // between ground and
-               iter->alt_m() < maxHoverAlt_m &&                   // max hover altitude
-               std::abs(iter->vsi_ft(prevPos)) <= mdl.VSI_STABLE) // and flying level
-        {
-            // remove that hovering position
-            if (dataRefs.GetDebugAcPos(key())) {
-                LOG_MSG(logDEBUG, DBG_HOVER_POS_REMOVED,
-                        keyDbg().c_str(),
-                        iter->dbgTxt().c_str());
-            }
-            iter = posDeque.erase(iter);        // erase and returns element thereafter
-            bChanged = true;
-        }
-    }
 }
 
-// Smoothing data means:
-// We change timestamps(!) of tracking data in order to have
-// speed change smoothly.
-// This is particularly necessary if position's timestamps aren't
-// reliable as speed is a function of
-// distance (between positions, which are assumed reliable) and
-// time (between timestamps, which in _this_ function are assumed unreliable).
-// Introduced with RealTraffic, which doesn't transmit the position's timestamp,
-// hence timestamps are unreliable between [ts-10s;ts].
-void LTFlightData::DataSmoothing (bool& bChanged)
-{
-    double gndRange = 0.0;
-    double airbRange = 0.0;
-    
-    // access guarded by a mutex
-    std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
-
-    // shall we do data smoothing at all?
-    const LTChannel* pChn = nullptr;
-    if (!GetCurrChannel(pChn) || !pChn->DoDataSmoothing(gndRange,airbRange))
-        return;
-    
-    // find first and last positions for smoothing
-    const positionTy& posFirst = posDeque[0];
-    const double tsRange = posFirst.IsOnGnd() ? gndRange : airbRange;
-    dequePositionTy::iterator itLast = posDeque.begin();
-    for (++itLast; itLast != posDeque.end(); ++itLast) {
-        // there are various 'stop' conditions
-        //  most important: leaving allowed smoothing range (in seconds)
-        if (itLast->ts() - posFirst.ts() > tsRange  ||
-            // don't smooth across gnd status changes
-            itLast->f.onGrnd != posFirst.f.onGrnd       ||
-            // don't smooth across artifically calculated positions
-            itLast->f.flightPhase != FPH_UNKNOWN)
-            break;
-    }
-    // we went one too far...so how far did we go into the deque?
-    --itLast;
-    // not far enough for any smoothing?
-    if (std::distance(posDeque.begin(), itLast) < 2)
-        return;
-    
-    // what is the total distance travelled between first and last?
-    // (to take curves into account we need to sum up individual distances)
-    double dist = 0.0;
-    dequePositionTy::iterator itPrev = posDeque.begin();        // previous pos
-    for (dequePositionTy::iterator it = std::next(itPrev);      // next pos
-         itPrev != itLast;
-         ++it, ++itPrev)
-    {
-        dist += itPrev->dist(*it);                              // distance between prev and next
-    }
-    const double totTime = itLast->ts() - posFirst.ts();
-    // sanity check: some reasonable time
-    if (totTime < 1.0)
-        return;
-    // avg speed:
-    const double speed = dist / totTime;
-    // sanity check: some reasonable speed to avoid INF and NAN values
-    if (speed < 1.0)
-        return;
-
-    // all positions between first and last are now to be moved in a way
-    // that the speed stays constant in all segments
-    itPrev = posDeque.begin();
-    for (dequePositionTy::iterator it = std::next(itPrev);
-         it != itLast;
-         ++it, ++itPrev)
-    {
-        // speed is constant, but distances differs from leg to leg
-        // and, thus, determines time difference:
-        it->ts() = itPrev->ts() + itPrev->dist(*it) / speed;
-    }
-    
-    // If previously there where two (or more) positions with the exact same
-    // position but different timestamps then these positions now have the very
-    // same timestamp. (Distance between them is 0, with the above calculation
-    // time difference now is also 0.) We must remove these duplicates:
-    dequePositionTy::iterator dup;
-    while ((dup = std::adjacent_find(posDeque.begin(), posDeque.end(),
-                                     // find two adjacent positions with same timestamp:
-                                     [](const positionTy& a, const positionTy& b){return dequal(a.ts(),b.ts());})) != posDeque.end())
-    {
-        posDeque.erase(dup);
-    }
-    
-    // so we changed data
-    bChanged = true;
-}
 
 // shift ground positions to taxiways, insert positions at taxiway nodes
 void LTFlightData::SnapToTaxiways (bool& bChanged)
 {
-    // access guarded by a mutex
-    std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
-
     // Skip processing if not reasonable:
     if (dataRefs.GetFdSnapTaxiDist_m() <= 0 ||      // Snap-to-taxiway not enabled
         posDeque.empty() ||                         // no aircraft positions available to process
         statData.isGrndVehicle() ||                 // ground vehicle
         (pAc && pAc->IsGroundVehicle()))
         return;
-
-    // Skip snap-to-taxiway entirely while the aircraft is in ground-holding.
-    //
-    // bGroundHolding is set by AddNewPos after a sustained stationary streak
-    // (see GND_HOLDING_TIMEOUT_S). It is our positive assertion that this
-    // aircraft is parked. Real-feed data for parked aircraft can occasionally
-    // produce isolated large position jumps (observed: ACA34 at YSSY, 105 m
-    // jump while the RT app showed the aircraft stationary). Such jumps
-    // exceed our 15 m trivial-drop threshold and end up in posDeque, but
-    // they are almost always feed glitches rather than real motion.
-    //
-    // If we let SnapToTaxiways run on a glitched 100m+ jump, it computes a
-    // shortest path through the airport's taxi graph and inserts a sequence
-    // of intermediate waypoints with NaN heading. CalcHeading then derives
-    // heading from the vector between those synthesized waypoints — which
-    // reflects the taxiway geometry, not the aircraft's nose direction —
-    // and the rendered aircraft visually dances through the phantom path.
-    //
-    // By suppressing snap during holding, we let the glitched jump pass
-    // through the deque as a single linear interpolation (a one-time visual
-    // wobble at worst, no waypoint procession). When the aircraft genuinely
-    // begins to taxi, AddNewPos's GND_HOLDING_EXIT_CONSEC counter clears
-    // bGroundHolding and snap-to-taxiway resumes for subsequent slots.
-    if (bGroundHolding)
-        return;
     
-    // Loop over position in the deque
+    // access guarded by a mutex
+    std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
+    
+    // Only snap the very first position, if not done already
+    // Only act on positions on the ground,
+    // which have (not yet) been artificially added
+    // and not during Pushback
     dequePositionTy::iterator iter = posDeque.begin();
-    while (iter != posDeque.end())
-    {
-        // Only act on positions on the ground,
-        // which have (not yet) been artificially added
-        positionTy& pos = *iter;
-        if (pos.IsOnGnd() && !pos.IsPostProcessed())
-        {
-            // Run the EHS-staleness cross-check (and the rest of the
-            // on-ground heading filter chain) on this slot BEFORE
-            // handing it to LTAptSnap.
-            //
-            // Why: `LTAptSnap` uses `pos.heading()` to decide which
-            // direction along a taxi edge to route the aircraft (see
-            // TaxiEdge::startByHeading / endByHeading in LTApt.cpp).
-            // The feed-supplied heading comes from Mode S Enhanced
-            // Surveillance, which updates roughly every 10 s and lags
-            // during turns. If snap reads a stale value the synthesised
-            // taxi path can be routed BACKWARD along the edge — the
-            // rendered aircraft visibly moves the wrong way along its
-            // taxiway between feed samples. Observed for DAL973 and
-            // RPA5716 at YSSY.
-            //
-            // `CalcHeading` (since commit d861869) applies the feed-vs-
-            // track cross-check that catches exactly this case: if the
-            // feed heading disagrees with the actual motion track by
-            // 30-150° it falls through to the track-derived value
-            // instead. Running it here means snap sees the corrected
-            // heading and routes the right way.
-            //
-            // The existing post-snap CalcHeading loop in CalcNextPos
-            // remains responsible for filling in the heading of the
-            // intermediate waypoints that snap itself synthesises
-            // (those are inserted with heading=NaN).
-            CalcHeading(iter);
+    if (!iter->IsOnGnd() || iter->IsPostProcessed() || iter->f.bPushback)
+        return;
 
-            // Try snapping to a rwy or taxiway
-            if (LTAptSnap(*this, iter, true))
-                bChanged = true;
-        } // non-artificial ground position
-
-        // move on to next
-        ++iter;
-    } // while all posDeque positions
+    // Try snapping to a rwy or taxiway
+    if (LTAptSnap(*this, iter, true))
+        bChanged = true;
 }
 
 
@@ -947,6 +723,11 @@ bool LTFlightData::CalcNextPos ( double simTime )
             else
                 simTime = dataRefs.GetSimTime();
         }
+        
+        // Will the active aircraft request a new position soon?
+        const bool bAcNeedsData =
+            !pAc ? false :
+            pAc->GetToPos().ts() <= dataRefs.GetSimTime() + 2*TIME_REQU_POS;
 
         // remove from front until [0] <= simTime < [1] (or just one element left)
         while (dynDataDeque.size() >= 2 && dynDataDeque[1].ts <= simTime)
@@ -1000,11 +781,6 @@ bool LTFlightData::CalcNextPos ( double simTime )
             }
         }
         
-        // *** Data Smoothing ***
-        // (potentially changes timestamp, so needs to be befure
-        //  maintenance, which relies on timestamps)
-        DataSmoothing(bChanged);
-        
         // *** maintenance of buffered positions ***
         
         // Differs depending on: is there an a/c yet?
@@ -1020,6 +796,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
                 // If descending: Try finding a runway to land on
                 if (pAc->GetVSI_ft() < -pAc->pMdl->VSI_STABLE)
                 {
+                    // *** Auto-Land ***
                     const positionTy& acTo = pAc->GetToPos();
                     posRwy = LTAptFindRwy(*pAc, rwyId, dataRefs.GetDebugAcPos(key()));
                     if (posRwy.isNormal()) {
@@ -1034,8 +811,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
                         // and never too close to the touch-down point...
                         // we need room for the alignment point with the runway
                         const double d_ts = posRwy.ts() - simTime;
-                        if (d_ts > (double)dataRefs.GetFdRefreshIntvl() &&
-                            vecRwy.dist > 3 * ART_RWY_ALIGN_DIST)
+                        if (d_ts > 1.5 * (double)dataRefs.GetFdRefreshIntvl())
                         {
                             // shorten the distance so it only takes as long as a refresh interval
                             vecRwy.dist *= (double)dataRefs.GetFdRefreshIntvl() / d_ts;
@@ -1065,6 +841,8 @@ bool LTFlightData::CalcNextPos ( double simTime )
                             posBefore.pitch() = 0.0;
                             posBefore.f.onGrnd = GND_OFF;
                             posBefore.f.flightPhase = FPH_FINAL;
+                            posBefore.f.specialPos = SPOS_NONE;
+                            posBefore.edgeIdx = ULONG_MAX;
                             
                             // Add both position to the queue
                             if (dataRefs.GetDebugAcPos(key()))
@@ -1078,25 +856,6 @@ bool LTFlightData::CalcNextPos ( double simTime )
                                         std::string(posRwy).c_str());
                             posDeque.push_back(posRwy);     // make a copy, we want to keep posRwy!
                         }
-                        bChanged = true;
-                    }
-                }
-                // No more positions on the ground: Make the a/c stop
-                // by adding the last known position just once again as artifical stop.
-                else if (pAc->IsOnGrnd()) {
-                    positionTy stopPos = pAc->GetToPos();
-                    if (stopPos.IsOnGnd() &&
-                        stopPos.f.flightPhase != FPH_TOUCH_DOWN &&      // don't copy touch down pos, that looks ugly, and hinders auto-land/stop
-                        stopPos.f.flightPhase != FPH_STOPPED_ON_RWY &&  // avoid adding several stops
-                        stopPos.ts() <= simTime + 3.0)                  // and time's running out for the plane's to-position
-                    {
-                        stopPos.ts() += 5.0;                            // just set some time after to-position
-                        stopPos.f.flightPhase = FPH_STOPPED_ON_RWY;     // indicator for aritifical stop (not only on rwy now...)
-                        if (dataRefs.GetDebugAcPos(key()))
-                            LOG_MSG(logDEBUG, "%s: Added stop-position %s",
-                                    keyDbg().c_str(),
-                                    std::string(stopPos).c_str());
-                        posDeque.emplace_back(std::move(stopPos));      // add it to the deque
                         bChanged = true;
                     }
                 }
@@ -1128,22 +887,121 @@ bool LTFlightData::CalcNextPos ( double simTime )
         // *** Data Cleansing ***
         DataCleansing(bChanged);
         
-        // *** Snap to taxiways ***
-        SnapToTaxiways(bChanged);
-
 #ifdef DEBUG
         std::string deb0   ( !posDeque.empty() ? posDeque.front().dbgTxt() : "<none>" );
         std::string deb1   ( posDeque.size() >= 2 ? std::string(posDeque[1].dbgTxt()) : "<none>" );
         std::string debvec ( posDeque.size() >= 2 ? std::string(posDeque.front().between(posDeque[1])) : "<none>" );
 #endif
         
+        // *** Pushback Detection (no snapping!) ***
+        if (!posDeque.empty() && statData.doesPushback() && !mdl.isGlider())  {
+            // Is pushback already going on and traces of it in our posDeque?
+            // ok, that's awkward...we reverse iterate our posDeque with a forward iterator...but we need to find the _last_ occurence of pPushback, and from there then later move forward
+            dequePositionTy::iterator iIsPbAlready = std::prev(posDeque.end());
+            while(!iIsPbAlready->f.bPushback) {
+                if (iIsPbAlready == posDeque.begin()) {
+                    iIsPbAlready = posDeque.end();          // didn't find any bPushback position, reset iIsPbAlready to say so
+                    break;
+                }
+                --iIsPbAlready;
+            }
+            // iIspbAlready now is either end(), or points to the last bPushback position in posDeque
+            
+            // Lambda to check for "close" or "in the same direction and not too fast"
+            auto isCloseOrSameHeading = [](const positionTy& p1, const positionTy& p2)->bool {
+                const vectorTy vec = p1.between(p2);
+                return vec.dist <= SIMILAR_POS_DIST_PUSHBACK ||
+                       (std::abs(HeadingDiff(vec.angle, p1.heading())) < 90 &&
+                        vec.speed_kn() <= MAX_PB_SPEED);
+            };
+            
+            // Didn't find a bPushback position, but have an aircraft to ask?
+            if (iIsPbAlready == posDeque.end() && pAc &&
+                pAc->GetNewestPos().f.bPushback)            // and that aircraft is already in pushback mode?
+            {
+                // compare against first posDeque pos to see if pushback continues there
+                if (isCloseOrSameHeading(posDeque.front(), pAc->GetNewestPos())) {
+                    posDeque.front().f.bPushback = true;    // it does, so mark the first
+                    iIsPbAlready = posDeque.begin();        // and rest of processing further down
+                }
+                // does not continue, say so
+                else if (dataRefs.GetDebugAcPos(key())) {
+                    LOG_MSG(logDEBUG,"DEBUG ENDING PUSHBACK with %s",Positions2String().c_str());
+                }
+            }
+
+            // Initial pushback detection: Plane _now_ leaving the parking position?
+            const positionTy* pParkedPos = nullptr;
+            if (iIsPbAlready == posDeque.end() &&           // didn't find a position that's marked bPushback
+                IsParked(&pParkedPos) && pParkedPos)        // but we are parking just now?
+            {
+                // loop front-to-back through our positions and see if we are leaving parking position in reverse
+                dequePositionTy::iterator iLeaveParkingFirst = posDeque.end();
+                for (dequePositionTy::iterator i = posDeque.begin();
+                     i != posDeque.end();
+                     i++)
+                {
+                    // Remember this position if it happens to be the 'posLeaveParking' pos that we need to re-insert
+                    if (i->hasEqualTS(posLeaveParking))
+                        iLeaveParkingFirst = i;
+                    // is this position so far away from parking that we decide we are leaving parking?
+                    // And are we doing so in opposite direction of Startup Pos?
+                    const vectorTy vec = pParkedPos->between(*i);           // vector from parking to i
+                    if (vec.dist >= SIMILAR_POS_DIST_PARKED &&
+                        std::abs(HeadingDiff(vec.angle, pParkedPos->heading())) >= 90)
+                    {
+                        // Leaving parking!
+                        if (dataRefs.GetDebugAcPos(key())) {
+                            LOG_MSG(logDEBUG,"DEBUG STARTING PUSHBACK with %s",Positions2String().c_str());
+                        }
+                        // If we found it, re-insert a previous position that was a little closer
+                        if (iLeaveParkingFirst != posDeque.end()) {
+                            *iLeaveParkingFirst = posLeaveParking;          // re-insert the position, appears it was the first move out of parking
+                            iLeaveParkingFirst->f.bPushback = true;         // and it is pushback!
+                            posLeaveParking = positionTy();
+                            bChanged = true;
+                        }
+                        // Mark the position being processed as pushback, too
+                        i->f.bPushback = true;
+                        // then continue processing with outside this identification loop
+                        iIsPbAlready = i;
+                        break;
+                    }
+                }
+            }
+            
+            // From the current pushback-identified position,
+            // mark all further position going into the same direction, or holding the position,
+            // also as Pushback.
+            if (iIsPbAlready != posDeque.end()) {
+                for (++iIsPbAlready;                    // when come here, iIsPbAlready points to a pushback pos, we shall skip that (and this way make sure that inside the loop we have a std::prev position
+                     iIsPbAlready != posDeque.end();
+                     iIsPbAlready++)
+                {
+                    // does pushback continue?
+                    if (isCloseOrSameHeading(*std::prev(iIsPbAlready), *iIsPbAlready))
+                        iIsPbAlready->f.bPushback = true;
+                    // does not continue, say so, then leave
+                    else {
+                        if (dataRefs.GetDebugAcPos(key())) {
+                            LOG_MSG(logDEBUG,"DEBUG ENDING PUSHBACK with %s",Positions2String().c_str());
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+        
+        // *** Snap to taxiways ***
+        // As late as possible, so we hopefully have enough data in the queue
+        // for a perfect taxiway routing
+        // TODO: LTAircraft also takes the 'next' pos into consideration for curves. Reconsider when to snap...we should not use an un-snapped position as 'next', not only because it moves a little but because taxi paths could be inserted before
+        if (bAcNeedsData)
+            SnapToTaxiways(bChanged);
+        
         // *** Landing / Take-Off Detection ***
         
         if ( pAc && !posDeque.empty() ) {
-            // clear outdated rotate timestamp
-            if (!std::isnan(rotateTS) && (rotateTS + 10 * mdl.ROTATE_TIME < simTime) )
-                rotateTS = NAN;
-            
             // *** Landing ***
             
             // If current pos is in the air and next pos is approaching or touching ground
@@ -1154,7 +1012,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
             // then rolling out to (or through) next pos we determine this case
             // and then insert an artifical touch down position, which just keeps going with
             // previous vsi (a little less VSI to allow for flare) and speed down to the ground.
-            const positionTy& toPos_ac = pAc->GetToPos();   // a/c's current to-position
+            const positionTy& toPos_ac = pAc->GetNewestPos();   // a/c's most future position
             positionTy& next = posDeque.front();            // next pos waiting in posDeque
 
             if (!toPos_ac.IsOnGnd() &&                      // currently not heading for ground
@@ -1190,19 +1048,6 @@ bool LTFlightData::CalcNextPos ( double simTime )
                     // output debug info on request
                     if (dataRefs.GetDebugAcPos(key())) {
                         LOG_MSG(logDEBUG,DBG_INVENTED_TD_POS,touchDownPos.dbgTxt().c_str());
-                    }
-                    
-                    // If the touch-down point snapped to a rwy AND
-                    // the next position in the deque is a TAXI position (and not also a RWY)
-                    // then snap the TXI position again so that the (shortest)
-                    // path from touch-down to taxi pos is inserted along
-                    // proper taxi routes
-                    if (iter->f.specialPos == SPOS_RWY &&
-                        std::next(iter) != posDeque.end() &&
-                        std::next(iter)->f.specialPos == SPOS_TAXI)
-                    {
-                        dequePositionTy::iterator txiIter = std::next(iter);
-                        LTAptSnap(*this, txiIter, true);
                     }
                 }
                 else
@@ -1260,7 +1105,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
             {
                 // i == 0 is as above with actual a/c present position
                 // in later runs we use future data from our queue
-                const positionTy& ppos_i  = i == 0 ? pAc->GetToPos() : posDeque[i-1];
+                const positionTy& ppos_i  = i == 0 ? pAc->GetNewestPos() : posDeque[i-1];
                 positionTy& to_i          = posDeque[i];
                 const double to_i_ts      = to_i.ts();  // the reference might become invalid later once we start erasing, so we copy this timestamp that we need
                 
@@ -1410,7 +1255,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
         } // (has a/c and do landing / take-off detection)
         
         // *** Snap any newly inserted positions to taxiways ***
-        if (bChanged)
+        if (bChanged && bAcNeedsData)
             SnapToTaxiways(bChanged);
         
         // A lot might have changed now, even added.
@@ -1584,747 +1429,37 @@ void LTFlightData::TriggerCalcNewPos ( double simTime )
 void LTFlightData::CalcHeading (dequePositionTy::iterator it)
 {
     // access guarded by a mutex
-    //
-    // NOTE: the `bHeadFixed` early-return is intentionally NOT here.
-    // The pushback state machine below mutates per-flight persistent
-    // state (`pbState`, `pbHeldNose`, `bGateParked`) that must be
-    // updated consistently across deque re-evaluations performed by
-    // `CalcNextPos` (the `bChanged` recompute loop in CalcNextPos
-    // re-runs CalcHeading on every slot in posDeque). If we early-
-    // return on `bHeadFixed`, the state machine misses the state
-    // transitions encoded in already-overridden slots and later slots
-    // see the wrong `pbState`. The `bHeadFixed` guard is therefore
-    // moved AFTER the pushback section: the state machine always
-    // runs and updates state, but the override block only WRITES the
-    // heading on slots whose heading has not already been fixed.
     std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
 
-    // ----------------------------------------------------------------------
-    // Pushback state machine (simplified).
-    //
-    // Premise: we know an aircraft is parked at a gate when it has had a
-    // SPOS_STARTUP slot in its deque (the `bGateParked` flag is set in
-    // AddNewPos when such a slot is added). When a gate-parked aircraft
-    // starts to move, we assume it is being pushed back. The push remains
-    // active until the aircraft becomes stationary AND then resumes
-    // motion in the opposite direction (i.e. forward, taxi). While in
-    // pushback the rendered heading is forced to `track + 180°` so the
-    // tail leads the direction of motion — naturally handling rotating
-    // pushes because the nose is recomputed every motion slot.
-    //
-    // States:
-    //   PB_NONE   : not in pushback. The only way to enter is from
-    //               `bGateParked && bMotion`. Falls through to normal
-    //               heading logic.
-    //   PB_ACTIVE : being pushed. Heading override active.
-    //   PB_PAUSED : was being pushed, currently stationary. Heading
-    //               held at `pbHeldNose`. On next motion slot:
-    //                 - motion forward of held nose → exit to PB_NONE
-    //                 - motion still against held nose → back to PB_ACTIVE
-    // ----------------------------------------------------------------------
-    if (!it->IsOnGnd()) {
-        // Airborne — any pushback is long over; clear the state defensively.
-        pbState        = PB_NONE;
-        pbHeldNose     = NAN;
-        pbUseFeedNose  = false;
-        bGateParked    = false;
-    }
-    else {
-        // Resolve a predecessor position for the PB state machine.
-        //
-        // Normal case: the slot before `it` in posDeque is the
-        // predecessor. But after a long stationary period at a gate,
-        // CalcNextPos has drained the deque (each rendered position is
-        // popped from the front), and `it` arrives as the ONLY element
-        // in posDeque (or at posDeque.begin()) when GATE_RELEASE finally
-        // lets a slot through. In that state there is no in-deque
-        // predecessor — the state machine would skip its entry test
-        // entirely and fall through to the FEEDHDG cross-check, which
-        // for a post-rotation aircraft mistakes "feedHdg ≈ track" for
-        // forward taxi and assigns the motion-direction heading,
-        // rendering the aircraft facing forward into the push.
-        //
-        // Fix: when there is no in-deque predecessor, fall back to the
-        // aircraft's last-rendered position via `pAc->GetToPos()`. That
-        // is the parked position with the parked heading — exactly the
-        // reference we need to detect "motion is rearward of the held
-        // nose" and enter PB_ACTIVE on the first accepted slot.
-        const positionTy* pPrePos = nullptr;
-        if (it != posDeque.cbegin()) {
-            pPrePos = &*std::prev(it);
-        } else if (pAc) {
-            const positionTy& toPos = pAc->GetToPos();
-            if (toPos.isNormal(true) && toPos.IsOnGnd() &&
-                !std::isnan(toPos.ts()) && it->ts() > toPos.ts())
-            {
-                pPrePos = &toPos;
-            }
-        }
-
-        if (pPrePos) {
-            const positionTy& prePosPb = *pPrePos;
-            if (prePosPb.IsOnGnd() && it->ts() > prePosPb.ts()) {
-            // -------------------------------------------------------------
-            // Robust 4-slot track filter.
-            //
-            // At slow ground speeds (a few knots), the 1Hz GPS deltas are
-            // dominated by per-fix noise (~3 m typical). A single 2-point
-            // delta can swing the derived track angle by tens of degrees,
-            // which then drives the rendered nose (track + 180° during a
-            // pushback) into visible spinning even when the aircraft is
-            // moving in a steady direction.
-            //
-            // Procedure (per user direction):
-            //   1. Collect the latest 4 ground positions ending at *it.
-            //   2. Convert to a local east/north metres frame around the
-            //      newest sample (Lat2Dist / Lon2Dist).
-            //   3. Compute the equal-weight centroid of the 4 points.
-            //   4. Reject the 2 points with the largest residual from
-            //      the centroid as outliers.
-            //   5. Derive the motion vector from the remaining 2 inliers,
-            //      oldest-to-newest in time. The angle of that vector is
-            //      the filtered track; its length is the filtered chord.
-            //
-            // The aircraft's facing direction is derived elsewhere from
-            // this track (track + 180° during a push, see computeNose()
-            // below). So both motion and rendered nose come from the
-            // same robust estimate.
-            //
-            // If fewer than 4 ground positions are available (early in
-            // a flight, after a non-ground gap), fall back to the simple
-            // 2-point between() vector.
-            // -------------------------------------------------------------
-            vectorTy pbTrack = prePosPb.between(*it);
-            {
-                std::array<dequePositionTy::const_iterator, 4> samples;
-                size_t n = 0;
-                auto walk = it;
-                while (n < samples.size()) {
-                    if (!walk->IsOnGnd()) break;
-                    samples[n++] = walk;
-                    if (walk == posDeque.cbegin()) break;
-                    if (n < samples.size()) --walk;
-                }
-                if (n == samples.size()) {
-                    // samples[0] is newest, samples[3] is oldest — reverse
-                    // to oldest-to-newest temporal order.
-                    std::reverse(samples.begin(), samples.end());
-
-                    // Local east/north metres around the newest sample.
-                    const positionTy& refPos = *samples[3];
-                    std::array<ptTy, 4> aPt;
-                    for (size_t i = 0; i < 4; ++i) {
-                        aPt[i].x = Lon2Dist(samples[i]->lon() - refPos.lon(),
-                                            refPos.lat());
-                        aPt[i].y = Lat2Dist(samples[i]->lat() - refPos.lat());
-                    }
-
-                    // Equal-weight centroid. Equal weights are deliberate:
-                    // a recency-weighted mean would bias the centroid
-                    // toward recent positions and then preferentially flag
-                    // older positions as outliers even when they aren't
-                    // noisy — the wrong thing for outlier detection.
-                    double cx = 0.0, cy = 0.0;
-                    for (const auto& p : aPt) { cx += p.x; cy += p.y; }
-                    cx *= 0.25; cy *= 0.25;
-
-                    // Residual magnitude (squared) per sample.
-                    std::array<std::pair<double,size_t>, 4> resid;
-                    for (size_t i = 0; i < 4; ++i) {
-                        const double dx = aPt[i].x - cx;
-                        const double dy = aPt[i].y - cy;
-                        resid[i] = { pyth2(dx, dy), i };
-                    }
-                    // Sort residuals descending; first two are the outliers.
-                    std::sort(resid.begin(), resid.end(),
-                              [](const std::pair<double,size_t>& a,
-                                 const std::pair<double,size_t>& b)
-                              { return a.first > b.first; });
-                    const size_t out1 = resid[0].second;
-                    const size_t out2 = resid[1].second;
-
-                    // Inliers in original (oldest→newest) order.
-                    size_t i0 = SIZE_MAX, i1 = SIZE_MAX;
-                    for (size_t i = 0; i < 4; ++i) {
-                        if (i == out1 || i == out2) continue;
-                        if (i0 == SIZE_MAX) i0 = i;
-                        else                i1 = i;
-                    }
-
-                    if (i0 != SIZE_MAX && i1 != SIZE_MAX) {
-                        const double distSqr = DistPythSqr(aPt[i0].x, aPt[i0].y,
-                                                           aPt[i1].x, aPt[i1].y);
-                        if (distSqr >= (SIMILAR_POS_DIST * SIMILAR_POS_DIST))
-                        {
-                            // Replace the 2-point estimate with the
-                            // filtered chord. CoordAngle returns a bearing
-                            // in degrees (0..360, north=0, clockwise) — the
-                            // same convention as positionTy::between().
-                            pbTrack.angle = CoordAngle(samples[i0]->lat(),
-                                                       samples[i0]->lon(),
-                                                       samples[i1]->lat(),
-                                                       samples[i1]->lon());
-                            pbTrack.dist  = std::sqrt(distSqr);
-                        }
-                        // If the filtered chord is below noise floor,
-                        // leave the 2-point pbTrack alone; bMotion below
-                        // will then treat it as stationary.
-                    }
-                }
-            }
-
-            const double   pbGs_kt   = prePosPb.speed_kt(*it);
-            // Capture the feed-reported heading on THIS slot BEFORE we
-            // override it. The state machine's nose-source decision (see
-            // `pbUseFeedNose`) reads this value at PB_NONE→PB_ACTIVE
-            // entry, and PB_ACTIVE refreshes pbHeldNose from this same
-            // value on every motion slot when the feed is the chosen
-            // source. Reading from `it->heading()` AFTER the override
-            // block would observe our own previously-written value, not
-            // the feed's actual report.
-            const double   pbFeedHdg = it->heading();
-
-            // bMotion: is this slot's motion meaningful for state
-            // machine purposes? Gate on groundspeed and a defined
-            // track angle ONLY — do NOT require per-slot chord length
-            // ≥ SIMILAR_POS_DIST. A real pushback at 1–3 kt produces
-            // 3–6 m of motion per 3–5 s slot, which is below 7 m and
-            // would falsely flip the machine to PAUSED on every slot
-            // even though motion is continuous. The looser test keeps
-            // the machine in ACTIVE for the whole push so the nose
-            // is refreshed each slot.
-            //
-            // Use `PB_MOTION_GS_KT` (0.3 kt), NOT the global
-            // `GND_STATIONARY_GS_KT` (1.5 kt). Real pushbacks roll at
-            // 0.4–1.4 kt — entirely below the global stationary
-            // threshold — so gating on `gs > GND_STATIONARY_GS_KT`
-            // here would prevent the state machine from EVER entering
-            // PB_ACTIVE for a real slow push. The aircraft would never
-            // get a heading override, the renderer's spline branch
-            // would fall back to the motion tangent (≈ direction of
-            // travel), and the rendered nose would face FORWARD into
-            // the push instead of tail-first. Combined with the
-            // upstream distance-based GATE_HOLD in AddNewPos
-            // (`GATE_HOLD_MIN_ACCEPT_M`), there is no realistic noise
-            // path that can trip the state machine at 0.3 kt — any
-            // noise that produces ≥0.3 kt for one slot is filtered out
-            // upstream by the 30 m gate.
-            const bool     bMotion   = !std::isnan(pbGs_kt) &&
-                                       pbGs_kt > PB_MOTION_GS_KT &&
-                                       !std::isnan(pbTrack.angle);
-
-            // Nose source for the entire push: either the FEED heading
-            // (when the feed is reporting true compass nose — rotates
-            // accurately during a rotating push) or `track + 180°` (when
-            // the feed is reporting course-over-ground — useless as a
-            // nose reference during a push because COG ≈ motion direction
-            // ≈ 180° away from where the nose is actually pointing).
-            //
-            // The choice is made ONCE at PB_NONE→PB_ACTIVE entry by
-            // comparing the first-motion feedHdg against the prior parked
-            // heading — see the entry block below — and persisted in
-            // `pbUseFeedNose` for the rest of the push. NOT re-evaluated
-            // mid-push; per-slot re-evaluation produced the visible
-            // spinning bug in earlier revisions when the source flipped
-            // every slot.
-            auto computeNose = [&]() -> double {
-                if (pbUseFeedNose && !std::isnan(pbFeedHdg))
-                    return pbFeedHdg;
-                return HeadingNormalize(pbTrack.angle + 180.0);
-            };
-
-            // ---------------------------------------------------------
-            // Safety-valve: emergency exit on excessive groundspeed.
-            //
-            // Real pushbacks roll at 1-5 kt — a tug cannot move a 60+
-            // ton airframe faster than that. A slot with gs above
-            // PB_MAX_GS_KT (10 kt) under PB_ACTIVE/PB_PAUSED is
-            // definitively taxi, not pushback, and the state machine
-            // is wrong to still be active.
-            //
-            // This valve catches the case where the held nose was
-            // chosen incorrectly at PB_NONE→PB_ACTIVE entry (e.g.
-            // TRACK+180 was picked because feedHdg disagreed with
-            // parkedHdg, but the feed was actually right because the
-            // aircraft had already rotated during the GATE_HOLD
-            // suppression window). With a wrong held nose, the
-            // directional exit test in PB_PAUSED reads against the
-            // wrong reference and the state machine stays "ACTIVE /
-            // PAUSED" indefinitely while the real aircraft taxis out.
-            // Observed for UAL1240 (28 kt taxi still in PB_ACTIVE) and
-            // JIA5575 (8 kt taxi-out, never exited).
-            //
-            // Force-exit lets the normal heading logic (FEEDHDG cross-
-            // check, position-derived heading) take over. Visually a
-            // small heading jump may occur at the moment of exit but
-            // that is preferable to several minutes of tail-first
-            // rendering.
-            if ((pbState == PB_ACTIVE || pbState == PB_PAUSED) &&
-                !std::isnan(pbGs_kt) &&
-                pbGs_kt > PB_MAX_GS_KT)
-            {
-                if (dataRefs.ShallLogDiagnostics()) {
-                    LOG_MSG(logDEBUG,
-                            "PUSHBACK_DIAG %s FORCE_EXIT gs=%.2fkt > %.1fkt"
-                            " — exiting %s to PB_NONE",
-                            key().c_str(),
-                            pbGs_kt, PB_MAX_GS_KT,
-                            pbState == PB_ACTIVE ? "ACTIVE" : "PAUSED");
-                }
-                pbState        = PB_NONE;
-                pbHeldNose     = NAN;
-                pbUseFeedNose  = false;
-                bGateParked    = false;
-                // Fall through to the switch below; PB_NONE branch
-                // will simply do nothing on this slot (no entry test
-                // because bGateParked is now false), and the rest of
-                // CalcHeading runs normally.
-            }
-
-            switch (pbState) {
-                case PB_NONE:
-                    // Enter pushback only when:
-                    //   (a) the aircraft was parked at a gate
-                    //       (bGateParked, set in AddNewPos for slots
-                    //       carrying SPOS_STARTUP or for aircraft
-                    //       whose apt.dat lookup found a startup-loc
-                    //       within GATE_DETECT_MAX_DIST_M when
-                    //       bGroundHolding flipped true), AND
-                    //   (b) this slot carries real motion (gs above
-                    //       stationary threshold; no chord requirement),
-                    //       AND
-                    //   (c) the motion is REARWARD of the prior held
-                    //       heading — i.e. moving in the opposite
-                    //       half-plane to where the nose was last facing.
-                    //
-                    // Condition (c) is a one-shot entry test. Without it,
-                    // a forward taxi resuming from a brief stop near an
-                    // apt.dat startup-loc would false-positive as a push.
-                    // 90° splits the half-planes.
-                    //
-                    // On entry we ALSO decide the nose source for the
-                    // entire push. If the first-motion feed heading is
-                    // within PB_FEED_NOSE_AGREE_DEG of the prior parked
-                    // heading, the feed is reporting true compass nose
-                    // (rotates accurately during the push) — lock onto
-                    // feed for the duration. Otherwise the feed is
-                    // course-over-ground; derive the nose from track
-                    // instead.
-                    if (bGateParked && bMotion &&
-                        !std::isnan(prePosPb.heading()) &&
-                        std::abs(HeadingDiff(prePosPb.heading(), pbTrack.angle))
-                            > PB_EXIT_FORWARD_DIFF_DEG)
-                    {
-                        pbState = PB_ACTIVE;
-                        pbUseFeedNose =
-                            !std::isnan(pbFeedHdg) &&
-                            std::abs(HeadingDiff(prePosPb.heading(),
-                                                 pbFeedHdg))
-                                <= PB_FEED_NOSE_AGREE_DEG;
-                        pbHeldNose = computeNose();
-
-                        // Retroactively pin the predecessor slot's heading
-                        // so the renderer interpolates across the entry
-                        // leg instead of using the motion tangent.
-                        //
-                        // Why this matters: the ground-rendering spline in
-                        // LTAircraft::CalcAcPos has two heading branches
-                        // (see `LTAircraft.cpp:2143`):
-                        //   * `from.f.bHeadFixed == true`  → interpolate
-                        //     `from.heading()` and `to.heading()` across
-                        //     the leg (preserve slot headings).
-                        //   * `from.f.bHeadFixed == false` → use the
-                        //     spline tangent, i.e. the direction of motion.
-                        //
-                        // Slots written by the pushback override block
-                        // below already have `bHeadFixed=true`. But the
-                        // PREDECESSOR slot — the last parked slot — was
-                        // produced by the live-feed path that DOES NOT
-                        // set `bHeadFixed`. So on the leg from "last
-                        // parked slot" to "first pushback slot", the
-                        // renderer falls into the spline-tangent branch
-                        // and points the rendered nose along the motion
-                        // direction (≈ 180° opposite to where we want
-                        // it). The aircraft visually pivots to face the
-                        // push direction at the gate — the exact symptom
-                        // we are trying to avoid.
-                        //
-                        // The fix: stamp `bHeadFixed=true` onto prePosPb.
-                        // Its heading value is already the parked heading
-                        // (unchanged), so this only flips the flag; the
-                        // renderer then takes the interpolation branch
-                        // and the rendered nose swings smoothly from the
-                        // parked heading to `pbHeldNose` over the leg.
-                        //
-                        // Guard against the `pPrePos` fallback case
-                        // (when prePos was sourced from pAc->GetToPos()
-                        // because posDeque had no in-deque predecessor).
-                        // In that branch `std::prev(it)` would be UB
-                        // (walks past `posDeque.cbegin()`). The renderer-
-                        // side change in LTAircraft::CalcAcPos that also
-                        // checks `to.f.bHeadFixed` covers this case from
-                        // the other direction.
-                        if (it != posDeque.cbegin())
-                            std::prev(it)->f.bHeadFixed = true;
-
-                        if (dataRefs.ShallLogDiagnostics()) {
-                            LOG_MSG(logDEBUG,
-                                    "PUSHBACK_DIAG %s ENTRY src=%s parkedHdg=%.1f"
-                                    " firstFeedHdg=%.1f firstTrack=%.1f"
-                                    " heldNose=%.1f (predBHF pinned)",
-                                    key().c_str(),
-                                    pbUseFeedNose ? "FEED" : "TRACK+180",
-                                    prePosPb.heading(),
-                                    std::isnan(pbFeedHdg) ? -1.0 : pbFeedHdg,
-                                    pbTrack.angle,
-                                    pbHeldNose);
-                        }
-                    } else if (bGateParked && bMotion) {
-                        // Forward motion from a gate-parked aircraft —
-                        // this is not a push. Clear bGateParked so the
-                        // permissive flag doesn't keep triggering the
-                        // entry test on every subsequent motion slot.
-                        bGateParked = false;
-                    }
-                    break;
-
-                case PB_ACTIVE:
-                    if (bMotion) {
-                        // Refresh nose on every motion slot. The source
-                        // (feed or track+180°) was locked at entry and
-                        // does not change here — only the underlying
-                        // value evolves with new feed/motion data.
-                        pbHeldNose = computeNose();
-                    } else {
-                        // Truly stationary slot (gs below threshold).
-                        // Don't clear pbHeldNose — it is the reference
-                        // for the next motion-direction test.
-                        pbState = PB_PAUSED;
-                    }
-                    break;
-
-                case PB_PAUSED:
-                    if (bMotion) {
-                        // Direction-of-resumed-motion test. During the
-                        // prior push the motion was `pbHeldNose ± 180°`
-                        // (tail-leading). "Opposite direction now" means
-                        // new motion track is aligned with `pbHeldNose`
-                        // (nose-leading taxi). Within 90° of pbHeldNose
-                        // → forward taxi, EXIT. Otherwise the tug is
-                        // still pushing → back to ACTIVE.
-                        if (!std::isnan(pbHeldNose) &&
-                            std::abs(HeadingDiff(pbHeldNose, pbTrack.angle))
-                                < PB_EXIT_FORWARD_DIFF_DEG)
-                        {
-                            pbState        = PB_NONE;
-                            pbHeldNose     = NAN;
-                            pbUseFeedNose  = false;
-                            bGateParked    = false;
-                            // Fall through to normal heading logic below.
-                        } else {
-                            pbState    = PB_ACTIVE;
-                            pbHeldNose = computeNose();
-                        }
-                    }
-                    break;
-            }
-
-            // Heading override while in PB_ACTIVE or PB_PAUSED.
-            if (pbState == PB_ACTIVE || pbState == PB_PAUSED) {
-                // Only WRITE the heading on slots that haven't already
-                // had their heading fixed. On a deque re-evaluation
-                // (CalcNextPos recompute loop) the state machine above
-                // has already run and updated `pbState`; rewriting an
-                // already-fixed heading would either be a no-op (same
-                // value) or worse, an inconsistency if the state
-                // machine now disagrees with the prior decision.
-                if (!it->f.bHeadFixed) {
-                    // Always write pbHeldNose — it has just been refreshed
-                    // by computeNose() (feed nose if it disagrees with
-                    // track, otherwise derived track+180°). This keeps
-                    // rotating pushbacks visually correct: the body
-                    // tracks the actual nose direction reported by the
-                    // feed, not the position-delta chord which is wrong
-                    // when the aircraft is rotating through the push.
-                    if (!std::isnan(pbHeldNose)) {
-                        it->heading() = pbHeldNose;
-                    } else if (!std::isnan(prePosPb.heading())) {
-                        it->heading() = prePosPb.heading();
-                    }
-                    it->f.bHeadFixed = true;
-                    it->f.flightPhase = FPH_PUSHBACK;
-
-                    // Per-slot diagnostic line — emitted only on the
-                    // initial override pass (when bHeadFixed flips
-                    // false→true), not on every re-eval.
-                    if (dataRefs.ShallLogDiagnostics()) {
-                        LOG_MSG(logDEBUG,
-                                "PUSHBACK_DIAG %s state=%s gs=%.2fkt track=%.1f"
-                                " heldNose=%.1f assigned=%.1f bGateParked=%d",
-                                key().c_str(),
-                                pbState == PB_ACTIVE ? "ACTIVE" : "PAUSED",
-                                std::isnan(pbGs_kt) ? -1.0 : pbGs_kt,
-                                std::isnan(pbTrack.angle) ? -1.0 : pbTrack.angle,
-                                std::isnan(pbHeldNose) ? -1.0 : pbHeldNose,
-                                it->heading(),
-                                int(bGateParked));
-                    }
-                }
-                return;
-            }
-        }
-        }   // close if (pPrePos)
-    }
-
-    // Honour the per-slot `bHeadFixed` flag for everything below this
-    // point (feed-heading, position-derived, etc.). It is intentional
-    // that the pushback section above runs BEFORE this gate so that
-    // its persistent state machine stays consistent across deque
-    // re-evaluations — see the note at the top of this function.
+    // If heading's fixed then there's nothing to calculate
     if (it->f.bHeadFixed)
         return;
-
-    // ----------------------------------------------------------------------
-    // Trust feed-provided heading at slow ground speed (with staleness check).
-    //
-    // The position-from-track logic below derives heading by taking
-    // atan2 over consecutive lat/lon pairs. At parked, slow-taxi, and
-    // pushback speeds that math produces wildly wrong answers:
-    //   * parked aircraft: positional jitter IS the apparent motion vector
-    //   * pushback: the track points OPPOSITE to the nose (tail-first),
-    //     so atan2 gives a heading 180° off
-    //
-    // RealTraffic and most ADS-B feeds provide an explicit heading field
-    // sourced from Mode S Enhanced Surveillance (EHS) — the aircraft's
-    // own reported nose direction. We prefer it for the slow-ground cases.
-    //
-    // *Staleness*: EHS heading typically updates only every 10 s, and is
-    // unavailable entirely in regions without enhanced interrogation
-    // coverage. Between EHS updates the feed value is held constant by
-    // the receiver. During a taxi turn at 5–10 kn that 10 s freshness
-    // window is long enough for the aircraft to change direction by 60°
-    // or more — if we blindly trust the held value the rendered nose
-    // visibly lags the actual motion and the aircraft appears to slide
-    // sideways through the turn.
-    //
-    // Defence: cross-check the feed heading against the *current* track
-    // (bearing from the predecessor slot to this one). Three regimes,
-    // gated by `GND_FEED_TRACK_AGREE_DEG` (see Constants.h):
-    //   * |Δ| < 30°:    feed agrees with track — fresh, or aircraft is
-    //                   going straight. Trust feed.
-    //   * 30° ≤ |Δ| ≤ 150°: feed has lagged during a turn. Fall through
-    //                   to the position-derived branch — track wins.
-    //   * |Δ| > 150°:   track is roughly opposite the feed — pushback.
-    //                   Trust feed (nose stays at gate).
-    //
-    // Limitations:
-    //   * Feed heading exactly 0.0 may be a channel "no data" sentinel
-    //     rather than a real reading. We accept that risk — the agree-
-    //     window check filters out the worst cases (a stale 0.0 paired
-    //     with non-zero motion will fall outside the agree window).
-    //   * Above `GND_USE_FEED_HEADING_MAX_KT` (10 kn) the track-derived
-    //     heading is always preferred (real taxi / rollout / takeoff).
-    // ----------------------------------------------------------------------
-    if (it->IsOnGnd() && !std::isnan(it->heading())) {
-        // Derive groundspeed + track angle from the predecessor pair when
-        // possible. A missing predecessor (head of deque) means we have
-        // no track to cross-check against — feed is the best we have.
-        double gsDerived_kt = NAN;
-        double trackAngle   = NAN;
-        if (it != posDeque.cbegin()) {
-            const positionTy& prePos = *std::prev(it);
-            if (prePos.IsOnGnd() && it->ts() > prePos.ts()) {
-                gsDerived_kt = prePos.speed_kt(*it);
-                // Only compute a track angle when motion is non-trivial;
-                // for jitter-only displacement the bearing is meaningless
-                // and would force us into the disagreement band by noise
-                // alone.
-                if (gsDerived_kt > GND_STATIONARY_GS_KT) {
-                    const vectorTy vec = prePos.between(*it);
-                    trackAngle = vec.angle;
-                }
-            }
-        }
-
-        // Decide whether the feed heading is the right source for this
-        // slot. The reason string is purely for the diagnostic log line
-        // that follows — it lets us see WHY a feed value won (or lost)
-        // when investigating regressions from a Log.txt capture.
-        bool trustFeed = false;
-        const char* reason = "";
-        if (std::isnan(gsDerived_kt)) {
-            // No predecessor — no track to compare. Feed is the only
-            // reliable source we have.
-            trustFeed = true;
-            reason = "no predecessor";
-        } else if (gsDerived_kt < GND_STATIONARY_GS_KT) {
-            // Stationary: positional jitter dominates any track we could
-            // compute, so it would be garbage. Feed value wins.
-            trustFeed = true;
-            reason = "stationary";
-        } else if (gsDerived_kt < GND_USE_FEED_HEADING_MAX_KT) {
-            // Slow motion in the band where feed could be used — apply
-            // the cross-check against the track angle.
-            if (!std::isnan(trackAngle)) {
-                const double delta =
-                    std::abs(HeadingDiff(it->heading(), trackAngle));
-                if (delta < GND_FEED_TRACK_AGREE_DEG) {
-                    trustFeed = true;
-                    reason = "agrees with track";
-                } else if (delta > (180.0 - GND_FEED_TRACK_AGREE_DEG)) {
-                    trustFeed = true;
-                    reason = "track reversed (pushback)";
-                }
-                // else: feed has gone stale during a turn — fall through
-                // to the position-derived heading branch below.
-            } else {
-                // No track to compare (shouldn't happen if gsDerived_kt
-                // is non-NaN and above stationary, but be defensive).
-                trustFeed = true;
-                reason = "no track to compare";
-            }
-        }
-        // Above GND_USE_FEED_HEADING_MAX_KT we never trust feed — the
-        // outer-loop track-heading regime in LTAircraft::CalcAcPos owns
-        // that range. Leave `trustFeed=false` so we fall through.
-
-        if (trustFeed && dataRefs.ShallLogDiagnostics()) {
-            LOG_MSG(logDEBUG,
-                    "GND_DIAG_FEEDHDG %s ts=%.1f feedHdg=%.1f gs=%.2fkt"
-                    " track=%.1f (%s)",
-                    key().c_str(), it->ts(), it->heading(),
-                    std::isnan(gsDerived_kt) ? 0.0 : gsDerived_kt,
-                    std::isnan(trackAngle)   ? -1.0 : trackAngle,
-                    reason);
-            return;
-        }
-    }
-
-    // ----------------------------------------------------------------------
-    // Ground-stationary freeze.
-    //
-    // Purpose: when an aircraft is on the ground and not really moving, the
-    // raw position samples from a 1 Hz feed carry a few metres of jitter.
-    // If we let the normal vector-between-positions math compute a heading
-    // from that jitter, the rendered nose will swing wildly — the "dance"
-    // symptom users see at gates and slow taxi. This branch detects the
-    // stationary case (low derived groundspeed between this slot and at
-    // least one neighbour) and reuses the previously trusted heading from
-    // the predecessor in the deque, which has already been filtered by the
-    // earlier `CalcHeading` calls that produced it. Threshold:
-    // `GND_STATIONARY_GS_KT` (see `Constants.h` for the rationale).
-    // ----------------------------------------------------------------------
-    if (it->IsOnGnd()) {
-        // Derived groundspeed FROM the predecessor (if any) to this slot,
-        // in knots. We use the position-pair speed helper rather than the
-        // dynamic-data feed value because the feed value is what we are
-        // trying to filter — the derived value tells us whether this slot
-        // is "moving" relative to its neighbour regardless of what the feed
-        // claims.
-        double gsFromPrev_kt = NAN;
-        if (it != posDeque.cbegin()) {
-            const positionTy& prePos = *std::prev(it);
-            if (prePos.IsOnGnd() && it->ts() > prePos.ts())
-                gsFromPrev_kt = prePos.speed_kt(*it);
-        }
-        // Derived groundspeed FROM this slot to the successor (if any)
-        double gsToNext_kt = NAN;
-        if (std::next(it) != posDeque.cend()) {
-            const positionTy& nextPos = *std::next(it);
-            if (nextPos.IsOnGnd() && nextPos.ts() > it->ts())
-                gsToNext_kt = it->speed_kt(nextPos);
-        }
-
-        // Classify each adjacent segment. We require BOTH segments (or the
-        // only available one at the ends of the deque) to be stationary
-        // before we lock the heading. Requiring two consecutive zero-ish
-        // slots avoids reacting to a single isolated tight cluster that
-        // can occur briefly during normal taxi.
-        const bool prevStationary = !std::isnan(gsFromPrev_kt) &&
-                                    gsFromPrev_kt <= GND_STATIONARY_GS_KT;
-        const bool nextStationary = !std::isnan(gsToNext_kt)  &&
-                                    gsToNext_kt  <= GND_STATIONARY_GS_KT;
-        const bool isolated       =  std::isnan(gsFromPrev_kt) ||
-                                     std::isnan(gsToNext_kt);
-
-        // ----- GROUND DIAGNOSTIC LOGGING (tag: GND_DIAG_CHD) -----
-        // Captures the per-slot inputs that drive the stationary-freeze
-        // decision in CalcHeading. Fires unconditionally for every ground
-        // slot. Search the log for "GND_DIAG_CHD" to filter.
-        if (dataRefs.ShallLogDiagnostics()) {
-            LOG_MSG(logDEBUG,
-                    "GND_DIAG_CHD %s ts=%.1f gsPrev=%.2fkt gsNext=%.2fkt"
-                    " hdg_in=%.1f prevHdg=%.1f nextHdg=%.1f stationary={p=%d,n=%d,iso=%d}",
-                    key().c_str(), it->ts(),
-                    gsFromPrev_kt, gsToNext_kt,
-                    it->heading(),
-                    it != posDeque.cbegin() ? std::prev(it)->heading() : NAN,
-                    std::next(it) != posDeque.cend() ? std::next(it)->heading() : NAN,
-                    prevStationary ? 1 : 0,
-                    nextStationary ? 1 : 0,
-                    isolated ? 1 : 0);
-        }
-
-        if ((prevStationary && nextStationary) ||
-            (isolated && (prevStationary || nextStationary)))
-        {
-            // Prefer the predecessor's heading — it's the most recent
-            // value that already passed through this filter chain.
-            if (it != posDeque.cbegin()) {
-                const double prevHead = std::prev(it)->heading();
-                if (!std::isnan(prevHead)) {
-                    if (dataRefs.ShallLogDiagnostics()) {
-                        LOG_MSG(logDEBUG,
-                                "GND_DIAG_FREEZE %s ts=%.1f kept prevHdg=%.1f",
-                                key().c_str(), it->ts(), prevHead);
-                    }
-                    it->heading() = prevHead;
-                    return;
-                }
-            }
-            // No usable predecessor: if the slot already carries a
-            // heading (e.g., a feed channel like RealTraffic provides
-            // one directly), keep it — anything is better than the
-            // jitter-derived value we would otherwise produce.
-            if (!std::isnan(it->heading()))
-                return;
-            // Otherwise fall through to the normal computation below;
-            // the existing `SIMILAR_POS_DIST` short-circuit will likely
-            // still kick in and stabilise this slot from the predecessor.
-        }
-    }
-
+    
     // vectors to / from the position at "it"
     vectorTy vecTo, vecFrom;
     
     // is there a predecessor to "it"?
-    if (it != posDeque.cbegin()) {
-        const positionTy& prePos = *std::prev(it);
-        vecTo = prePos.between(*it);
-        if (vecTo.dist < SIMILAR_POS_DIST)      // distance from predecessor to it too short
+    const positionTy* prePos = nullptr;
+    if (it != posDeque.cbegin())
+        prePos = &*std::prev(it);
+    else if (pAc)
+        prePos = &pAc->GetNewestPos();
+    
+    if (prePos) {
+        vecTo = prePos->between(*it);
+        if (vecTo.dist < 0.1)                   // In AddNewPos we override "similar" positions with the same pos once again, so we either have zero distance (don't change heading!) or we have some distance, which is then to follow
         {
-            it->heading() = prePos.heading();   // by default don't change heading for this short distance to avoid turning planes "on the spot"
+            it->heading() = prePos->heading();  // don't change heading for stand-still
             if (!std::isnan(it->heading()))     // if we now have a heading -> just use it
                 return;
-            vecTo = vectorTy();                 // clear the vector
-        }
-    } else if (pAc) {
-        // no predecessor in the queue...but there is an a/c, take that
-        const positionTy& prePos = pAc->GetToPos();
-        vecTo = prePos.between(*it);
-        if (vecTo.dist < SIMILAR_POS_DIST)      // distance from predecessor to it too short
-        {
-            it->heading() = prePos.heading();   // by default don't change heading for this short distance to avoid turning planes "on the spot"
-            if (!std::isnan(it->heading()))     // if we now have a heading -> just use it
-                return;
-            vecTo = vectorTy();                 // clear the vector
+            vecTo = vectorTy();                 // clear the vector, not to be consider in later processing
         }
     }
     
     // is there a successor to it?
     if (std::next(it) != posDeque.cend()) {
         vecFrom = it->between(*std::next(it));
-        if (vecFrom.dist < SIMILAR_POS_DIST)    // clear the vector if too short
+        if (vecFrom.dist < 0.1)                 // clear the vector if signifying a stand-still
             vecFrom = vectorTy();
     }
     
@@ -2357,92 +1492,99 @@ void LTFlightData::CalcHeading (dequePositionTy::iterator it)
             it->heading() = pBefore->heading;
         else if (pAfter)
             it->heading() = pAfter->heading;
-        else
-            it->heading() = 0;
-    }
-    
-    // ----------------------------------------------------------------------
-    // Ground heading hysteresis.
-    //
-    // After the heading for this slot has been (re)computed by the logic
-    // above, snap it back to the predecessor's heading if the difference
-    // is below `GND_HEADING_HYSTERESIS_DEG`. The reasoning: real-feed
-    // ADS-B/MLAT data routinely produces sub-degree variations in the
-    // track-from-pos-delta even when the aircraft is genuinely moving
-    // in a straight line. Those sub-degree changes do not represent
-    // physical reality and, if propagated, accumulate frame-by-frame
-    // into visible nose-wobble at slow ground speeds. The dead-band
-    // matches the convention used for the rendered heading rate-limit
-    // in `LTAircraft::CalcAcPos`, so the two layers reinforce each
-    // other rather than fighting.
-    //
-    // We only do this on the ground — in the air, small heading changes
-    // are usually meaningful (drift, gentle course corrections) and
-    // suppressing them would make en-route tracks look "stairstepped".
-    // ----------------------------------------------------------------------
-    if (it->IsOnGnd() && it != posDeque.cbegin()) {
-        const double prevHead = std::prev(it)->heading();
-        if (!std::isnan(prevHead) && !std::isnan(it->heading())) {
-            const double dHead = std::abs(HeadingDiff(prevHead, it->heading()));
-            // ----- GROUND DIAGNOSTIC LOGGING (tag: GND_DIAG_HYST) -
-            if (dataRefs.ShallLogDiagnostics()) {
-                LOG_MSG(logDEBUG,
-                        "GND_DIAG_HYST %s ts=%.1f prevHdg=%.1f newHdg=%.1f"
-                        " |delta|=%.2f%s",
-                        key().c_str(), it->ts(), prevHead, it->heading(), dHead,
-                        dHead < GND_HEADING_HYSTERESIS_DEG ? " -> SNAP" : "");
-            }
-            if (dHead < GND_HEADING_HYSTERESIS_DEG)
-            {
-                it->heading() = prevHead;
-            }
-        }
     }
 
-    // just as a safeguard...they can't be many situations this triggers,
-    // but we don't want nan values any longer after this
+    // just as a safeguard...there can't be many situations this triggers,
+    // but we don't want NAN values any longer after this
     if (std::isnan(it->heading()))
         it->heading() = 0;
 }
 
-// check if thisPos would be OK after lastPos,
-// pHeading: if given overrides lastPos.Heading()
-//           if NAN, then no check for heading
-bool LTFlightData::IsPosOK (const positionTy& lastPos,
-                            const positionTy& thisPos,
-                            double* pHeading,
-                            bool* /*pbChanged*/)
+
+// Hover check: Force a position on the ground if hovering low over runway
+// returns if position should be entirely ignored
+bool LTFlightData::HoverDetection (positionTy& pos)
+{
+    // shall we do data smoothing at all for current channel?
+    const LTChannel* pChn = nullptr;
+    if (!GetCurrChannel(pChn) || !pChn->DoHoverDetection())
+        return false;
+
+    // only do for fixed-wing aircraft
+    if (statData.hasRotor())
+        return false;
+    
+    // The max hover height is about 12s of "initial climb"
+    const LTAircraft::FlightModel& mdl = LTAircraft::FlightModel::FindFlightModel(*this, false);
+    const double maxHoverHeight_m = M_per_FT * mdl.VSI_INIT_CLIMB * MAX_RWY_HOVER_CLIMB_DUR / 60.0;
+    if (!pos.IsOnGnd() &&                                           // not on ground
+        pos.alt_m() < HIGHEST_AIRPORT_M + maxHoverHeight_m)         // low enough to be potentially hovering low over an airport?
+    {
+        // Do we have a ground situation in the data,
+        // for which the incoming position could be a lift-off position?
+        const double gndAlt_m = GetLastPosGndAlt_m();
+        if (!std::isnan(gndAlt_m) &&
+            pos.alt_m() < gndAlt_m + maxHoverHeight_m)
+        {
+            // So this new data comes right after a gnd position and is pretty low...
+            // is it also above a runway? (then pos is snapped to the rwy)
+            if (LTAptSnapIfOverRwy(pos))
+            {
+                // ...we have forced it on the ground:
+                if (dataRefs.GetDebugAcPos(key())) {
+                    LOG_MSG(logDEBUG, "%s: Forcing a rwy position onto ground with max hover height = %.0fm:\n%s",
+                            key().c_str(), maxHoverHeight_m, pos.dbgTxt().c_str());
+                }
+                pos.f.onGrnd = GND_ON;
+                pos.alt_m() = NAN;
+            }
+            // Not over a rwy: ignore this position
+            else {
+                if (dataRefs.GetDebugAcPos(key())) {
+                    LOG_MSG(logDEBUG, "%s: Ignoring a non-rwy hovering position with max hover height = %.0fm:\n%s",
+                            key().c_str(), maxHoverHeight_m, pos.dbgTxt().c_str());
+                }
+                // tell call: ignore!
+                return true;
+            }
+        }
+    }
+    
+    // tell call: use the (potentially modified) position
+    return false;
+}
+
+
+// check if thisPos would be OK after lastPos
+bool LTFlightData::IsPosOK (double trackToPrevPos,
+                            const positionTy& prevPos,
+                            const positionTy& thisPos)
 {
     // access guarded by a mutex
     std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
     
-    // only compare positions which are either both on the ground or both in the air
-    if (thisPos.IsOnGnd() != lastPos.IsOnGnd())
-        return true;
-
     // aircraft model to use
     std::string sIcaoType;
     const LTAircraft::FlightModel& mdl = LTAircraft::FlightModel::FindFlightModel(*this, false, &sIcaoType);
     if (mdl.modelName.empty())     // if we can't really determine a model we can't really validate
         return true;
     
-    // if pHeading not given we assume we can take it from lastPos
-    const double lastHead = pHeading ? *pHeading : lastPos.heading();
+    // if trackToPrevPos not given we assume we can take it from prevPos (which can still be NAN)
+    if (std::isnan(trackToPrevPos)) trackToPrevPos = prevPos.heading();
     // vector from last to this
-    const vectorTy v = lastPos.between(thisPos);
-    if (pHeading) *pHeading = v.angle;      // return heading from lastPos to thisPos
+    const vectorTy v = prevPos.between(thisPos);
     // maximum turn allowed depends on 'on ground' or not
-    const double maxTurn = mdl.maxHeadChange(thisPos.IsOnGnd(), thisPos.ts() - lastPos.ts());
+    const bool bOnGrnd = prevPos.IsOnGnd() && thisPos.IsOnGnd();
+    const double maxTurn = mdl.maxHeadChange(bOnGrnd, thisPos.ts() - prevPos.ts());
 
-    // angle between last and this, i.e. turn angle at thisPos
-    const double hDiff = (std::isnan(lastHead) ? 0.0 :
-                          lastPos.f.bHeadFixed || thisPos.f.bHeadFixed ? 0.0 :
+    // angle between last and this, i.e. turn angle at lastPos (to get to thisPos)
+    const double hDiff = (std::isnan(trackToPrevPos) ? 0.0 :
                           v.dist <= SIMILAR_POS_DIST ? 0.0 :
-                          HeadingDiff(lastHead, v.angle));
+                          HeadingDiff(trackToPrevPos, v.angle));
     
     // Speed limits
-    const double minSpeed = thisPos.IsOnGnd() ? 0.0                          : mdl.MIN_FLIGHT_SPEED;
-    const double maxSpeed = thisPos.IsOnGnd() ? (mdl.SPEED_INIT_CLIMB * 1.5) : mdl.MAX_FLIGHT_SPEED;
+    const double minSpeed = bOnGrnd ? 0.0                          : mdl.MIN_FLIGHT_SPEED;
+    const double maxSpeed = bOnGrnd ? (mdl.SPEED_INIT_CLIMB * 1.5) : mdl.MAX_FLIGHT_SPEED;
     
     // --- Validations ---
     const char* szViolTxt = nullptr;
@@ -2647,334 +1789,40 @@ void LTFlightData::AddNewPos ( positionTy& pos )
     try {
         // access guarded by a mutex
         std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
+        
+        // Hover detection...if to be ignored then do so
+        if (HoverDetection(pos))
+            return;
 
         // We only consider data that is newer than what we have already
-        const positionTy* pLatestPos =
-        !posToAdd.empty() ? &(posToAdd.back()) :
-        !posDeque.empty() ? &(posDeque.back()) :
-        hasAc()           ? &(pAc->GetToPos()) : nullptr;
-        
-        if (pLatestPos) {
-            // pos is before or close to 'to'-position: don't add!
-            if (pos.ts() <= pLatestPos->ts() + SIMILAR_TS_INTVL)
+        const positionTy latestPos = GetMostFuturePos();
+        if (latestPos.isNormal()) {
+            // pos timestamp is before or close to 'to'-position: don't add!
+            const double posTs = pos.ts();
+            const double tsDiff = posTs - latestPos.ts();
+            if (tsDiff <= SIMILAR_TS_INTVL)
             {
                 if (dataRefs.GetDebugAcPos(key()))
                     LOG_MSG(logDEBUG,DBG_SKIP_NEW_POS_TS,pos.dbgTxt().c_str());
                 return;
             }
 
-            // --------------------------------------------------------------
-            // Ground holding state machine + trivial-update suppression.
-            //
-            // Purpose: an aircraft that has been parked for longer than
-            // `GND_HOLDING_TIMEOUT_S` should ignore the small-amplitude
-            // position jitter that real feeds keep producing for a
-            // stationary target. Once we enter "holding", we silently
-            // drop incoming slots whose distance from the latest known
-            // position is below `GND_HOLDING_TRIVIAL_DIST_M` AND whose
-            // derived groundspeed (from the time/distance pair) is at or
-            // below `GND_STATIONARY_GS_KT`. That is the data-layer half
-            // of the dance fix: the rendered aircraft never even sees
-            // these updates so it cannot react to them.
-            //
-            // The state machine is driven entirely by `pos.ts()` (the
-            // feed-reported wall-clock timestamp), not by sim time —
-            // that way pause/resume and rate-changes in X-Plane don't
-            // influence the streak length.
-            // --------------------------------------------------------------
-            const bool   bothOnGround = pos.IsOnGnd() && pLatestPos->IsOnGnd();
-            const double dtTs         = pos.ts() - pLatestPos->ts();
-            const double dist_m       = pLatestPos->dist(pos);
-            const double gs_kt        = (dtTs > 0)
-                                      ? pLatestPos->speed_kt(pos)
-                                      : NAN;
-            const bool   isStationary = bothOnGround &&
-                                        !std::isnan(gs_kt) &&
-                                        gs_kt <= GND_STATIONARY_GS_KT;
-
-            // ----- GROUND DIAGNOSTIC LOGGING (tag: GND_DIAG_ADD) -
-            // Unconditional, fires once per on-ground feed update.
-            // Captures the parameters used by the stationary / holding
-            // decision so thresholds can be tuned from real data. Search
-            // the log for "GND_DIAG_ADD" to see only these lines.
-            // To remove later: delete this block.
-            if (bothOnGround && dataRefs.ShallLogDiagnostics()) {
-                LOG_MSG(logDEBUG,
-                        "GND_DIAG_ADD %s ts=%.1f dt=%.2fs dist=%.2fm gs=%.2fkt"
-                        " hdg_prev=%.1f hdg_in=%.1f holdingSince=%.1f holding=%d",
-                        key().c_str(), pos.ts(), dtTs, dist_m, gs_kt,
-                        pLatestPos->heading(), pos.heading(),
-                        groundHoldingSinceTs, bGroundHolding ? 1 : 0);
-            }
-
-            if (isStationary) {
-                // Stationary slot: reset the "consecutive non-stationary"
-                // counter — we just saw a moving slot streak interrupted.
-                groundNonStationaryCnt = 0;
-
-                // Either continue an existing streak or start a fresh one.
-                // The streak start is the timestamp of the LATEST already-
-                // known position so the elapsed time below is "how long has
-                // the aircraft been frozen at this point in space".
-                if (groundHoldingSinceTs <= 0.0)
-                    groundHoldingSinceTs = pLatestPos->ts();
-
-                // Promote to holding once the streak exceeds the timeout.
-                // Threshold lives in `Constants.h` (`GND_HOLDING_TIMEOUT_S`).
-                if (!bGroundHolding &&
-                    (pos.ts() - groundHoldingSinceTs) >= GND_HOLDING_TIMEOUT_S)
-                {
-                    bGroundHolding = true;
-                    if (dataRefs.ShallLogDiagnostics()) {
-                        LOG_MSG(logDEBUG,
-                                "GND_DIAG_HOLDIN %s entering ground-holding"
-                                " (stationary for %.1fs)",
-                                key().c_str(),
-                                pos.ts() - groundHoldingSinceTs);
-                    }
-
-                    // ------------------------------------------------------
-                    // Third gate-detection path (apt.dat startup-locations).
-                    //
-                    // Background: `bGateParked` previously had two sources —
-                    // SPOS_STARTUP slots (from RT's parked-traffic snapshot
-                    // or the apt.dat snap path), and the indiscriminate
-                    // bGroundHolding flag itself (set at line ~2697 below).
-                    // The second source is too permissive: ANY extended
-                    // stationary period flags the aircraft as gate-parked,
-                    // including runway hold-shorts, taxi pauses, and
-                    // maintenance pads. The pushback state machine then
-                    // false-positives forward taxi as a push and renders
-                    // the aircraft tail-first (visible spinning).
-                    //
-                    // Fix: at the moment we promote to holding, run a one-
-                    // shot apt.dat lookup. If a startup-location (gate /
-                    // stand / ramp) is within GATE_DETECT_MAX_DIST_M of the
-                    // held position, the aircraft is really at a gate.
-                    // Set bGateParked = true here; do NOT rely on the
-                    // permissive bGroundHolding-only path below for live-
-                    // tracked aircraft. SPOS_STARTUP slots still set the
-                    // flag through the existing path independently.
-                    //
-                    // Why only at the flip moment: the lookup is O(stands-
-                    // per-airport) on a mutex-guarded structure. Running it
-                    // on every subsequent stationary slot is wasteful, and
-                    // the answer cannot change for a non-moving aircraft.
-                    // If LTApt is not yet available at this exact moment
-                    // (asynchronous reload, far-from-camera airport),
-                    // LTAptFindStartupLoc returns an empty positionTy and
-                    // bGateParked stays false — acceptable, because the
-                    // aircraft was likely not visible to the user either.
-                    // The lookup is performed twice: once with the tight
-                    // GATE_DETECT_MAX_DIST_M threshold (the actual decision
-                    // gate), and once with a much larger probe radius
-                    // (10×) so the diagnostic log can report the distance
-                    // to the *nearest* startup-loc even when the tight
-                    // gate rejects it. That way a log review immediately
-                    // shows "we missed AAL1408 because the closest
-                    // startup-loc was 47 m away" versus "no apt.dat
-                    // startup-locs at this airport at all" — two very
-                    // different failure modes.
-                    // Lookups are performed twice: once with the tight
-                    // GATE_DETECT_MAX_DIST_M threshold (the actual gate),
-                    // once with a 10× probe radius so the diagnostic can
-                    // report the distance to the nearest startup-loc even
-                    // when the tight check rejects it.
-                    //
-                    // IMPORTANT: success/failure is determined by the
-                    // `outDist` parameter, NOT by `positionTy::isNormal()`
-                    // on the returned position. The returned positionTy
-                    // has `ts=NaN, alt=NaN` (gates have no inherent time
-                    // or altitude — the caller supplies those), and
-                    // `isNormal()` requires both to be set. Using
-                    // `isNormal()` as the success signal silently rejects
-                    // EVERY valid startup-loc match. `outDist` is set to
-                    // a finite distance only when a match was found
-                    // within the search radius (see `FindStartupLoc` at
-                    // `Src/LTApt.cpp:1814`), so it is the right gate.
-                    const bool aptAvail = LTAptAvailable();
-                    double gateDist  = NAN;
-                    const positionTy gatePos =
-                        LTAptFindStartupLoc(pos, GATE_DETECT_MAX_DIST_M,
-                                            &gateDist);
-                    if (!std::isnan(gateDist) &&
-                        gateDist <= GATE_DETECT_MAX_DIST_M)
-                    {
-                        bGateParked = true;
-                        if (dataRefs.ShallLogDiagnostics()) {
-                            LOG_MSG(logDEBUG,
-                                    "GND_DIAG_GATE %s HIT lat=%.6f lon=%.6f"
-                                    " startup-loc at %.1fm (hdg=%.1f)"
-                                    " — bGateParked=true",
-                                    key().c_str(),
-                                    pos.lat(), pos.lon(),
-                                    gateDist, gatePos.heading());
-                        }
-                    }
-                    // Tight lookup failed. Probe a wide radius and
-                    // log the position so the failure mode can be
-                    // distinguished (apt unavailable / no airport /
-                    // closest startup-loc just outside threshold).
-                    else if (dataRefs.ShallLogDiagnostics()) {
-                        double probeDist  = NAN;
-                        (void)LTAptFindStartupLoc(pos,
-                                                  GATE_DETECT_MAX_DIST_M * 10.0,
-                                                  &probeDist);
-                        const char* mode = nullptr;
-                        if (!aptAvail)                  mode = "APT_UNAVAIL";
-                        else if (!std::isnan(probeDist)) mode = "NEAR";
-                        else                            mode = "NOAPT";
-                        LOG_MSG(logDEBUG,
-                                "GND_DIAG_GATE %s %s lat=%.6f lon=%.6f"
-                                " (tight %.0fm, probe %.0fm: nearest=%.1fm)"
-                                " — bGateParked stays false",
-                                key().c_str(), mode,
-                                pos.lat(), pos.lon(),
-                                GATE_DETECT_MAX_DIST_M,
-                                GATE_DETECT_MAX_DIST_M * 10.0,
-                                std::isnan(probeDist) ? -1.0 : probeDist);
-                    }
-                }
-
-                // While in holding, drop trivial jitter outright. We still
-                // allow through anything that moves more than the trivial
-                // distance, because that may signal a genuine push-back or
-                // taxi start that we must not miss.
-                //
-                // EXCEPTION: never drop a position flagged SPOS_STARTUP.
-                // Those are not feed jitter — they are *intentional*
-                // placements: the RealTraffic parked-feed bootstrap seeds
-                // (4 identical positions used to bring a parked aircraft
-                // into existence) and the Synthetic channel's keep-alive
-                // re-feeds (which hold an adopted parked aircraft alive).
-                // Both arrive at dist≈0 from the held position, so the
-                // plain trivial-drop would eat them — starving the parked
-                // aircraft of the very positions it needs to exist and to
-                // persist, which is exactly the "no parked traffic at all"
-                // symptom. Raw jittery LIVE-feed positions are NOT
-                // SPOS_STARTUP at this point (taxiway snapping runs later
-                // in the pipeline), so genuine jitter is still suppressed.
-                if (bGroundHolding && dist_m < GND_HOLDING_TRIVIAL_DIST_M &&
-                    pos.f.specialPos != SPOS_STARTUP)
-                {
-                    if (dataRefs.ShallLogDiagnostics()) {
-                        LOG_MSG(logDEBUG,
-                                "GND_DIAG_DROP %s dropping trivial update"
-                                " (dist=%.2fm, gs=%.2fkt)",
-                                key().c_str(), dist_m, gs_kt);
-                    }
-                    // Update `youngestTS` to the dropped slot's feed ts.
-                    // Without this, an aircraft that sits at the gate
-                    // receiving valid feed updates (all trivial-dropped)
-                    // looks "stale" to the outdate check at the bottom
-                    // of CalcNextPos — `youngestTS + GetAcOutdatedIntvl()
-                    // < simTime` fires after ~180 s and the aircraft is
-                    // removed even though the feed is alive. We keep the
-                    // deque content unchanged (the drop is the whole
-                    // point) but advance the freshness timestamp so the
-                    // outdate check sees the aircraft as live.
-                    if (pos.ts() > youngestTS)
-                        youngestTS = pos.ts();
-                    return;
-                }
-            } else {
-                // Non-stationary slot: increment the consecutive counter.
-                // We do not exit holding on the first one — feed jitter can
-                // briefly produce a single 2 kt sample for a truly parked
-                // aircraft. Only after `GND_HOLDING_EXIT_CONSEC` consecutive
-                // non-stationary slots do we trust that the aircraft is
-                // really moving and break the suppression.
-                groundNonStationaryCnt++;
-                if (bGroundHolding &&
-                    groundNonStationaryCnt >= GND_HOLDING_EXIT_CONSEC)
-                {
-                    bGroundHolding = false;
-                    // Reset the streak start to "now" so that if motion
-                    // ceases again immediately, the next holding promotion
-                    // is timed from the resumption of stationarity (not
-                    // from the moment the original streak began long ago).
-                    groundHoldingSinceTs = pos.ts();
-                    if (dataRefs.ShallLogDiagnostics()) {
-                        LOG_MSG(logDEBUG,
-                                "GND_DIAG_HOLDOUT %s exiting ground-holding"
-                                " (consec=%d, dist=%.2fm, gs=%.2fkt)",
-                                key().c_str(), groundNonStationaryCnt,
-                                dist_m, gs_kt);
-                    }
-                }
-            }
-
-            // ----------------------------------------------------------
-            // Gate-parked motion suppression — DISTANCE-based.
-            //
-            // For an aircraft we have positively identified as parked at
-            // a gate (`bGateParked == true`), suppress any slot whose
-            // displacement from the latest accepted position is less than
-            // `GATE_HOLD_MIN_ACCEPT_M` (30 m). Slots that exceed the
-            // threshold are taken as evidence of real motion, are
-            // accepted into the deque, and trigger an immediate release
-            // of `bGroundHolding` so subsequent (now much smaller)
-            // per-slot deltas during the push are not trivial-dropped.
-            //
-            // Why distance and not a counter of non-stationary slots:
-            // real pushbacks roll at 0.4-1.4 kt — below
-            // `GND_STATIONARY_GS_KT` (1.5 kt). The non-stationary
-            // counter therefore never advances during a slow push, and
-            // a counter-based gate would suppress the entire push
-            // (observed with AAL1408: every slot dropped, aircraft never
-            // rendered any motion and was eventually outdated and
-            // removed). Distance-based gating succeeds the moment the
-            // aircraft has moved far enough from the gate to rule out
-            // noise — typically 2-3 slots into a real push.
-            //
-            // For the noise case (AAL2501, AAL2761 — single or paired
-            // ~18 m anomalies that return to the gate), every individual
-            // slot sits inside the 30 m envelope and is correctly
-            // dropped; the held position never advances.
-            //
-            // `pbState == PB_NONE` is essential: once the state machine
-            // has entered PB_ACTIVE/PB_PAUSED we are committed to the
-            // push and must let every slot through (including pause
-            // slots that would otherwise be filtered).
-            //
-            // `SPOS_STARTUP` exempt — same rationale as the trivial-drop
-            // above (intentional placements).
-            if (bGateParked && pbState == PB_NONE &&
-                pos.f.specialPos != SPOS_STARTUP)
+            // Position is too close to previous position?
+            const double dist2 = latestPos.distRoughSqr(pos);
+            const bool bParked = IsParked();
+            const double maxDist2 =                   // max allowed distances depends on Pushback, Parked, and other
+            latestPos.f.bPushback ? sqr(SIMILAR_POS_DIST_PUSHBACK) :
+            bParked               ? sqr(SIMILAR_POS_DIST_PARKED)   :
+                                    sqr(SIMILAR_POS_DIST);
+            if (dist2 <= maxDist2)
             {
-                if (dist_m < GATE_HOLD_MIN_ACCEPT_M) {
-                    if (dataRefs.ShallLogDiagnostics()) {
-                        LOG_MSG(logDEBUG,
-                                "GND_DIAG_GATE_HOLD %s dropping motion at gate"
-                                " (dist=%.2fm/%.0fm, gs=%.2fkt, isStat=%d)",
-                                key().c_str(), dist_m,
-                                GATE_HOLD_MIN_ACCEPT_M, gs_kt,
-                                isStationary ? 1 : 0);
-                    }
-                    // Advance freshness timestamp even on drop — see the
-                    // matching update in the trivial-drop branch above.
-                    if (pos.ts() > youngestTS)
-                        youngestTS = pos.ts();
-                    return;
-                }
-                // Slot is far enough from the held position to be real
-                // motion. Accept it AND release bGroundHolding so the
-                // subsequent in-push slots (which are typically only
-                // 3-6 m from the previous accepted slot, and would
-                // therefore be trivial-dropped if holding stayed true)
-                // can flow through and continue the rendered push.
-                if (bGroundHolding) {
-                    bGroundHolding = false;
-                    groundHoldingSinceTs = pos.ts();
-                    if (dataRefs.ShallLogDiagnostics()) {
-                        LOG_MSG(logDEBUG,
-                                "GND_DIAG_GATE_RELEASE %s accepting motion at"
-                                " gate (dist=%.2fm >= %.0fm, gs=%.2fkt) —"
-                                " bGroundHolding cleared",
-                                key().c_str(), dist_m,
-                                GATE_HOLD_MIN_ACCEPT_M, gs_kt);
-                    }
-                }
+                // if parked remember this position...it still might be the start of pushback
+                if (dist2 >= sqr(SIMILAR_POS_DIST) && bParked)
+                    posLeaveParking = pos;
+                // effectively overwrite with latest position (-> don't actually move)
+                // but update with current timestamp (-> keep plane alive)
+                pos = latestPos;
+                pos.ts() = posTs;
             }
         }
 
@@ -3069,12 +1917,12 @@ void LTFlightData::AppendNewPos()
                 if (posDeque.size() >= 2)
                     headToLatest = posDeque[posDeque.size()-2].angle(*pLatestPos);
                 else if (hasAc())
-                    headToLatest = pAc->GetToPos().angle(*pLatestPos);
+                    headToLatest = pAc->GetNewestPos().angle(*pLatestPos);
             }
             // no deque positions, but an aircraft?
             else if (hasAc())
             {
-                pLatestPos = &(pAc->GetToPos());
+                pLatestPos = &(pAc->GetNewestPos());
                 headToLatest = pAc->GetTrack();
             }
 
@@ -3091,63 +1939,22 @@ void LTFlightData::AppendNewPos()
             TryDeriveGrndStatus(pos);
             
             // Now that we have a proper Grnd status we can test the pos for validty
-            if (pLatestPos && !IsPosOK(*pLatestPos, pos, &headToLatest)) {
+            if (pLatestPos && !IsPosOK(headToLatest, *pLatestPos, pos)) {
                 if (dataRefs.GetDebugAcPos(key()))
                     LOG_MSG(logDEBUG,DBG_SKIP_NEW_POS_NOK,pos.dbgTxt().c_str());
                 return;
             }
             
-            // *** pitch ***
-            // just a rough value, LTAircraft::CalcPPos takes care of the details
-            if (pos.IsOnGnd())
+            // *** pitch / roll ***
+            // just initial values, LTAircraft::CalcPPos takes care of the details
+            if (std::isnan(pos.pitch()))
                 pos.pitch() = 0;
-            else
-                pos.pitch() = 2;
-            
-            // *** roll ***
-            // LTAircraft::CalcPPos takes care of the details
-            pos.roll() = 0;
+            if (std::isnan(pos.roll()))
+                pos.roll() = 0;
             
             // add to the end of the deque
             posDeque.emplace_back(pos);
             dequePositionTy::iterator i = std::prev(posDeque.end());
-
-            // Pushback gate signal. `bGateParked` is the persistent
-            // assertion that THIS aircraft is currently parked at a real
-            // gate (as opposed to merely "stationary on the airport
-            // surface"). Three sources set it true:
-            //
-            //   (a) The slot was placed at an apt.dat startup location
-            //       (SPOS_STARTUP) — from RT's parked-traffic snapshot
-            //       or from the Synthetic channel's keep-alive seeds.
-            //       Handled here, per-slot, because each incoming RT
-            //       parked-feed re-fetch lands a fresh SPOS_STARTUP
-            //       position and must (re-)assert the flag.
-            //
-            //   (b) The aircraft entered ground-holding AND apt.dat
-            //       confirms a startup-location within
-            //       GATE_DETECT_MAX_DIST_M of the held position.
-            //       Handled above at the bGroundHolding-flip site —
-            //       one-shot lookup, not per-slot. This is the third
-            //       path described in `GATE_DETECT_MAX_DIST_M`'s
-            //       comment in Constants.h. It catches live-tracked
-            //       aircraft that were never in RT's parked snapshot
-            //       (UAL466, AAL1771 etc.) without false-positiving
-            //       runway hold-shorts as gates.
-            //
-            //   (c) Implicit: a previously-set bGateParked persists
-            //       until the pushback state machine in CalcHeading
-            //       exits to PB_NONE (push complete) or the aircraft
-            //       goes airborne.
-            //
-            // The OLD code also set bGateParked from `bGroundHolding`
-            // alone — that was too permissive (any stationary period
-            // anywhere on the airport flagged a "gate") and produced
-            // the visible spin when the pushback state machine then
-            // mistook a forward taxi resumption for a push. The
-            // apt.dat-confirmed path above replaces it.
-            if (pos.f.specialPos == SPOS_STARTUP)
-                bGateParked = true;
 
             // *** heading ***
             
@@ -3227,7 +2034,7 @@ LTFlightData::tryResult LTFlightData::TryFetchNewPos (dequePositionTy& acPosList
             posDeque.pop_front();
         } else {
             // there is an a/c...only use stuff past current 'to'-pos
-            const positionTy& to = pAc->GetToPos();
+            const positionTy& to = pAc->GetNewestPos();
             LOG_ASSERT_FD(*this, !std::isnan(to.ts()));
             
             // Remove outdated positions from posDeque,
@@ -3254,8 +2061,10 @@ LTFlightData::tryResult LTFlightData::TryFetchNewPos (dequePositionTy& acPosList
             posNext = positionTy();
         
         // store rotate timestamp if there is one (never overwrite with NAN!)
-        if (!std::isnan(rotateTS))
+        if (!std::isnan(rotateTS)) {
             _rotateTS = rotateTS;
+            rotateTS = NAN;                     // and then clear hear not to overwrite again
+        }
         
         // output all positional information as debug info on request
         if (dataRefs.GetDebugAcPos(key()))
@@ -3269,6 +2078,29 @@ LTFlightData::tryResult LTFlightData::TryFetchNewPos (dequePositionTy& acPosList
     
     // Caught some error
     return TRY_TECH_ERROR;
+}
+
+
+/// @brief Get the most future position available (can still be invalid)
+/// @details Is the last pos to add, last pos in queue, or aircraft's to-pos
+positionTy LTFlightData::GetMostFuturePos () const
+{
+    std::unique_lock<std::recursive_mutex> lock (dataAccessMutex);
+
+    // Invalid!
+    if (!IsValid())
+        return positionTy();
+    // Anything to be added?
+    if (!posToAdd.empty())
+        return posToAdd.back();
+    // Anything in the posDeque?
+    if (!posDeque.empty())
+        return posDeque.back();
+    // Has an aircraft?
+    if (hasAc())
+        return GetAircraft()->GetNewestPos();
+    // Nothing found!
+    return positionTy();
 }
 
 
@@ -3402,7 +2234,6 @@ std::string LTFlightData::Positions2String () const
 
 // add dynamic data (if new one is more up-to-date)
 void LTFlightData::AddDynData (const FDDynamicData& inDyn,
-                               int _rcvr, int _sig,
                                positionTy* pos)
 {
     try {
@@ -3472,10 +2303,6 @@ void LTFlightData::AddDynData (const FDDynamicData& inDyn,
                 // and keep sorted
                 std::sort(dynDataDeque.begin(),dynDataDeque.end());
             }
-            
-            // either way: we 'like' this receiver
-            rcvr = _rcvr;
-            sig = _sig;
         }
             
         // also export and store the pos (lock is held recursively)
@@ -3616,6 +2443,55 @@ double LTFlightData::GetLastPosGndAlt_m () const
         return GetAircraft()->GetTerrainAlt_m();
     
     return NAN;
+}
+
+
+// Return true if an existing aircraft is in phase FPH_PARKED
+bool LTFlightData::IsParked (const positionTy** ppParkedPos) const
+{
+    if (!hasAc() ||
+        GetAircraft()->GetFlightPhase() != FPH_PARKED)
+        return false;
+    
+    if (ppParkedPos)
+        *ppParkedPos = &GetAircraft()->GetPPos();
+    return true;
+    
+/* TODO: Remove if no longer needed
+    // access to our queue guarded by a mutex
+    std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
+    
+    // lambda to return the "is parked" status and the pointer to the defining position
+    auto returnIsParked = [ppParkedPos](const positionTy* pPos)->bool {
+        // we are parked is flight phase or position say so
+        const bool bParked = pPos->f.flightPhase == FPH_PARKED ||
+                             pPos->f.specialPos == SPOS_STARTUP;
+        // if parked return a pointer to the position that said so
+        if (bParked && ppParkedPos) *ppParkedPos = pPos;
+        return bParked;
+    };
+    
+    // go in reverse through the posDeque to find the first position for which some status is clear
+    for (dequePositionTy::const_reverse_iterator i = posDeque.crbegin();
+         i != posDeque.crend();
+         i++)
+    {
+        // do we have information? -> return it
+        if (i->IsPostProcessed() || i->f.flightPhase != FPH_UNKNOWN)
+            return returnIsParked(&*i);
+    }
+    
+    // posDeque didn't have info, how about the a/c itself?
+    if (!hasAc()) return false;
+    
+    const LTAircraft& ac = *GetAircraft();
+    const positionTy& pos = ac.GetNewestPos();
+    if (pos.IsPostProcessed() || pos.f.flightPhase != FPH_UNKNOWN)
+        return returnIsParked(&pos);
+
+    // still no info found, eventually return the plane's current phase directly
+    return returnIsParked(&ac.GetPPos());
+*/
 }
 
 
@@ -3802,9 +2678,9 @@ bool LTFlightData::AircraftMaintenance ( double simTime )
                 // i.e. during approach and landing we don't destroy the aircraft
                 //      if it is approaching some runway
                 //      until it finally stopped on the runway
-                if ((pAc->GetFlightPhase() >= FPH_LANDING ||
-                        (pAc->GetFlightPhase() >= FPH_APPROACH && posRwy.isNormal())) &&
-                    pAc->GetFlightPhase() < FPH_STOPPED_ON_RWY)
+                if ((pAc->GetFlightPhase() >= FPH_FINAL ||
+                    (pAc->GetFlightPhase() >= FPH_DESCEND && HasRwyPos())) &&
+                    pAc->GetFlightPhase() <= FPH_ROLL_OUT)
                 {
                     return false;
                 }
@@ -4204,3 +3080,63 @@ LTFlightData* mapFdAc (const LTFlightData::FDKeyTy& key,
     {}
     return nullptr;
 }
+
+/// @brief Remove a duplicate placeholder (0xFF....) plane
+/// @note Was originally implemented in LTRealTraffic, but definitely applies to Synthetic, too,
+///       given that Synthetic is fed also by RealTraffic. May in the future be even apply globally.
+bool mapRemoveDupPlaceholder (const LTFlightData::FDKeyTy& fdKey,
+                              const std::string& _call)
+{
+    std::string idLiveAc;
+    
+    // Lambda: does the hex key start with "FF" (case-insensitive)?
+    // FDKeyTy::key is the canonical uppercase hex string per
+    // SetKey()'s normalization, but we tolerate either case here
+    // for robustness.
+    auto isPlaceholderHex = [](const std::string& hex) -> bool {
+        return hex.length() == 6 &&
+        (hex[0] == 'F' || hex[0] == 'f') &&
+        (hex[1] == 'F' || hex[1] == 'f');
+    };
+    
+    // Is this a placeholder plane at all?
+    if (!isPlaceholderHex(fdKey.key) ||
+        _call.empty())                      // or doesn't have a call sign to match
+        return false;
+    
+    // Prepare the call sign...it often has a trailing underscope, which hampers later comparison
+    std::string call = _call;
+    if (call.back() == '_') call.pop_back();
+    
+    try {
+        // Check for a duplicate non-placeholder plane
+        std::lock_guard<std::mutex> lock (mapFdMutex);
+        for (const auto& fdPair : mapFd) {
+            if (isPlaceholderHex(fdPair.first.key))
+                continue;
+            if (fdPair.second.GetUnsafeStat().call == call &&       // call sign must match
+                fdPair.second.hasAc())                              // must have an actual shown aircraft
+            {
+                idLiveAc = fdPair.first.key;                        // remember its key for logging purposes
+                break;
+            }
+        }
+    } catch(const std::system_error& e) {
+        LOG_MSG(logERR, ERR_LOCK_ERROR, "mapFd", e.what());
+    }
+    
+    // Did we find a live aircraft with our call sign?
+    if (!idLiveAc.empty()) {
+        // If _we_ exist already in the FlightData, remove us right away in favour of the live data
+        if (LTFlightData* pFd = mapFdAc(fdKey)) {                   // warning: this requires mapFdMutex, too, which is why we can't move the call into the above loop
+            LOG_MSG(logDEBUG, "Invalidating placeholder aircraft %s in favour of %s for call sign %s",
+                    fdKey.c_str(), idLiveAc.c_str(), call.c_str());
+            pFd->SetInvalid();
+        }
+        // and return 'true' to indicate _this_ is a placeholder to be skipped
+        return true;
+    }
+    
+    return false;
+}
+

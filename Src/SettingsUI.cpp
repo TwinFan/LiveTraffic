@@ -1637,8 +1637,6 @@ void LTSettingsUI::buildInterface()
                                            "Logs how available tracking data was matched with the chosen CSL model (into Log.txt)");
                 ImGui::FilteredCfgCheckbox("Log a/c positions", sFilter, DR_DBG_AC_POS,
                                            "Logs detailed position information of currently selected aircraft (into Log.txt)");
-                ImGui::FilteredCfgCheckbox("Log detailed diagnostics", sFilter, DR_DBG_DIAGNOSTIC,
-                                           "Logs very detailed diagnostics about data feed, ground and altitude calcs, that fill up your Log.txt very fast");
                 ImGui::FilteredCfgCheckbox("Log Weather", sFilter, DR_DBG_LOG_WEATHER,
                                            "Logs detailed information about how X-Plane's weather is set (into Log.txt)");
                 if (ImGui::FilteredLabel("Log Weather now", sFilter)) {

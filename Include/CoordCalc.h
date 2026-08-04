@@ -41,6 +41,9 @@ constexpr inline T sqr (const T a) { return a*a; }
 template <class T>
 constexpr inline T pyth2 (const T a, const T b) { return sqr(a) + sqr(b); }
 
+/// comparing 2 doubles for near-equality
+bool dequal ( const double d1, const double d2 );
+
 //
 //MARK: Degree/Radian conversion
 //      (as per stackoverflow post, adapted)
@@ -75,18 +78,29 @@ struct ptTy {
     ptTy () : x(NAN), y(NAN) {}
     ptTy (double _x, double _y) : x(_x), y(_y) {}
     ptTy operator + (const ptTy& _o) const { return ptTy ( x+_o.x, y+_o.y); }   ///< scalar sum
+    ptTy& operator += (const ptTy& _o) { x+=_o.x; y+=_o.y; return *this; }      ///< scalar sum
     ptTy operator - (const ptTy& _o) const { return ptTy ( x-_o.x, y-_o.y); }   ///< scalar difference
+    ptTy operator * (const double d) const { return ptTy ( x*d, y*d); }         ///< scalar product
+    ptTy operator / (const double d) const { return ptTy ( x/d, y/d); }         ///< scalar product
     bool operator== (const ptTy& _o) const;                                     ///< equality based on dequal() (ie. 'nearly' equal)
     bool operator!= (const ptTy& _o) const { return !operator==(_o); }          ///< unequality bases on `not equal`
     bool isValid() const { return !std::isnan(x) && !std::isnan(y); }           ///< valid if both `x` and `y` are not `NAN`
     void clear() { x = y = NAN; }                                               ///< set both `x` and `y` to `NAN`
     ptTy mirrorAt (const ptTy& _o) const                                        ///< return a point of `this` mirrored at `_o`
     { return ptTy (2*_o.x - x, 2*_o.y - y); }
+
+    double length2() const { return sqr(x) + sqr(y); }                          ///< squared length(magnitude,notm) of the vector
+    double length() const  { return std::sqrt(length2()); }                     ///< length(magnitude,notm) of the vector
+    double angle() const   { return rad2deg360(atan2(x, -y)); }                 ///< angle of the vector, assuming local coordinates (x = east, y = south)
     
+    double& lat()       { return y; }
+    double  lat() const { return y; }
+    double& lon()       { return x; }
+    double  lon() const { return x; }
+
     std::string dbgTxt () const;                                                ///< returns a string "y, x" for the point/position
 };
-inline ptTy operator * (double d, ptTy pt) { return ptTy ( d * pt.x, d * pt.y); }   ///< scalar multiplication
-inline ptTy operator / (ptTy pt, double d) { return ptTy ( pt.x / d, pt.y / d); }   ///< scalar division
+inline ptTy operator * (double d, ptTy pt) { return pt * d; }                   ///< scalar multiplication
 
 /// Vector of points
 typedef std::vector<ptTy> vecPtTyT;
@@ -108,153 +122,9 @@ positionTy CoordPlusVector (const positionTy& pos, const vectorTy& vec);
 // returns NaN in case of failure
 double YProbe_at_m (const positionTy& posAt, XPLMProbeRef& probeRef);
 
-/// @brief Result of evaluating a Catmull-Rom spline at one parameter
-/// @details All values are expressed in the local meters frame centred at
-///          the spline's `P1` control point (see `CatmullRomEvalCentripetal`):
-///          `x` increases eastward, `y` increases northward. `headingDeg` is
-///          the curve's tangent direction at this parameter, converted to
-///          the same compass convention LiveTraffic uses elsewhere
-///          (0° = north, 90° = east, range [0, 360)).
-struct CatmullRomResult {
-    double xMtr;            ///< east offset from P1 in metres
-    double yMtr;            ///< north offset from P1 in metres
-    double headingDeg;      ///< curve tangent direction [0, 360)
-};
-
-/// @brief Evaluate a centripetal Catmull-Rom spline through four ground
-///        positions at one parameter, returning both the curve point and
-///        the tangent direction at that point.
-///
-/// @details The spline interpolates **exactly through** `P1` and `P2` and
-///          uses `P0` and `P3` as context to determine the tangent at the
-///          endpoints. The centripetal parameterisation (α = 0.5 in
-///          Lee 2009) makes the curve well-behaved at sharp corners — it
-///          never produces the cusps or self-intersecting loops that
-///          uniform Catmull-Rom can generate at a 90° taxi turn.
-///
-///          The curve is fit in a local meters frame centred at `P1`,
-///          using `Lat2Dist` / `Lon2Dist` for the conversion. This keeps
-///          the math Euclidean (avoids cos(lat) accumulating across
-///          control points) and the result is returned in the same local
-///          frame; callers convert back to lat/lon via `Dist2Lat` /
-///          `Dist2Lon` if a geographic position is needed.
-///
-///          The heading is derived from the curve's tangent
-///          (`atan2(dx, dy)`) so the returned heading is by construction
-///          aligned with the rendered direction of motion at this point —
-///          this is the property that eliminates the "sideways during
-///          turn" symptom that linear-chord interpolation produces.
-///
-/// @param P0 Control point before `P1`. May be a degenerate copy of `P1`
-///           (same lat/lon) when no real predecessor is available — the
-///           curve degenerates to a quadratic segment with zero tangent
-///           at `P1`. Caller is responsible for choosing whether to do
-///           this duplication; the function does NOT check for NaN.
-/// @param P1 First interpolated control point — the curve passes through
-///           this exactly at `u = 0`. Origin of the returned local frame.
-/// @param P2 Second interpolated control point — the curve passes through
-///           this exactly at `u = 1`.
-/// @param P3 Control point after `P2`. May be a degenerate copy of `P2`.
-/// @param u  Curve parameter in `[0, 1]`; `u=0` returns `P1` (with the
-///           local frame's origin), `u=1` returns `P2`.
-/// @return   Curve point in local meters frame relative to `P1`, and
-///           tangent-derived heading at that point in degrees.
-///
-/// @note Only the lat/lon of the control points are used. Altitude,
-///       heading, and timestamps are ignored — the spline is purely a
-///       horizontal-plane construction.
-CatmullRomResult CatmullRomEvalCentripetal(const positionTy& P0,
-                                           const positionTy& P1,
-                                           const positionTy& P2,
-                                           const positionTy& P3,
-                                           double u);
-
-/// @brief Cached arc-length lookup table for a Catmull-Rom spline segment,
-///        used to make the rendered animation advance at constant arc-length
-///        speed (rather than constant knot-parameter speed).
-///
-/// @details The native parameter `u ∈ [0, 1]` of `CatmullRomEvalCentripetal`
-///          is NOT proportional to arc length on the curve — the spline's
-///          arc length per unit `u` varies with local curvature. If the
-///          caller advances `u` linearly with time, the rendered position
-///          accelerates and decelerates within the segment (visible as a
-///          "speed up / slow down" pulsation), and the velocity at the start
-///          of leg N+1 does not match the velocity at the end of leg N
-///          (visible as a small velocity pop at every segment boundary).
-///
-///          This LUT subdivides the segment at `N` uniformly-spaced values
-///          of `u`, evaluates the curve at each, and accumulates chord-based
-///          arc length. The mapping s→u is then queried per frame to turn
-///          a time-linear progression (0..1 across the leg duration) into a
-///          curve parameter that advances at constant arc-length-per-time.
-///          Visually the rendered aircraft now moves at the segment's mean
-///          speed (`total_arc / duration`) throughout the segment.
-///
-///          `N = 16` is a deliberate trade-off: the chord error against the
-///          true integral is below 0.1 % on the curvatures we see at airport
-///          ground speeds, the build cost is 16 spline evaluations per
-///          segment switch (~once per 1-5 s of feed), and the per-frame
-///          lookup is a 4-step binary search plus one lerp.
-struct CatmullRomArcLut {
-    static constexpr int N = 16;            ///< number of sample sub-intervals; N+1 entries
-
-    /// Cumulative arc length at each sample. `sAtU[i]` is the arc length
-    /// from `u=0` to `u = i / N`. Always `sAtU[0] == 0`.
-    std::array<double, N + 1> sAtU{};
-    /// Total arc length of the segment (i.e., `sAtU[N]`). Cached for
-    /// quick access in the per-frame lookup.
-    double totalArc = 0.0;
-    /// True once `Build()` has populated the table for the current segment.
-    /// Reset to false when the parent segment switches so the next render
-    /// frame rebuilds with the new control points.
-    bool   valid    = false;
-
-    /// Sample the spline at `N+1` uniformly-spaced `u` values, accumulate
-    /// chord lengths between successive samples, and store the running
-    /// totals in `sAtU`. Must be called whenever the control-point set
-    /// changes (i.e., at every segment switch in `LTAircraft::CalcPPos`).
-    void Build(const positionTy& P0, const positionTy& P1,
-               const positionTy& P2, const positionTy& P3);
-
-    /// Given a time-linear progression `f ∈ [0, 1]` across the segment,
-    /// return the curve parameter `u ∈ [0, 1]` at which the spline has
-    /// covered `f * totalArc` of arc length. The mapping is inverted by
-    /// a short binary search across the LUT plus one linear interpolation.
-    /// If the LUT has zero total arc (e.g., all control points coincided)
-    /// the function returns `f` unchanged — the spline will collapse to
-    /// a point anyway, so the choice of parameter is irrelevant.
-    double UFromArcFraction(double f) const;
-};
-
-/// @brief One-dimensional Cubic Hermite Spline (cSpline)
-/// @see https://en.wikipedia.org/wiki/Cubic_Hermite_spline
-/// @details In this more generic form, the tangents are input parameters
-///          (while in the specific Catmul-Rom-Spline above
-///           the tangents are computed from additional control points).
-///          In some edge cases it can be useful to provide specific tangents.
-struct CSpline {
-    double t0=NAN, dt=NAN;              ///< t0 is the time of the first point, dt is delta-time for the segment
-    double a=NAN, b=NAN, c=NAN, d=NAN;  ///< pre-computed factors of the standard form
-    
-    /// Set the parameters (time, value like altitude, tangent like climb rate)
-    void set (double _t0, double _p0, double _m0,
-              double _t1, double _p1, double _m1);
-    
-    /// Clear, set to unused
-    void clear () { t0 = dt = a = b = c = d = NAN; }
-    
-    /// Valid?
-    operator bool () const { return !std::isnan(t0) && !std::isnan(dt) && !std::isnan(a); }
-    
-    /// Value at t with `_t0 <= t <= _t1`
-    double val (double t) const;
-    
-    /// Slope at t with `_t0 <= t <= _t1` (1st derivative of val())
-    double slope (double t) const;
-};
-
 //
 // MARK: Estimated Functions on coordinates
+//       The avoid some complex operations like square roots for performance reasons
 //
 
 /// @brief Length of one degree latitude
@@ -291,6 +161,53 @@ inline double DistLatLon (double lat1, double lon1,
                           double lat2, double lon2)
 { return std::sqrt(DistLatLonSqr(lat1,lon1,lat2,lon2)); }
 
+/// @brief An _estimated_ distance of a vector of coordinates
+/// @note `lat` is the latitude at which the vector is applied
+double DistLatLonVec (const ptTy& pt, double lat);
+
+//
+// MARK: Heading functions
+//
+
+// return the average of two headings, shorter side, normalized to [0;360)
+double HeadingAvg (double h1, double h2, double f1=1, double f2=1);
+
+/// @brief Difference between two headings
+/// @returns number of degrees to turn from h1 to reach h2
+/// -180 <= HeadingDiff <= 180
+double HeadingDiff (double h1, double h2);
+
+/// Normalize a heading to the value range [0..360)
+double HeadingNormalize (double h);
+
+/// Return the opoosite heading, normalized
+inline double HeadingReverse (double h)
+{ return HeadingNormalize(h + 180.0); }
+
+/// @brief Is h between h1 and h2, with a tolerance of dh degree?
+bool HeadingIsBetween (double h, double h1, double h2, double dh = 0.5);
+
+/// Return point on the unit circle based on heading
+ptTy HeadingToUnitCircle (double h);
+
+/// Return point on the unit circle based on heading
+inline ptTy HeadingSpeedVec (double h, double spd_m)
+{ return HeadingToUnitCircle(h) * spd_m; }
+
+/// Return an abbreviation for a heading, like N, SW
+std::string HeadingText (double h);
+
+//
+// MARK: Speed/acceleration functions
+//
+
+/// @brief Computes a reasonable point where the plane can come to rest after decceleration to zero
+/// @param pos is current pos, also its timestamp and heading are being used
+/// @param speed_m [m/s] is the plane's current speed in direction of `pos.heading()`
+/// @param accel_m [m/s²] is the negative acceleration
+/// @return Stop position, away from `pos` in direction `pos.heading()`
+positionTy AccelCalcStopPoint (const positionTy& pos, double speed_m,
+                               double accel_m);
 
 //
 // MARK: Functions on 2D points, typically in meters
@@ -357,27 +274,6 @@ ptTy CoordIntersect (const ptTy& a, const ptTy& b, const ptTy& c, const ptTy& d,
                      double* pT = nullptr,
                      double* pU = nullptr);
 
-/// @brief Calculate a point on a quadratic Bezier curve
-/// @see https://en.wikipedia.org/wiki/B%C3%A9zier_curve#Quadratic_B%C3%A9zier_curves
-/// @param t Range [0..1] defines which point on the curve to be returned, 0 = p0, 1 = p2
-/// @param p0 Start point of curve, reached with t=0.0
-/// @param p1 Control point of curve, usually not actually reached at any value of t
-/// @param p2 End point of curve, reached with t=1.0
-/// @param[out] pAngle If defined, receives the angle of the curve at `t` in degrees
-ptTy Bezier (double t, const ptTy& p0, const ptTy& p1, const ptTy& p2,
-             double* pAngle = nullptr);
-
-/// @brief Calculate a point on a cubic Bezier curve
-/// @see https://en.wikipedia.org/wiki/B%C3%A9zier_curve#Cubic_B%C3%A9zier_curves
-/// @param t Range [0..1] defines which point on the curve to be returned, 0 = p0, 1 = p3
-/// @param p0 Start point of curve, reached with t=0.0
-/// @param p1 1st control point of curve, usually not actually reached at any value of t
-/// @param p2 2nd control point of curve, usually not actually reached at any value of t
-/// @param p3 End point of curve, reached with t=1.0
-/// @param[out] pAngle If defined, receives the angle of the curve at `t` in degrees
-ptTy Bezier (double t, const ptTy& p0, const ptTy& p1, const ptTy& p2, const ptTy& p3,
-             double* pAngle = nullptr);
-
 //
 // MARK: Global enums
 //
@@ -435,6 +331,7 @@ enum specialPosE : unsigned char {
     SPOS_STARTUP,                   ///< at startup location (gate, ramp, tie-down...)
     SPOS_TAXI,                      ///< snapped to taxiway
     SPOS_RWY,                       ///< snapped to runway
+    SPOS_REMOVED                    ///< marks an edge that was removed during airport layout post-processing
 };
 
 /// Return a 3 char-string for the special position enums
@@ -443,7 +340,8 @@ inline const char* SpecialPosE2String (specialPosE sp)
     return
     sp == SPOS_STARTUP ? "SUP" :
     sp == SPOS_TAXI    ? "TXI" :
-    sp == SPOS_RWY     ? "RWY" : "   ";
+    sp == SPOS_RWY     ? "RWY" :
+    sp == SPOS_REMOVED ? "-X-" : "   ";
 }
 
 
@@ -488,40 +386,45 @@ public:
     struct posFlagsTy {
         flightPhaseE flightPhase : 7;   ///< start of some special flight phase?
         bool         bHeadFixed  : 1;   ///< heading fixed, not to be recalculated?
+        bool         bPushback   : 1;   ///< being pushed back, i.e. heading reversed?
         onGrndE      onGrnd      : 2;   ///< on ground or not or not known?
         coordUnitE   unitCoord   : 1;   ///< world or local coordinates?
         angleUnitE   unitAngle   : 1;   ///< heading in degree or radians?
-        specialPosE  specialPos  : 2;   ///< position is somehow special`
-        bool         bCutCorner  : 1;   ///< is this an (inserted) position, that can be cut short? (-> use quadratic Bezier instead of cubic)
+        specialPosE  specialPos  : 3;   ///< position is somehow special`
     } f;
     
     /// The taxiway network's edge this pos is on, index into Apt::vecTaxiEdges
     size_t edgeIdx = EDGE_UNKNOWN;
 public:
+    /// Default Constructor, everything to NAN / defaults
     positionTy () : _lat(NAN), _lon(NAN), _alt(NAN), _ts(NAN), _head(NAN), _pitch(NAN), _roll(NAN),
-    f{FPH_UNKNOWN,false,GND_UNKNOWN,UNIT_WORLD,UNIT_DEG,SPOS_NONE,false}
+    f{FPH_UNKNOWN,false,false,GND_UNKNOWN,UNIT_WORLD,UNIT_DEG,SPOS_NONE}
     {}
+    /// Most used constructor, requires position, defaults the rest
     positionTy (double dLat, double dLon, double dAlt_m=NAN,
                 double dTS=NAN, double dHead=NAN, double dPitch=NAN, double dRoll=NAN,
                 onGrndE grnd=GND_UNKNOWN, coordUnitE uCoord=UNIT_WORLD, angleUnitE uAngle=UNIT_DEG,
                 flightPhaseE fPhase = FPH_UNKNOWN) :
         _lat(dLat), _lon(dLon), _alt(dAlt_m), _ts(dTS), _head(dHead), _pitch(dPitch), _roll(dRoll),
-        f{fPhase,false,grnd,uCoord,uAngle,SPOS_NONE,false}
+        f{fPhase,false,false,grnd,uCoord,uAngle,SPOS_NONE}
     {}
+    /// Complete constructor, requires/allows providing every value
+    positionTy (double dLat, double dLon, double dAlt_m,
+                double dTS, double dHead, double dPitch, double dRoll,
+                posFlagsTy df, size_t dEIdx) :
+    _lat(dLat), _lon(dLon), _alt(dAlt_m), _ts(dTS), _head(dHead),
+    _pitch(dPitch), _roll(dRoll), f(df), edgeIdx(dEIdx)
+    {}
+    /// Position from a Y Probe, which comes in local coordinates
     positionTy ( const XPLMProbeInfo_t& probe ) :
         positionTy ( probe.locationZ, probe.locationX, probe.locationY ) { f.unitCoord=UNIT_LOCAL; }
+    /// Type conversion constructor, takes a ptTy
     positionTy ( const ptTy& _pt) :
         positionTy ( _pt.y, _pt.x ) {}
     
-    // merge with the given position
-    positionTy& operator |= (const positionTy& pos);
-
-    // Operations on the double values only (_lat through _roll)
-    positionTy& operator+= (const positionTy& o);           ///< adds o._lat to _lat and so on...till o._roll to _roll
-    positionTy& operator*= (double d);                      ///< multiplies _lat,...,_roll with f
-
     // typecase to ptTy
     operator ptTy() const { return ptTy(lon(),lat()); }
+    
     // standard string for any output purposes
     static const char* GrndE2String (onGrndE grnd);
     std::string dbgTxt() const;
@@ -529,6 +432,7 @@ public:
     
     // timestamp-based comparison
     inline bool hasSimilarTS (const positionTy& p) const { return std::abs(ts()-p.ts()) <= SIMILAR_TS_INTVL; }
+    inline bool hasEqualTS (const positionTy& p) const { return dequal(ts(), p.ts()); }
     inline int cmp (const positionTy& p)        const { return ts() < p.ts() ? -1 : (ts() > p.ts() ? 1 : 0); }
     inline bool operator<< (const positionTy& p) const { return ts() < p.ts() - SIMILAR_TS_INTVL; }
     inline bool operator<  (const positionTy& p) const { return ts() < p.ts(); }
@@ -539,8 +443,12 @@ public:
 
     // normalizes to -90/+90 lat, -180/+180 lon, 360° heading, return *this
     positionTy& normalize();
+    // has a position?
+    bool hasPos () const { return !std::isnan(lat()) && !std::isnan(lon()); }
     // has a position and altitude?
-    bool hasPosAlt () const { return !std::isnan(lat()) && !std::isnan(lon()) && !std::isnan(alt_m()); }
+    bool hasPosAlt () const { return hasPos() && !std::isnan(alt_m()); }
+    // has a position and heading?
+    bool hasPosHeading () const { return hasPos() && !std::isnan(heading()); }
     // is a good valid normalized position incl timestamp?
     bool isNormal (bool bAllowNanAltIfGnd = false, bool bTestNonZero = false) const;
     // is fully valid? (isNormal + heading, pitch, roll)?
@@ -549,8 +457,7 @@ public:
     bool HasTaxiEdge () const { return edgeIdx < EDGE_UNAVAIL; }
     /// Has position been post-processed by some optimization (like snap to taxiway)?
     bool IsPostProcessed () const { return
-        f.bHeadFixed || f.bCutCorner || f.specialPos != SPOS_NONE ||
-        edgeIdx != EDGE_UNKNOWN;
+        f.bHeadFixed || f.specialPos != SPOS_NONE || edgeIdx != EDGE_UNKNOWN;
     }
     
     // rad/deg conversion (only affects lat and lon)
@@ -592,6 +499,15 @@ public:
     inline double& X() { return lon(); }
     inline double& Y() { return alt_m(); }
 
+    // Location-only scalar/vector operations
+    positionTy operator + (const positionTy& o) const;          ///< scalar sum of x/y/z
+    positionTy operator - (const positionTy& o) const;          ///< scalar diff of x/y/z
+    positionTy operator * (const double d) const;               ///< scalar product
+    positionTy operator / (const double d) const;               ///< scalar product
+    double lengthXZ2 () const { return sqr(X())+sqr(Z()); }             ///< squared magnitude of X/Z vector
+    double lengthXZ  () const { return std::sqrt(lengthXZ2()); }        ///< magnitude of X/Z vector
+    double angleXZ ()   const { return rad2deg360(atan2(X(), -Z())); }  ///< angle X/Z is pointing to
+    
     // short-cuts to coord functions
     inline double angle (const positionTy& pos2 ) const       { return CoordAngle ( *this, pos2); }
     inline double dist (const positionTy& pos2 ) const        { return CoordDistance ( *this, pos2); }
@@ -608,10 +524,18 @@ public:
     // also changes altitude applying vec.vsi
     positionTy& operator += (const vectorTy& vec );
     
+    /// Set location from a ptTy
+    void setLoc (const ptTy& pt)        { lat()=pt.y;       lon()=pt.x;      }
+    /// Set location (and with it f.unitCoord), but don't touch other fields
+    void setLoc (const positionTy& pos);
+
     // convert between World and Local OpenGL coordinates
     positionTy& LocalToWorld ();
     positionTy& WorldToLocal ();
 };
+
+/// Scalar product
+inline positionTy operator * (double d, const positionTy& p) { return p * d; }
 
 typedef std::deque<positionTy> dequePositionTy;
 
@@ -626,20 +550,6 @@ dequePositionTy::const_iterator positionDequeFindBefore (const dequePositionTy& 
 // pBefore and pAfter can come back NULL!
 void positionDequeFindAdjacentTS (double ts, dequePositionTy& l,
                                   positionTy*& pBefore, positionTy*& pAfter);
-
-// return the average of two headings, shorter side, normalized to [0;360)
-double HeadingAvg (double h1, double h2, double f1=1, double f2=1);
-
-/// @brief Difference between two headings
-/// @returns number of degrees to turn from h1 to reach h2
-/// -180 <= HeadingDiff <= 180
-double HeadingDiff (double h1, double h2);
-
-/// Normaize a heading to the value range [0..360)
-double HeadingNormalize (double h);
-
-/// Return an abbreviation for a heading, like N, SW
-std::string HeadingText (double h);
 
 // a bounding box has a north/west and a south/east corner
 // we use positionTy for convenience...alt is usually not used here
@@ -696,6 +606,130 @@ struct boundingBoxTy {
     bool overlap (const boundingBoxTy& o) const;
     /// Do both boxes overlap?
     bool operator & (const boundingBoxTy& o) const { return overlap(o); }
+};
+
+//
+// MARK: Splines
+//
+
+/// @brief Calculate a point on a quadratic Bezier curve
+/// @see https://en.wikipedia.org/wiki/B%C3%A9zier_curve#Quadratic_B%C3%A9zier_curves
+/// @param t Range [0..1] defines which point on the curve to be returned, 0 = p0, 1 = p2
+/// @param p0 Start point of curve, reached with t=0.0
+/// @param p1 Control point of curve, usually not actually reached at any value of t
+/// @param p2 End point of curve, reached with t=1.0
+/// @param[out] pAngle If defined, receives the angle of the curve at `t` in degrees
+ptTy Bezier (double t, const ptTy& p0, const ptTy& p1, const ptTy& p2,
+             double* pAngle = nullptr);
+
+/// @brief Calculate a point on a cubic Bezier curve
+/// @see https://en.wikipedia.org/wiki/B%C3%A9zier_curve#Cubic_B%C3%A9zier_curves
+/// @param t Range [0..1] defines which point on the curve to be returned, 0 = p0, 1 = p3
+/// @param p0 Start point of curve, reached with t=0.0
+/// @param p1 1st control point of curve, usually not actually reached at any value of t
+/// @param p2 2nd control point of curve, usually not actually reached at any value of t
+/// @param p3 End point of curve, reached with t=1.0
+/// @param[out] pAngle If defined, receives the angle of the curve at `t` in degrees
+ptTy Bezier (double t, const ptTy& p0, const ptTy& p1, const ptTy& p2, const ptTy& p3,
+             double* pAngle = nullptr);
+
+/// @brief Handles a quadratic Bezier curve based on flight data positions
+/// @details Only using quadratic curves because in higher-level Bezier curves the parameter `t`
+///          does no longer correspond well to distance and planes would appear slowing down
+///          at beginning and end.
+/// @details The constructors take positions from flight data,
+///          the necessary end and control points of a Bezier Curve
+///          are computed from that input.
+/// @see https://en.wikipedia.org/wiki/B%C3%A9zier_curve#Constructing_B%C3%A9zier_curves
+struct BezierCurve
+{
+protected:
+    positionTy start;           ///< start point of the actual Bezier curve
+    positionTy end;             ///< end point of the actual Bezier curve
+    ptTy ptCtrl;                ///< Control point of the curve
+public:
+    BezierCurve () {}           ///< Standard constructor does nothing
+    
+    /// @brief Define a quadratic Bezier Curve based on the given flight data positions, with the mid point being the intersection of the vectors
+    /// @param _start Start position of the Bezier curve
+    /// @param _end End position of the curve
+    /// @return Could a reasonable mid point be derived and hence a Bezier curve be set up?
+    bool Define (const positionTy& _start,
+                 const positionTy& _end);
+    
+    /// Clear the definition, so that BezierCurve::isDefined() will return `false`
+    void Clear ();
+    /// Is a curve defined?
+    bool isValid () const { return ptCtrl.isValid(); }
+    operator bool () const { return isValid(); }
+
+    /// Return the position as per given timestamp, if the timestamp is between `start` and `end`
+    /// @param[in,out] pos Current position, to be overwritten with new position
+    /// @param _calcTs Timestamp for the position we look for, used to calculate factor `f`
+    /// @return if the position was adjusted
+    bool GetPos (positionTy& pos, double _calcTs);
+    
+    /// Debug text output
+    std::string dbgTxt() const;
+};
+
+
+/// @brief Cubic Hermite Spline (cSpline)
+/// @see https://en.wikipedia.org/wiki/Cubic_Hermite_spline
+/// @details Tangents are input parameters m0/m1
+///          In some edge cases (e.g. altitude during take-off/landing)
+///          it can be useful to provide specific tangents.
+/// @note By using `ptTy` as template type `T`, this turns into a 2d Hermite Spline.
+template<typename T>
+struct CSpline {
+    double t0, dt;                      ///< t0 is the time of the first point, dt is delta-time for the segment
+    T a, b, c, d;                       ///< pre-computed factors of the standard form
+#ifdef DEBUG
+    T __p0, __p1, __p2, __m0, __m1;
+    double __head0, __speed0;
+#endif
+    
+    /// Default Constructor
+    CSpline () : t0(NAN), dt(NAN), a(), b(), c(), d() {}
+    
+    /// Set the parameters (time, value like altitude, tangent like climb rate)
+    void set (double _t0, const T& _p0, const T& _m0,
+              double _t1, const T& _p1, const T& _m1);
+    
+    /// @brief Seamlessly continues the current spline to a new end point
+    /// @returns `true` if set, or `false` if Spline wasn't valid
+    bool cont (double tsNow,
+               double _t1, const T& _p1, const T& _m1);
+    
+    /// @brief Define by current pos + speed, next two pos
+    /// @details If Spline is already valid it will seamlessly continue with
+    ///          slope(tsNow) becoming m0.
+    /// @note Only for T = ptTy
+    /// @returns if a valid Spline was defined
+    bool set (double tsNow,
+              const positionTy& p0, double speed0_m, double vsi0_m,
+              const positionTy& p1,
+              const positionTy& p2,
+              double n = 1.0);
+    
+    /// Clear, set to unused (pass to default constructor)
+    void clear () { *this = CSpline(); }
+    
+    /// Valid?
+    bool isValid () const { return !std::isnan(t0) && !std::isnan(dt); }
+    operator bool () const { return isValid(); }
+    
+    /// Good? Doesn't seem to have loops?
+    bool isGood (double m0ang, double m1ang, double tolerance) const;
+    
+    /// Value at t with `_t0 <= t <= _t1`
+    T val (double t) const;
+    
+    /// Slope at t with `_t0 <= t <= _t1` (1st derivative of val())
+    T slope (double t) const;
+    
+    /// Debug output
+    std::string dbgTxt() const;
 };
 
 #endif /* CoordCalc_h */

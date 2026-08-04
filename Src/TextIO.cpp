@@ -432,7 +432,7 @@ static unsigned long gLogCnt = 0;
 /// Controls access to the log list
 std::recursive_mutex gLogMutex;
 
-static char gBuf[4048];
+static char gBuf[10240];
 
 const char* LOG_LEVEL[] = {
     "DEBUG", "INFO ", "WARN ", "ERROR", "FATAL", "MSG  "

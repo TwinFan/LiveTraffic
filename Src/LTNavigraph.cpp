@@ -179,7 +179,7 @@ void NvgrFR24Connection::Main ()
     
     // Can't run if we don't have Client Secret/ID
     if (!IsBuiltIn()) {
-        SHOW_MSG(logERR, "No Navigraph support built into this binary, can't start Navigraph/FR24");
+        SHOW_MSG(logERR, "No Navigraph support built into this binary, can't start Navigraph channel.");
         SetValid(false,false); SetEnable(false);
     }
     // Can't run if we don't have Refresh Token
@@ -477,7 +477,7 @@ bool NvgrFR24Connection::ProcessFetchedData ()
                 if (nvgrData.pos.ts() <= tsCutOff)
                     continue;
                 
-                // Navigraph/FR24 sends occasionally a combination of
+                // Navigraph/Flightradar24 sends occasionally a combination of
                 // onGnd=0 and altitude=0, which is contracdicting.
                 // Analysis shows there are situations, in which they will
                 // be ground positions, and others where they must be in the air already.
@@ -506,53 +506,13 @@ bool NvgrFR24Connection::ProcessFetchedData ()
                 if ( fd.empty() )
                     fd.SetKey(nvgrData.key);
                 
-                // Try to identify position hovering low over a rwy
-                const Doc8643* pDoc8643 = fd.GetUnsafeStat().pDoc8643;
-                if (!pDoc8643 || !pDoc8643->hasRotor())         // only do for fixed-wing aircraft
-                {
-                    // The max hover height is about 12s of "initial climb"
-                    const LTAircraft::FlightModel& mdl = LTAircraft::FlightModel::FindFlightModel(fd, false);
-                    const double maxHoverHeight_m = M_per_FT * mdl.VSI_INIT_CLIMB * NVGR_MAX_RWY_HOVER_CLIMB_DUR_S / 60.0;
-                    if (!nvgrData.pos.IsOnGnd() &&                                      // not on ground
-                        nvgrData.pos.alt_m() < HIGHEST_AIRPORT_M + maxHoverHeight_m)    // low enough to be potentially hovering low over an airport?
-                    {
-                        // Do we have a ground situation in the data,
-                        // for which the incoming position could be a lift-off position?
-                        double gndAlt_m = fd.GetLastPosGndAlt_m();
-                        if (!std::isnan(gndAlt_m) &&
-                            nvgrData.pos.alt_m() < gndAlt_m + maxHoverHeight_m)
-                        {
-                            // So this new data comes right after a gnd position and is pretty low...
-                            // is it also above a runway? (then pos is snapped to the rwy)
-                            if (LTAptSnapIfOverRwy(nvgrData.pos))
-                            {
-                                // ...we have forced it on the ground:
-                                if (dataRefs.GetDebugAcPos(fd.key())) {
-                                    LOG_MSG(logDEBUG, "%s: Forcing a rwy position onto ground with max hover height = %.0fm:\n%s",
-                                            nvgrData.key.c_str(), maxHoverHeight_m, nvgrData.pos.dbgTxt().c_str());
-                                }
-                                nvgrData.pos.f.onGrnd = GND_ON;
-                                nvgrData.pos.alt_m() = NAN;
-                            }
-                            // Not over a rwy: ignore this position
-                            else {
-                                if (dataRefs.GetDebugAcPos(fd.key())) {
-                                    LOG_MSG(logDEBUG, "%s: Ignoring a non-rwy hovering position with max hover height = %.0fm:\n%s",
-                                            nvgrData.key.c_str(), maxHoverHeight_m, nvgrData.pos.dbgTxt().c_str());
-                                }
-                                continue;
-                            }
-                        }
-                    }
-                }
-                
                 // Add static data
                 fd.UpdateData(nvgrData, nvgrData.pos.dist(viewPos));
 
                 // Add dynamic data
                 LTFlightData::FDDynamicData dyn = nvgrData;
                 dyn.pChannel = this;
-                fd.AddDynData(dyn, 0, 0, &nvgrData.pos);
+                fd.AddDynData(dyn, &nvgrData.pos);
                 
             } else {
                 LOG_MSG(logWARN, "Skipped one incomplete tracking data record for '%s'",

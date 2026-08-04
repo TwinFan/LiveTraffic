@@ -30,9 +30,9 @@
 #include "LTChannel.h"
 
 // MARK: Navigraph Constants
-#define NVGR_NAME               "Navigraph/FR24"
+#define NVGR_NAME               "Navigraph"
 #define NVGR_CHECK_NAME         "Flightradar24 Tracker"
-#define NVGR_CHECK_URL          "https://www.flightradar24.com/%.3f,%.3f"
+#define NVGR_CHECK_URL          "https://www.flightradar24.com/%.2f,%.2f/9"
 #define NVGR_CHECK_POPUP        "Check Flightradar's coverage"
 
 // Request Device Authorization
@@ -67,7 +67,7 @@ constexpr int NVGR_MIN_REFRESH_INTVL = 20;              ///< Navigraph imposes a
 constexpr int NVGR_MAX_SEARCH_DIST_KM = 150;            ///< [km] Navigraph allows the 20s interval only for search distances up to 150km
 
 // Message Definition
-#define NVGR_FLIGHT_ID          "flightId"              ///< FR24-internal id used for URL slugs only
+#define NVGR_FLIGHT_ID          "flightId"              ///< Flightradar24-internal id used for URL slugs only
 #define NVGR_AC_ID              "aircraftId"
 #define NVGR_TIMESTAMP          "timestamp"
 #define NVGR_AC_TYPE            "type"
@@ -87,9 +87,6 @@ constexpr int NVGR_MAX_SEARCH_DIST_KM = 150;            ///< [km] Navigraph allo
 #define NVGR_PAINTED_AS         "paintedAs"
 #define NVGR_OP_AS              "operatingAs"
 
-/// Sometimes aircraft position during take off "hover" over the rwy when they should be on the ground. Up to which height do we consider it hovering? Use this time * VSI_INIT_CLIMB
-constexpr double NVGR_MAX_RWY_HOVER_CLIMB_DUR_S = 12.0;
-
 //
 // MARK: Navigraph Traffic Data
 //
@@ -100,7 +97,7 @@ struct NvgrTrafficData
 public:
     // Static data
     LTFlightData::FDKeyTy key;  ///< aircraft id, hex transponder code
-    std::string flightId;       ///< FR24-internal id used for URL slugs only
+    std::string flightId;       ///< Flightradar24-internal id used for URL slugs only
     std::string acTypeIcao;     ///< aircraft type designator
     std::string reg;            ///< registration, tail number
     std::string orig, dest;     ///< flight origin, destination
@@ -147,9 +144,6 @@ public:
     void ComputeBody (const positionTy& pos) override;      ///< only needed for token request, will then form token request body
     bool ProcessFetchedData () override;
     std::string GetStatusText () const override;  ///< return a human-readable staus
-//    // shall data of this channel be subject to LTFlightData::DataSmoothing?
-//    bool DoDataSmoothing (double& gndRange, double& airbRange) const override
-//    { gndRange = NVGR_SMOOTH_GROUND; airbRange = NVGR_SMOOTH_AIRBORNE; return true; }
     
     static bool IsBuiltIn();                    ///< Is Navigraph support built in, i.e. do we have a proper client secret/id?
     

@@ -83,6 +83,9 @@ public:
     // get current value (might actually _change_ val if inMotion!)
     double get ();
     
+    /// How long would it take to make a move?
+    double getTimeTo (double _to) const;
+    
     // non-moving status checks
     inline double is () const       { return val; }
     inline bool isUp () const       { return val <= defMin; }
@@ -96,105 +99,6 @@ public:
     double percDone () const;       ///< percent done of move, returns 1.0 if not in motion
     
     std::string dbgTxt () const;    ///< debug output
-};
-
-// mimics acceleration / deceleration
-struct AccelParam
-{
-protected:
-    double startSpeed, targetSpeed, acceleration, targetDeltaDist;
-    double startTime, accelStartTime, targetTime;
-    double currSpeed_m_s, currSpeed_kt;      // set during getSpeed
-public:
-    // default only allows for object init
-    AccelParam();
-    // Set start/target [m/s], but no acceleration
-    void SetSpeed (double speed);
-    
-    // get current value
-    double m_s() const { return currSpeed_m_s; }
-    double kt() const { return currSpeed_kt; }
-    bool isZero() const { return currSpeed_m_s <= 0.01; }
-    
-    // start an acceleration now
-    void StartAccel(double startSpeed, double targetSpeed, double accel,
-                    double startTime=NAN);
-    // reach target Speed by targetTime after deltaDist
-    void StartSpeedControl(double startSpeed, double targetSpeed,
-                           double deltaDist,
-                           double startTime, double targetTime,
-                           const LTAircraft* pAc);
-    
-    inline bool isChanging() const { return !std::isnan(acceleration); }
-    
-    // calculations (ts = timestamp, defaults to current sim time)
-    double updateSpeed ( double ts = NAN );
-    double getDeltaDist ( double ts = NAN ) const;
-    double getRatio ( double ts = NAN ) const;
-    inline double getTargetTime() const         { return targetTime; }
-    inline double getTargetDeltaDist() const    { return targetDeltaDist; }
-};
-
-/// @brief Handles a quadratic Bezier curve based on flight data positions
-/// @details Only using quadratic curves because in higher-level Bezier curves the parameter `t`
-///          does no longer correspond well to distance and planes would appear slowing down
-///          at beginning and end.
-/// @details The constructors take positions from flight data,
-///          the necessary end and control points of a Bezier Curve
-///          are computed from that input.
-/// @see https://en.wikipedia.org/wiki/B%C3%A9zier_curve#Constructing_B%C3%A9zier_curves
-struct BezierCurve
-{
-protected:
-    positionTy start;           ///< start point of the actual Bezier curve
-    positionTy end;             ///< end point of the actual Bezier curve
-    ptTy ptCtrl;                ///< Control point of the curve
-public:
-    BezierCurve () {}           ///< Standard constructor does nothing
-    
-    /// @brief Define a quadratic Bezier Curve based on the given flight data positions
-    /// @param _start Start position of the Bezier curve
-    /// @param _mid Mid position, current leg's end and next leg's starting point, the turning point, used as Bezier control point, ie. will not be reached
-    /// @param _end End position of the curve
-    void Define (const positionTy& _start,
-                 const positionTy& _mid,
-                 const positionTy& _end);
-    
-    /// @brief Define a quadratic Bezier Curve based on the given flight data positions, with the mid point being the intersection of the vectors
-    /// @param _start Start position of the Bezier curve
-    /// @param _end End position of the curve
-    /// @return Could a reasonable mid point be derived and hence a Bezier curve be set up?
-    bool Define (const positionTy& _start,
-                 const positionTy& _end);
-    
-    /// Convert the geographic coordinates to meters, with `start` being the origin (0|0) point
-    /// This is needed for accurate angle calculations
-    void ConvertToMeter ();
-    /// Convert the given geographic coordinates to meters
-    void ConvertToMeter (ptTy& pt) const;
-
-    /// Convert the given position back to geographic coordinates
-    void ConvertToGeographic (ptTy& pt) const;
-    
-    /// Clear the definition, so that BezierCurve::isDefined() will return `false`
-    void Clear ();
-    /// Is a curve defined?
-    bool isDefined () const { return ptCtrl.isValid(); }
-    /// is defined and the given timestamp between start's and end's timestamp?
-    bool isTsInbetween (double _ts) const
-    { return isDefined() && start.ts() <= _ts && _ts <= end.ts(); }
-    /// is defined and the given timestamp before end's timestamp?
-    bool isTsBeforeEnd (double _ts) const
-    { return isDefined() && _ts <= end.ts(); }
-
-    /// Return the position as per given timestamp, if the timestamp is between `start` and `end`
-    /// @param[in,out] pos Current position, to be overwritten with new position
-    /// @param _calcTs Timestamp for the position we look for, used to calculate factor `f`
-    /// @return if the position was adjusted
-    bool GetPos (positionTy& pos, double _calcTs);
-
-    /// Debug text output
-    std::string dbgTxt() const;
 };
 
 //
@@ -220,7 +124,7 @@ public:
         double AGL_GEAR_DOWN =    1600;   // height AGL at which to lower the gear during approach
         double AGL_GEAR_UP =      100;    // height AGL at which to raise the gear during take off
         double AGL_FLARE =        25;     // [ft] height AGL to start flare in artifical pos mode
-        double MAX_TAXI_SPEED =   45;     // below that: taxi, above that: take-off/roll-out
+        double MAX_TAXI_SPEED =   30;     // below that: taxi, above that: take-off/roll-out
         double MIN_REVERS_SPEED = 80;     // [kn] User reversers down to this speed
         double TAXI_TURN_TIME =   30;     // seconds for a 360° turn on the ground
         double FLIGHT_TURN_TIME = 120;    ///< seconds for a typical 360° turn in flight
@@ -289,46 +193,17 @@ public:
     
     // absolute positions (max 3: last, current destination, next)
     // as basis for calculating ppos per frame
-    dequePositionTy      posList;
-    /// Most-recently-retired `from` position. When `posList.pop_front()` is
-    /// called during the position switch in CalcPPos, the slot being removed
-    /// is copied here first so it remains available as the P0 control point
-    /// for the centripetal Catmull-Rom spline that renders ground position
-    /// and heading. lat() is NaN until the first switch has happened —
-    /// callers must check before use and fall back to duplicating P1.
-    positionTy           posPrev;
-    /// Snapshot of the slot AFTER the current `to`, captured at segment
-    /// switch and held fixed for the duration of the current leg. Serves
-    /// as the P3 control point for the Catmull-Rom spline.
-    ///
-    /// Why snapshotted rather than read live from `posList[2]` each frame:
-    /// `posList[2]` can transition from "does not exist" (deque length < 3,
-    /// in which case we fall back to duplicating P2) to "exists" (a new
-    /// feed update lands) mid-segment. That transition silently changes
-    /// the spline geometry between frames, so the position rendered at
-    /// the current parameter `f` jumps — visible as a brief backward
-    /// snap synchronised with the feed cadence. By capturing P3 once at
-    /// segment start we guarantee the spline coefficients are constant
-    /// for the full leg; the new slot only takes effect on the NEXT
-    /// switch, where the boundary is C¹ continuous by construction.
-    /// lat() is NaN until the first switch has captured a real P3 —
-    /// callers must check and fall back to duplicating P2.
-    positionTy           posNext;
-    /// Next Position after Next, only a buffer for the 0.5s
+    dequePositionTy     posList;
+    /// Next Position after posList[1], only a buffer for the 0.5s
     /// between the call to TriggerCalcNewPos() and position switch
-    positionTy           posNextNext;
-    /// Arc-length lookup table for the current ground-rendering Catmull-Rom
-    /// segment. Built once per segment switch (in the same `posPrev` /
-    /// `posNext` capture block) and consulted on every render frame to
-    /// re-parameterise the time-linear `f` into a curve parameter `u` that
-    /// advances arc-length-proportionally. Without this the rendered
-    /// position would visibly speed up and slow down within each segment
-    /// because the spline's native parameter does not track arc length.
-    /// `valid` is false until first build; the spline branch builds the
-    /// LUT on demand if it sees an invalid one.
-    CatmullRomArcLut     splineLut;
+    /// Only use during position switching!
+    positionTy          posNext;
     /// cSpline for altitude
-    CSpline             altSpline;
+    CSpline<double>     altSpline;
+    /// 3D cSpline for position
+    CSpline<positionTy> locSpline;
+    /// 2D Bezier for position (alternative for locSpline)
+    BezierCurve         locBezier;
     
     std::string         labelInternal;  // internal label, e.g. for error messages
 protected:
@@ -345,18 +220,9 @@ protected:
     flightPhaseE        phase;          // current flight phase
     double              rotateTs;       // when to rotate?
     double              vsi;            // vertical speed (ft/m)
-    /// loop in `CalcFlightModel` defers the nose-down `pitch.moveTo(
-    /// GND_PITCH_DEG)` until `TOUCHDOWN_HOLD_PITCH_S` seconds have
-    /// elapsed since this timestamp — modelling the aerobrake during
-    /// which a real airliner holds its nose up after the mains touch.
-    /// Cleared back to NAN once the deferred move has fired.
-    double              touchdownTs = NAN;
     bool                bArtificalPos;  // running on artifical positions for roll-out?
-    bool                bNeedSpeed = false;     ///< need speed calculation?
-    bool                bNeedCCBezier = false;  ///< need Bezier calculation due to cut-corner case?
-    AccelParam          speed;          // current speed [m/s] and acceleration control
-    BezierCurve         turn;           ///< position, heading, roll while flying a turn
-    MovingParam         heading;        ///< heading movement if not using a Bezier curve
+    double              speed_m;        /// current speed [m/s]
+    MovingParam         heading;        ///< heading movement
     MovingParam         corrAngle;      ///< correction angle for cross wind
     MovingParam         gear;
     MovingParam         flaps;
@@ -404,8 +270,9 @@ public:
     inline const positionTy& GetPPos() const { return ppos; }
     inline positionTy GetPPosLocal() const { return positionTy(ppos).WorldToLocal(); }
     /// @brief position heading to (usually posList[1], ppos if ppos > posList[1])
-    /// @param[out] pTrack Receives heading towards to-position
-    const positionTy& GetToPos (double* pTrack = nullptr) const;
+    const positionTy& GetToPos () const;
+    /// Most future well-known position, posList.back() or ppos
+    const positionTy& GetNewestPos () const;
     // have no more viable positions left, in need of more?
     bool OutOfPositions() const;
     /// periodically find the nearest airport and return a nice position string relative to it
@@ -417,13 +284,14 @@ public:
     std::string GetFlightPhaseString() const { return FlightPhase2String(phase); }
     std::string GetFlightPhaseRwyString() const;        ///< GetFlightPhaseString() plus rwy id in case of approach
     bool IsOnRwy() const;               ///< is the aircraft on a rwy (on ground and at least on pos on rwy)
-    inline double GetHeading() const { return ppos.heading() + corrAngle.is(); }
+    double GetHeading() const;          ///< returns heading (including wind and pushback correction)
     inline double GetTrack() const { return vec.angle; }
     inline double GetFlapsPos() const { return flaps.is(); }
     inline double GetGearPos() const { return gear.is(); }
     inline double GetReverserPos() const { return reversers.is(); }
-    inline double GetSpeed_kt() const { return speed.kt(); }                     // kt
-    inline double GetSpeed_m_s() const { return speed.m_s(); }   // m/s
+    inline double GetSpeed_kt() const { return speed_m * KT_per_M_per_S; }  ///< kt
+    inline double GetSpeed_m_s() const { return speed_m; }                  ///< m/s
+    inline bool IsSpeedZero() const { return speed_m < 0.5; }               ///< effectively not moving any longer?
     inline double GetVSI_ft() const { return vsi; }                         // ft/m
     inline double GetVSI_m_s() const { return vsi * Ms_per_FTm; }           // m/s
     inline double GetPitch() const { return ppos.pitch(); }

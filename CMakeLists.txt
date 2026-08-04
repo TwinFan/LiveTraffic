@@ -23,7 +23,7 @@ endif()
 set(CACHE{CMAKE_BUILD_TYPE} TYPE STRING VALUE "RelWithDebInfo")
 
 project(LiveTraffic
-        VERSION 4.6.1
+        VERSION 4.6.2
         DESCRIPTION "LiveTraffic X-Plane plugin")
 set(VERSION_BETA 0)
 
@@ -87,7 +87,7 @@ message("FSCharter Production          = Client ID: ${FSC_PROD_CLIENT_ID}, Clien
 string(SUBSTRING "${FSC_STAGING_CLIENT_SECRET}" 0 10 _short_secret)
 message("FSCharter Staging             = Client ID: ${FSC_STAGING_CLIENT_ID}, Client Secret: ${_short_secret}")
 
-# Navigraph/FR24 OAuth Configuration
+# Navigraph OAuth Configuration
 # These can be set via environment variables or CMake cache variables
 # For GitHub Actions, set these as repository secrets
 # For local builds, set environment variables before running cmake
