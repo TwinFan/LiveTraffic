@@ -1310,7 +1310,7 @@ public:
 
         // 1. --- Try to match pos with a startup location
         if (const StartupLoc* pStartLoc = FindStartupLoc(pos,
-                                                         dataRefs.GetFdSnapTaxiDist_m() * 3))
+                                                         std::max<double>(dataRefs.GetFdSnapTaxiDist_m() * 3, SIMILAR_POS_DIST_PARKED)))
         {
             // Then move onto the path leading away from the startup location
             ProjectPosOnStartupPath(pos, *pStartLoc);

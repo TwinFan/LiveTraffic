@@ -644,8 +644,7 @@ void LTFlightData::DataCleansing (bool& bChanged)
             // in this case we have at least 3 positions
             pos1 = *std::next(iter);
             vectorTy v1 = iter->between(pos1);
-            h1 = v1.dist > SIMILAR_POS_DIST ?
-            v1.angle : pos1.heading();
+            h1 = v1.dist > SIMILAR_POS_DIST ? v1.angle : pos1.heading();
             std::advance(iter, 2);
         }
         
@@ -911,7 +910,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
             // Lambda to check for "close" or "in the same direction and not too fast"
             auto isCloseOrSameHeading = [](const positionTy& p1, const positionTy& p2)->bool {
                 const vectorTy vec = p1.between(p2);
-                return vec.dist < SIMILAR_POS_DIST ||
+                return vec.dist <= SIMILAR_POS_DIST_PUSHBACK ||
                        (std::abs(HeadingDiff(vec.angle, p1.heading())) < 90 &&
                         vec.speed_kn() <= MAX_PB_SPEED);
             };
@@ -949,7 +948,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
                     // And are we doing so in opposite direction of Startup Pos?
                     const vectorTy vec = pParkedPos->between(*i);           // vector from parking to i
                     if (vec.dist >= SIMILAR_POS_DIST_PARKED &&
-                        std::abs(HeadingDiff(vec.angle, pParkedPos->heading())) >= 120)
+                        std::abs(HeadingDiff(vec.angle, pParkedPos->heading())) >= 90)
                     {
                         // Leaving parking!
                         if (dataRefs.GetDebugAcPos(key())) {
@@ -1448,21 +1447,19 @@ void LTFlightData::CalcHeading (dequePositionTy::iterator it)
     
     if (prePos) {
         vecTo = prePos->between(*it);
-        if (!it->f.bPushback &&                 // in pushback we take all, also small, turns
-            vecTo.dist < SIMILAR_POS_DIST)      // distance from predecessor to it too short
+        if (vecTo.dist < 0.1)                   // In AddNewPos we override "similar" positions with the same pos once again, so we either have zero distance (don't change heading!) or we have some distance, which is then to follow
         {
-            it->heading() = prePos->heading();  // by default don't change heading for this short distance to avoid turning planes "on the spot"
+            it->heading() = prePos->heading();  // don't change heading for stand-still
             if (!std::isnan(it->heading()))     // if we now have a heading -> just use it
                 return;
-            vecTo = vectorTy();                 // clear the vector
+            vecTo = vectorTy();                 // clear the vector, not to be consider in later processing
         }
     }
     
     // is there a successor to it?
     if (std::next(it) != posDeque.cend()) {
         vecFrom = it->between(*std::next(it));
-        if (!it->f.bPushback &&
-            vecFrom.dist < SIMILAR_POS_DIST)    // clear the vector if too short
+        if (vecFrom.dist < 0.1)                 // clear the vector if signifying a stand-still
             vecFrom = vectorTy();
     }
     
@@ -1497,7 +1494,7 @@ void LTFlightData::CalcHeading (dequePositionTy::iterator it)
             it->heading() = pAfter->heading;
     }
 
-    // just as a safeguard...they can't be many situations this triggers,
+    // just as a safeguard...there can't be many situations this triggers,
     // but we don't want NAN values any longer after this
     if (std::isnan(it->heading()))
         it->heading() = 0;

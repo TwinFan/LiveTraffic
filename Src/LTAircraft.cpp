@@ -2074,7 +2074,7 @@ bool LTAircraft::YProbe ()
     // the ground to move very often either. So let's only ever do y Probes if moving.
     if (bEveryFrame ||
         !probeLastPos.isNormal() ||
-        probeLastPos.distRoughSqr(ppos) > sqr(SIMILAR_POS_DIST/2.0))
+        probeLastPos.distRoughSqr(ppos) > sqr(SIMILAR_POS_DIST))
     {
         // This is terrain altitude right beneath us in [m]
         terrainAlt_m = fd.YProbe_at_m (probeLastPos = ppos);
