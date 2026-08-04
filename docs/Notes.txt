@@ -17,6 +17,7 @@ LTFlightData::CalcNextPos
 
 Download History
 ==========
+Download counter when providing v4.6.2: 261.781
 Download counter when providing v4.6.0: 255.177
 Download counter when providing v4.5.0: 251.950
 Download counter when providing v4.4.0: 244.295

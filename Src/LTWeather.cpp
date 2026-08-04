@@ -535,7 +535,8 @@ void LTWeather::FillUpMin (const std::array<float,13>& levels_m,
 
 using namespace metaf;
 
-constexpr float CAVOK_VISIBILITY_M      = 10000.0f;                     ///< CAVOK minimum Visibility [m]
+constexpr float CAVOK_VISIBILITY_SM     = 20;                           ///< CAVOK minimum Visibility [sm]
+constexpr float NINENINE_VISIBILITY_SM  = 10;                           ///< "9999" minimum Visibility [sm]
 constexpr float CAVOK_MIN_CLOUD_BASE_M  =  1500.0f;                     ///< CAVOK: no clouds below this height AGL [m]
 constexpr float NSC_MIN_CLOUD_BASE_M    =  6000.0f * float(M_per_FT);   ///< NSC: no clouds below this height AGL [m]
 constexpr float CLR_MIN_CLOUD_BASE_M    = 12000.0f * float(M_per_FT);   ///< CLR: no clouds below this height AGL [m]
@@ -717,8 +718,8 @@ public:
         if (kwg.type() == KeywordGroup::Type::CAVOK) {
             // Visibility 10 km or more in all directions.
             if (std::isnan(w.visibility_reported_sm) ||
-                w.visibility_reported_sm * float(M_per_SM) < CAVOK_VISIBILITY_M)
-                w.visibility_reported_sm = CAVOK_VISIBILITY_M / float(M_per_SM);
+                w.visibility_reported_sm < CAVOK_VISIBILITY_SM)
+                w.visibility_reported_sm = CAVOK_VISIBILITY_SM;
             // No clouds below 1.500m AGL, no CB/TCU
             ReduceClouds(CAVOK_MIN_CLOUD_BASE_M, true);
         }
@@ -809,9 +810,18 @@ public:
                 case VisibilityGroup::Type::SURFACE:
                 case VisibilityGroup::Type::TOWER:
                 {
-                    const std::optional<float> v = vg.visibility().toUnit(Distance::Unit::STATUTE_MILES);
-                    if (v.has_value())
-                        w.visibility_reported_sm = v.value();
+                    // "9999" means "more than"
+                    if (vg.visibility().isValue() &&
+                        vg.visibility().modifier() == metaf::Distance::Modifier::MORE_THAN &&
+                        vg.visibility().toUnit(metaf::Distance::Unit::METERS) == 10000)
+                    {
+                        w.visibility_reported_sm = NINENINE_VISIBILITY_SM;
+                    }
+                    else {
+                        const std::optional<float> v = vg.visibility().toUnit(Distance::Unit::STATUTE_MILES);
+                        if (v.has_value())
+                            w.visibility_reported_sm = v.value();
+                    }
                     break;
                 }
                     
