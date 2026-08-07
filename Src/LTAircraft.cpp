@@ -1583,6 +1583,11 @@ bool LTAircraft::CalcPPos()
     vsi = bOnGrnd ? 0.0 :
           // In the air, delta-altitude is VSI (convert from m/s to ft/min)
           (ppos.alt_m() - prevAlt_m) / (currCycle.diffTime * Ms_per_FTm);
+    if (std::isnan(vsi))
+    {
+        LOG_MSG(logERR, "vsi is NAN! Constituents: bOnGrnd = %d, ppos.alt_m() = %f, prevAlt_m = %f, currCycle.diffTime = %f",
+                bOnGrnd, ppos.alt_m(), prevAlt_m, currCycle.diffTime);
+    }
 
     // if there is a pre-programmed pitch movement follow that
     if (pitch.isProgrammed()) {
