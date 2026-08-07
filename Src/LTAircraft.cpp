@@ -928,6 +928,7 @@ tsLastCalcRequested(0),
 phase(FPH_UNKNOWN),
 rotateTs(NAN),
 vsi(0.0),
+bVsiNan(false),
 bArtificalPos(false),
 heading(pMdl->TAXI_TURN_TIME, 360, 0, true, true),
 corrAngle(pMdl->FLIGHT_TURN_TIME / 2.0, 90, -90, false, true),
@@ -1583,10 +1584,22 @@ bool LTAircraft::CalcPPos()
     vsi = bOnGrnd ? 0.0 :
           // In the air, delta-altitude is VSI (convert from m/s to ft/min)
           (ppos.alt_m() - prevAlt_m) / (currCycle.diffTime * Ms_per_FTm);
+    
+    // This is a temporary measure to remove a symptom for which I don't yet know the root cause.
+    // See https://forums.x-plane.org/forums/topic/350264-aircraft-not-visible-when-flying-toliss-flightfactor-zibo-assert-failed/
     if (std::isnan(vsi))
     {
-        LOG_MSG(logERR, "vsi is NAN! Constituents: bOnGrnd = %d, ppos.alt_m() = %f, prevAlt_m = %f, currCycle.diffTime = %f",
-                bOnGrnd, ppos.alt_m(), prevAlt_m, currCycle.diffTime);
+        if (!bVsiNan) {
+            LOG_MSG(logERR, "%s: vsi is '%f'! Constituents: bOnGrnd = %d, ppos.alt_m() = %f, prevAlt_m = %f, currCycle.diffTime = %f | Setting vsi = 0",
+                    labelInternal.c_str(),
+                    vsi, bOnGrnd, ppos.alt_m(), prevAlt_m, currCycle.diffTime);
+            bVsiNan = true;
+        }
+        vsi = 0.0;
+    }
+    else if (bVsiNan) {
+        LOG_MSG(logERR, "%s: vsi now is a proper value: %f", labelInternal.c_str(), vsi);
+        bVsiNan = false;
     }
 
     // if there is a pre-programmed pitch movement follow that
