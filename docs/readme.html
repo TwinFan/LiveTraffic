@@ -148,9 +148,16 @@
     <P>Change log:</P>
     
     <ul>
+        <li><b>SayIntentions</b>: Fixed reading from SI after SI changed
+            the URL for the flight tracking data.</li>
         <li><b>Weather</b>: Fixed interpretation of METAR visibility "CAVOK" and "9999":
             LiveTraffic used to set too low a visibility range with such reports.
             Now, visibility is set to 20sm and 10sm respectively.</li>
+        <li>Fixed a symptom of "ASSERT FAILED" for some users that led to no aircraft being displayed.
+            This is <i>not</i> a fix of the root cause. I'd appreciate if users
+            could check their <code>Log.txt</code> files for occurences of
+            "vsi is" and if they find them post the <code>Log.txt</code> file
+            to the <a href="https://forums.x-plane.org/forums/topic/350264-aircraft-not-visible-when-flying-toliss-flightfactor-zibo-assert-failed/">problem thread</a>. Thank you!
     </ul>
     
     <h3>v4.6.2</h3>

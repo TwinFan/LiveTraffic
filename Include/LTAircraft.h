@@ -220,6 +220,7 @@ protected:
     flightPhaseE        phase;          // current flight phase
     double              rotateTs;       // when to rotate?
     double              vsi;            // vertical speed (ft/m)
+    bool                bVsiNan;        ///< TODO: Temporary / Was VSI reported NAN?
     bool                bArtificalPos;  // running on artifical positions for roll-out?
     double              speed_m;        /// current speed [m/s]
     MovingParam         heading;        ///< heading movement
