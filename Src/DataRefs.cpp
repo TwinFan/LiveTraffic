@@ -790,7 +790,6 @@ ILWrect (0, 400, 965, 0)
 
     // enable all public/free channels by default:
     // Airplanes.live, adsb.fi, OpenSky Tracking & Master Data, OGN, and Synthetic by default
-    bChannel[DR_CHANNEL_AIRPLANES_LIVE          - DR_CHANNEL_FIRST] = true;
     bChannel[DR_CHANNEL_ADSB_FI_ONLINE          - DR_CHANNEL_FIRST] = true;
     bChannel[DR_CHANNEL_OPEN_SKY_ONLINE         - DR_CHANNEL_FIRST] = true;
     bChannel[DR_CHANNEL_OPEN_SKY_AC_MASTERFILE  - DR_CHANNEL_FIRST] = true;

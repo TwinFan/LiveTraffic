@@ -263,28 +263,6 @@ void LTSettingsUI::buildInterface()
                 }
             }
             
-            // --- Airplanes.live ---
-            if (ImGui::TreeNodeCbxLinkHelp(AIRPLANES_NAME, nCol,
-                                           DR_CHANNEL_AIRPLANES_LIVE, "Connect to Airplanes.live for tracking data",
-                                           ICON_FA_EXTERNAL_LINK_SQUARE_ALT " " AIRPLANES_CHECK_NAME,
-                                           AIRPLANES_CHECK_URL,
-                                           AIRPLANES_CHECK_POPUP,
-                                           HELP_SET_CH_AIRPLANES, "Open Help on Airplanes.live in Browser",
-                                           sFilter, nOpCl))
-            {
-                // Airplanes.live's connection status details
-                if (ImGui::FilteredLabel("Connection Status", sFilter)) {
-                    if (const LTChannel* pAirplanesCh = LTFlightDataGetCh(DR_CHANNEL_AIRPLANES_LIVE)) {
-                        ImGui::TextWrapped("%s", pAirplanesCh->GetStatusText().c_str());
-                    } else {
-                        ImGui::TextUnformatted("Off");
-                    }
-                    ImGui::TableNextCell();
-                }
-                
-                if (!*sFilter) ImGui::TreePop();
-            }
-
             // --- adsb.fi ---
             if (ImGui::TreeNodeCbxLinkHelp(ADSBFI_NAME, nCol,
                                            DR_CHANNEL_ADSB_FI_ONLINE, "Connect to adsb.fi for tracking data",
@@ -448,35 +426,6 @@ void LTSettingsUI::buildInterface()
                 if (!*sFilter) ImGui::TreePop();
             }
             
-            // --- ADSBHub ---
-            const bool bWasADSBHubEnabled = dataRefs.IsChannelEnabled(DR_CHANNEL_ADSB_HUB);
-            if (ImGui::TreeNodeCbxLinkHelp(ADSBHUB_NAME, nCol,
-                                           DR_CHANNEL_ADSB_HUB, "Connect to ADSBHub for tracking data, requires feeder setup",
-                                           ICON_FA_EXTERNAL_LINK_SQUARE_ALT " " ADSBHUB_CHECK_NAME,
-                                           ADSBHUB_CHECK_URL,
-                                           ADSBHUB_CHECK_POPUP,
-                                           HELP_SET_CH_ADSBHUB, "Open Help on ADSBHub in Browser",
-                                           sFilter, nOpCl))
-            {
-                // If ADSBHub has just been enabled then, as a courtesy,
-                // we also make sure that OpenSky Masterdata File is enabled as it doesn't send a/c type info
-                if (!bWasADSBHubEnabled && dataRefs.IsChannelEnabled(DR_CHANNEL_ADSB_HUB)) {
-                    dataRefs.SetChannelEnabled(DR_CHANNEL_OPEN_SKY_AC_MASTERFILE, true);
-                }
-                
-                // ADSBHub's connection status details
-                if (ImGui::FilteredLabel("Connection Status", sFilter)) {
-                    if (const LTChannel* pADSBHubCh = LTFlightDataGetCh(DR_CHANNEL_ADSB_HUB)) {
-                        ImGui::TextWrapped("%s", pADSBHubCh->GetStatusText().c_str());
-                    } else {
-                        ImGui::TextUnformatted("Off");
-                    }
-                    ImGui::TableNextCell();
-                }
-                
-                if (!*sFilter) ImGui::TreePop();
-            }
-
             // --- Open Glider Network ---
             if (ImGui::TreeNodeCbxLinkHelp(OPGLIDER_NAME, nCol,
                                            DR_CHANNEL_OPEN_GLIDER_NET, "Enable OGN tracking data",
@@ -502,7 +451,7 @@ void LTSettingsUI::buildInterface()
                     ImGui::TextUnformatted("Map FLARM's aircraft types to one or more ICAO types for model matching:");
                     ImGui::TableNextCell();
                 }
-                    
+                
                 // One edit field for each Flarm aircraft type
                 for (size_t i = 0; i < aFlarmAcTys.size(); i++) {
                     // Flarm Aircraft Type in human readable text
@@ -515,7 +464,7 @@ void LTSettingsUI::buildInterface()
                             ImGui::Indicator(false, "", "Too short a text to serve as ICAO aircraft type");
                             ImGui::TableNextCell();
                         }
-
+                        
                         // Edit field for entering ICAO aircraft type(s)
                         ImGui::SetNextItemWidth(2 * fSmallWidth);
                         ImGui::InputText("", &aFlarmAcTys[i], ImGuiInputTextFlags_CharsUppercase);
@@ -545,6 +494,57 @@ void LTSettingsUI::buildInterface()
                 if (!*sFilter) ImGui::TreePop();
             }
             
+            // --- Airplanes.live ---
+            if (ImGui::TreeNodeCbxLinkHelp(AIRPLANES_NAME, nCol,
+                                           DR_CHANNEL_AIRPLANES_LIVE, "Connect to Airplanes.live for tracking data",
+                                           ICON_FA_EXTERNAL_LINK_SQUARE_ALT " " AIRPLANES_CHECK_NAME,
+                                           AIRPLANES_CHECK_URL,
+                                           AIRPLANES_CHECK_POPUP,
+                                           HELP_SET_CH_AIRPLANES, "Open Help on Airplanes.live in Browser",
+                                           sFilter, nOpCl))
+            {
+                // Airplanes.live's connection status details
+                if (ImGui::FilteredLabel("Connection Status", sFilter)) {
+                    if (const LTChannel* pAirplanesCh = LTFlightDataGetCh(DR_CHANNEL_AIRPLANES_LIVE)) {
+                        ImGui::TextWrapped("%s", pAirplanesCh->GetStatusText().c_str());
+                    } else {
+                        ImGui::TextUnformatted("Off");
+                    }
+                    ImGui::TableNextCell();
+                }
+                
+                if (!*sFilter) ImGui::TreePop();
+            }
+            
+            // --- ADSBHub ---
+            const bool bWasADSBHubEnabled = dataRefs.IsChannelEnabled(DR_CHANNEL_ADSB_HUB);
+            if (ImGui::TreeNodeCbxLinkHelp(ADSBHUB_NAME, nCol,
+                                           DR_CHANNEL_ADSB_HUB, "Connect to ADSBHub for tracking data, requires feeder setup",
+                                           ICON_FA_EXTERNAL_LINK_SQUARE_ALT " " ADSBHUB_CHECK_NAME,
+                                           ADSBHUB_CHECK_URL,
+                                           ADSBHUB_CHECK_POPUP,
+                                           HELP_SET_CH_ADSBHUB, "Open Help on ADSBHub in Browser",
+                                           sFilter, nOpCl))
+            {
+                // If ADSBHub has just been enabled then, as a courtesy,
+                // we also make sure that OpenSky Masterdata File is enabled as it doesn't send a/c type info
+                if (!bWasADSBHubEnabled && dataRefs.IsChannelEnabled(DR_CHANNEL_ADSB_HUB)) {
+                    dataRefs.SetChannelEnabled(DR_CHANNEL_OPEN_SKY_AC_MASTERFILE, true);
+                }
+                
+                // ADSBHub's connection status details
+                if (ImGui::FilteredLabel("Connection Status", sFilter)) {
+                    if (const LTChannel* pADSBHubCh = LTFlightDataGetCh(DR_CHANNEL_ADSB_HUB)) {
+                        ImGui::TextWrapped("%s", pADSBHubCh->GetStatusText().c_str());
+                    } else {
+                        ImGui::TextUnformatted("Off");
+                    }
+                    ImGui::TableNextCell();
+                }
+                
+                if (!*sFilter) ImGui::TreePop();
+            }
+
             // --- RealTraffic ---
             if (ImGui::TreeNodeCbxLinkHelp(REALTRAFFIC_NAME, nCol,
                                            DR_CHANNEL_REAL_TRAFFIC_ONLINE,

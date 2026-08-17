@@ -52,11 +52,12 @@ std::string ADSBBase::FetchMsg (const char* buf)
 // update shared flight data structures with received flight data
 bool ADSBBase::ProcessFetchedData ()
 {
-    // received an UNAUTHOIZRED response? Then the key is invalid!
-    if (httpResponse == HTTP_UNAUTHORIZED || httpResponse == HTTP_FORBIDDEN) {
-        SHOW_MSG(logERR, ERR_ADSBEX_KEY_FAILED,
-                 netDataPos ? FetchMsg(netData).c_str() : "");
-        SetValid(false);
+    // Should be OK now!
+    if (httpResponse != HTTP_OK) {
+        SHOW_MSG(logERR, "%s: Received non-OK status code %ld: '%s'",
+                 ChName(), httpResponse,
+                 netDataPos ? FetchMsg(netData).c_str() : "<no details>");
+        IncErrCnt();
         return false;
     }
 
@@ -332,6 +333,10 @@ std::string ADSBExchangeConnection::GetURL (const positionTy& pos)
 // get status info, including remaining requests
 std::string ADSBExchangeConnection::GetStatusText () const
 {
+    if (bForbidden) {
+        return "Not authorized. Enter/verify RAPID API Key in settings.";
+    }
+    
     std::string s = LTChannel::GetStatusText();
     if (IsValid() && IsEnabled() && dataRefs.ADSBExRLimit > 0)
     {
@@ -361,6 +366,9 @@ void ADSBExchangeConnection::Main ()
 {
     // This is a communication thread's main function, set thread's name and C locale
     ThreadSettings TS ("LT_ADSBEx", LC_ALL_MASK);
+    
+    // try it (again)
+    bForbidden = false;
     
     while ( shallRun() ) {
         // LiveTraffic Top Level Exception Handling
@@ -443,6 +451,24 @@ void ADSBExchangeConnection::CleanupCurl ()
 {
     LTOnlineChannel::CleanupCurl();
     CurlCleanupSlist(slistKey);
+}
+
+
+// Catch "unauthorized" responses, otherwise delegate to ADSBBase
+bool ADSBExchangeConnection::ProcessFetchedData ()
+{
+    // received an UNAUTHOIZRED response? Then the key is invalid!
+    if (httpResponse == HTTP_UNAUTHORIZED || httpResponse == HTTP_FORBIDDEN) {
+        bForbidden = true;
+        SHOW_MSG(logERR, ERR_ADSBEX_KEY_FAILED,
+                 netDataPos ? FetchMsg(netData).c_str() : "");
+        SetValid(false);
+        dataRefs.SetChannelEnabled(DR_CHANNEL_ADSB_EXCHANGE_ONLINE, false);
+        return false;
+    }
+    
+    // delegate
+    return ADSBBase::ProcessFetchedData();
 }
 
 // Specific handling for authentication errors
@@ -661,11 +687,25 @@ std::string AirplanesLiveConnection::GetURL (const positionTy& pos)
 }
 
 
+// get status info, including remaining requests
+std::string AirplanesLiveConnection::GetStatusText () const
+{
+    if (bForbidden) {
+        return AIRPLANES_FORBIDDEN;
+    }
+    
+    return ADSBBase::GetStatusText();
+}
+
+
 // virtual thread main function
 void AirplanesLiveConnection::Main ()
 {
     // This is a communication thread's main function, set thread's name and C locale
     ThreadSettings TS ("LT_AirplanesLive", LC_ALL_MASK);
+    
+    // Try it (again)
+    bForbidden = false;
     
     while ( shallRun() ) {
         // LiveTraffic Top Level Exception Handling
@@ -708,6 +748,22 @@ void AirplanesLiveConnection::Main ()
             IncErrCnt();
         }
     }
+}
+
+// Catch "unauthorized" responses, otherwise delegate to ADSBBase
+bool AirplanesLiveConnection::ProcessFetchedData ()
+{
+    // received an UNAUTHOIZRED response? Only available to feeders
+    if (httpResponse == HTTP_UNAUTHORIZED || httpResponse == HTTP_FORBIDDEN) {
+        bForbidden = true;
+        SHOW_MSG(logERR, AIRPLANES_FORBIDDEN);
+        SetValid(false);
+        dataRefs.SetChannelEnabled(DR_CHANNEL_AIRPLANES_LIVE, false);
+        return false;
+    }
+    
+    // delegate
+    return ADSBBase::ProcessFetchedData();
 }
 
 //
