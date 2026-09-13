@@ -2636,7 +2636,8 @@ void LTAircraft::UpdatePosition (float, int cycle)
 #ifdef DEBUG
         gSelAcCalc = fd.bIsSelected = bIsSelected = (key() == dataRefs.GetSelectedAcKey());
 #endif
-        
+        // *** Lock (on LTFlightData level) to prevent race conditions on changing LTAircraft data like the position queues ***
+        std::lock_guard<std::recursive_mutex> fdLock (fd.dataAccessMutex);
         
         // *** Position ***
         if (!CalcPPos())
