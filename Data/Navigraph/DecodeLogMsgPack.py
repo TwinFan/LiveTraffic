@@ -6,7 +6,7 @@ import sys
 import msgpack
 
 
-HEX_LINE_RE = re.compile(r'^[0-9A-Fa-f\s]+$')
+HEX_LINE_RE = re.compile(r'^[0-9A-Fa-f\s]+')
 
 FIELDS = [
     "flightId",
@@ -105,8 +105,8 @@ def process_log(filename):
             #
             # Start of a received message
             #
-            if "Navigraph/FR24 RECEIVED HTTP_OK:" in line:
-                collecting = True
+            if "Navigraph RECEIVED HTTP_OK:" in line:
+                collecting = True   
                 match = re.search(regTime, line)            # Find the timestamp in the line
                 if match:
                     msg_line = match.group()
@@ -133,7 +133,8 @@ def process_log(filename):
                 # Hex dump line?
                 #
                 if HEX_LINE_RE.match(stripped):
-                    hex_lines.append(stripped)
+                    # remember anything before the first pipe symbol
+                    hex_lines.append(stripped.split('|')[0].strip())
                     continue
 
                 #

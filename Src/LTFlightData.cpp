@@ -1021,7 +1021,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
                 // Case determined: We are landing and have live positional
                 //                  data down the runway
                 const double descendAlt      = toPos_ac.alt_m() - next.alt_m(); // height to sink
-                const double descendVSI      = pAc->GetVSI_m_s() + mdl.VSI_STABLE/3.0;  // we add a bit to the (neg.) VSI to sink less fast on the last leg to allow for time to flare (the cSpline needs that to end up flat)
+                const double descendVSI      = pAc->GetVSI_m_s() + (mdl.VSI_STABLE/3.0 * Ms_per_FTm);   // we add a bit to the (neg.) VSI to sink less fast on the last leg to allow for time to flare (the cSpline needs that to end up flat)
                 const double descendSpeed    = pAc->GetSpeed_m_s();             // the speed we assume for the touch down leg
                 const double timeToTouchDown = descendAlt / -descendVSI;        // time to descend to ground
                 const double tsOfTouchDown   = toPos_ac.ts() + timeToTouchDown; // when to touch down
@@ -1574,7 +1574,7 @@ bool LTFlightData::IsPosOK (double trackToPrevPos,
     // vector from last to this
     const vectorTy v = prevPos.between(thisPos);
     // maximum turn allowed depends on 'on ground' or not
-    const bool bOnGrnd = prevPos.IsOnGnd() && thisPos.IsOnGnd();
+    const bool bOnGrnd = prevPos.IsOnGnd() || thisPos.IsOnGnd();
     const double maxTurn = mdl.maxHeadChange(bOnGrnd, thisPos.ts() - prevPos.ts());
 
     // angle between last and this, i.e. turn angle at lastPos (to get to thisPos)
@@ -2456,42 +2456,6 @@ bool LTFlightData::IsParked (const positionTy** ppParkedPos) const
     if (ppParkedPos)
         *ppParkedPos = &GetAircraft()->GetPPos();
     return true;
-    
-/* TODO: Remove if no longer needed
-    // access to our queue guarded by a mutex
-    std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
-    
-    // lambda to return the "is parked" status and the pointer to the defining position
-    auto returnIsParked = [ppParkedPos](const positionTy* pPos)->bool {
-        // we are parked is flight phase or position say so
-        const bool bParked = pPos->f.flightPhase == FPH_PARKED ||
-                             pPos->f.specialPos == SPOS_STARTUP;
-        // if parked return a pointer to the position that said so
-        if (bParked && ppParkedPos) *ppParkedPos = pPos;
-        return bParked;
-    };
-    
-    // go in reverse through the posDeque to find the first position for which some status is clear
-    for (dequePositionTy::const_reverse_iterator i = posDeque.crbegin();
-         i != posDeque.crend();
-         i++)
-    {
-        // do we have information? -> return it
-        if (i->IsPostProcessed() || i->f.flightPhase != FPH_UNKNOWN)
-            return returnIsParked(&*i);
-    }
-    
-    // posDeque didn't have info, how about the a/c itself?
-    if (!hasAc()) return false;
-    
-    const LTAircraft& ac = *GetAircraft();
-    const positionTy& pos = ac.GetNewestPos();
-    if (pos.IsPostProcessed() || pos.f.flightPhase != FPH_UNKNOWN)
-        return returnIsParked(&pos);
-
-    // still no info found, eventually return the plane's current phase directly
-    return returnIsParked(&ac.GetPPos());
-*/
 }
 
 

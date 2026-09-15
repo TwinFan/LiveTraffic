@@ -1030,12 +1030,15 @@ void LTAircraft::CalcLabelInternal (const LTFlightData::FDStaticData& statDat)
 LTAircraft::operator std::string() const
 {
     char buf[4048];
-    snprintf(buf,sizeof(buf),"a/c %s\nloc:\n%s\naltSpline:\n%s\nheading: %s\n%s Y: %.1fft %.0fkn %.0fft/m Phase: %02d %s\nposList:\n",
+    snprintf(buf,sizeof(buf),"a/c %s\nloc: %s\naltSpline: %s\nheading: %s\n%s Y: %.1fft %.0fkn %.0fft/m Phase: %02d %s\nposList:\n",
              labelInternal.c_str(),
              // location: CSpline or Bezier or nothing
-             locSpline ? locSpline.dbgTxt().c_str() :
+/*             locSpline ? locSpline.dbgTxt().c_str() :
              locBezier ? locBezier.dbgTxt().c_str() : "<undefined>",
-             altSpline.dbgTxt().c_str(),
+             altSpline.dbgTxt().c_str(), */
+             locSpline ? "<Spline>" :
+             locBezier ? "<Bezier>" : "<undefined>",
+             altSpline ? "<defined>": "<undefined>",
              heading.dbgTxt().c_str(),
              ppos.dbgTxt().c_str(), GetTerrainAlt_ft(),
              GetSpeed_kt(),

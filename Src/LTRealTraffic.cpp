@@ -771,8 +771,7 @@ bool RealTrafficConnection::ProcessTrafficBuffer (const JSON_Object* pBuf)
             pos.f.onGrnd = GND_OFF;
             double d = jag_n_nan(pJAc, RT_DRCT_BaroAlt);    // prefer baro altitude
             if (!std::isnan(d)) {
-                if (!std::isnan(rtWx.QNH))
-                    d = BaroAltToGeoAlt_ft(d, rtWx.QNH);
+                d = BaroAltToGeoAlt_ft(d, rtWx.QNH);    // rtWx.QNH can be NAN, which is OK and handled by the function
                 pos.SetAltFt(d);
             }
             else                                        // else try geo altitude
@@ -2390,7 +2389,7 @@ bool RealTrafficConnection::ProcessAITFC (LTFlightData::FDKeyTy& fdKey,
         } else {
             // probably not on gnd, so take care of altitude
             // altitude comes without local pressure applied
-            pos.SetAltFt(BaroAltToGeoAlt_ft(std::stod(tfc[RT_AITFC_ALT]), dataRefs.GetPressureHPA()));
+            pos.SetAltFt(BaroAltToGeoAlt_ft(std::stod(tfc[RT_AITFC_ALT])));
         }
         
         // don't forget gnd-flag in position

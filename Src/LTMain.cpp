@@ -1020,14 +1020,14 @@ double smootherstep (double x, bool bLinearExtend)
     return x * x * x * (x * (6.0 * x - 15.0) + 10.0);
 }
 
-// Convert barometric altitude to pressure at that altitude, assume pressure alt got calculated with standard pressure at sea level in mind
+/// @brief Convert barometric altitude to pressure at that altitude, assume pressure alt got calculated with standard pressure at sea level in mind
 /// @see https://www.mide.com/air-pressure-at-altitude-calculator
-double PressureFromBaroAlt(double baroAlt_m, double refPressure)
+double PressureFromBaroAlt(double baroAlt_m, double refPressure = HPA_STANDARD)
 {
     return refPressure * std::pow(1.0 + baroAlt_m * TEMP_LAPS_R/TEMP_STANDARD, 1.0/R_Lb_G0_M);
 }
 
-// Convert a given pressure to an altitude, providing sea level pressure as reference
+/// @brief Convert a given pressure to an altitude, providing sea level pressure as reference
 /// @see https://www.mide.com/air-pressure-at-altitude-calculator
 double AltFromPressure(double pressure, double refPressure)
 {
@@ -1039,6 +1039,8 @@ double BaroAltToGeoAlt_m(double baroAlt_m, double refPressure)
 {
     if (baroAlt_m > TRANSITION_ALT_M)               // don't convert above transition altitude
         return baroAlt_m;
+    if (std::isnan(refPressure))                    // default reference pressure is what is currently applied locally
+        refPressure = dataRefs.GetPressureHPA();
     const double pressure = PressureFromBaroAlt(baroAlt_m);
     return AltFromPressure(pressure, refPressure);
 }
@@ -1048,6 +1050,8 @@ double GeoAltToBaroAlt_m(double geoAlt_m, double refPressure)
 {
     if (geoAlt_m > TRANSITION_ALT_M)                // don't convert above transition altitude
         return geoAlt_m;
+    if (std::isnan(refPressure))                    // default reference pressure is what is currently applied locally
+        refPressure = dataRefs.GetPressureHPA();
     const double pressure = PressureFromBaroAlt(geoAlt_m, refPressure);
     return AltFromPressure(pressure, HPA_STANDARD);
 }

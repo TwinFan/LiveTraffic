@@ -209,10 +209,7 @@ void ADSBBase::ProcessV2 (const JSON_Object* pJAc,
                 // try converting baro alt from given QNH, otherwise we use our own weather
                 const double baro_alt = json_number(pAltBaro);
                 const double qnh = jog_n_nan(pJAc, ADSBEX_V2_NAV_QNH);
-                if (std::isnan(qnh))
-                    pos.SetAltFt(BaroAltToGeoAlt_ft(baro_alt, dataRefs.GetPressureHPA()));
-                else
-                    pos.SetAltFt(BaroAltToGeoAlt_ft(baro_alt, qnh));
+                pos.SetAltFt(BaroAltToGeoAlt_ft(baro_alt, qnh));    // qnh can be NAN, which is OK and handled by the function
                 break;
             }
                 

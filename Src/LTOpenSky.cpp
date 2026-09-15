@@ -436,7 +436,7 @@ bool OpenSkyConnection::ProcessFetchedData ()
                 
                 // position
                 const double baroAlt_m = jag_n_nan(pJAc, OPSKY_BARO_ALT);
-                const double geoAlt_m = BaroAltToGeoAlt_m(baroAlt_m, dataRefs.GetPressureHPA());
+                const double geoAlt_m = BaroAltToGeoAlt_m(baroAlt_m);
                 positionTy pos (jag_n_nan(pJAc, OPSKY_LAT),
                                 jag_n_nan(pJAc, OPSKY_LON),
                                 geoAlt_m,

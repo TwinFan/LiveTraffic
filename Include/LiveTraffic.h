@@ -387,19 +387,21 @@ inline bool CheckEverySoOften (float& _lastCheck, float _interval)
 /// @see https://en.wikipedia.org/wiki/Smoothstep#Variations
 double smootherstep (double x, bool bLinearExtend = true);
 
-/// Convert barometric altitude to pressure at that altitude, assume pressure alt got calculated with standard pressure at sea level in mind
-double PressureFromBaroAlt(double baroAlt_m, double refPressure = HPA_STANDARD);
-/// Convert a given pressure to an altitude, providing sea level pressure as reference
-double AltFromPressure(double pressure, double refPressure);
-/// Convert a barometric altitude (based on std pressure) to a geometric altitude
-double BaroAltToGeoAlt_m(double baroAlt_m, double refPressure);
-/// Convert a barometric altitude (based on std pressure) to a geometric altitude
-inline double BaroAltToGeoAlt_ft(double baroAlt_ft, double refPressure)
+/// @brief Convert a barometric altitude (based on std pressure) to a geometric altitude
+/// @param baroAlt_m Barometric altitude to covert
+/// @param refPressure Reference local pressure, optional, by default `dataRefs.GetPressureHPA()`
+/// @returns converted geometric altitude in m
+double BaroAltToGeoAlt_m(double baroAlt_m, double refPressure = NAN);
+/// Convert a barometric altitude (based on std pressure) to a geometric altitude in feet by calling BaroAltToGeoAlt_m() and converting ft to m
+inline double BaroAltToGeoAlt_ft(double baroAlt_ft, double refPressure = NAN)
 { return BaroAltToGeoAlt_m(baroAlt_ft * M_per_FT, refPressure) / M_per_FT; }
 
-/// Convert a geometric altitude to a barometric altitude (based on std pressure)
-double GeoAltToBaroAlt_m(double geoAlt_m, double refPressure);
-/// Convert a geometric altitude to a barometric altitude (based on std pressure)
+/// @brief Convert a geometric altitude to a barometric altitude (based on std pressure)
+/// @param geoAlt_m Geometric altitude to covert
+/// @param refPressure Reference local pressure, optional, by default `dataRefs.GetPressureHPA()`
+/// @returns converted barometric altitude in m
+double GeoAltToBaroAlt_m(double geoAlt_m, double refPressure = NAN);
+/// Convert a geometric altitude to a barometric altitude (based on std pressure) by calling GeoAltToBaroAlt_m() and converting ft to m
 inline double GeoAltToBaroAlt_ft(double geoAlt_ft, double refPressure)
 { return GeoAltToBaroAlt_m(geoAlt_ft * M_per_FT, refPressure) / M_per_FT; }
 
