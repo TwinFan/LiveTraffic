@@ -518,9 +518,8 @@ std::string LTFlightData::ComposeLabel() const
         
         // only possible if we have an aircraft
         if (pAc) {
-            // If aircraft is parked and we shall not show labels for parked a/c, then return nothing
-            if (!dataRefs.LabelShowForParked() &&
-                pAc->GetFlightPhase() == FPH_PARKED)
+            // If aircraft is in a flight phase for which NOT to show labels, return no label
+            if (!dataRefs.LabelShowForPhase(pAc->GetFlightPhase()))
                 return "";
             
             // current position of a/c

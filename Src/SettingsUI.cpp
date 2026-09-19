@@ -1119,24 +1119,29 @@ void LTSettingsUI::buildInterface()
                                 HELP_SET_ACLABELS, "Open Help on Aircraft Label options in Browser",
                                 sFilter, nOpCl))
         {
-            // When to show?
+            // When to show? (View)
             unsigned c = dataRefs.GetLabelShowCfg().GetUInt();
             if (ImGui::FilteredLabel("Show in which views", sFilter)) {
-                ImGui::CheckboxFlags("External", &c, (1 << 0)); ImGui::SameLine();
-                ImGui::CheckboxFlags("Internal", &c, (1 << 1)); ImGui::SameLine();
-                ImGui::CheckboxFlags("VR",       &c, (1 << 2)); ImGui::SameLine();
-                ImGui::CheckboxFlags("Map",      &c, (1 << 3));
+                ImGui::CheckboxFlags("External###LabelsExt", &c, (1 << 0)); ImGui::SameLine();
+                ImGui::CheckboxFlags("Internal###LabelsInt", &c, (1 << 1)); ImGui::SameLine();
+                ImGui::CheckboxFlags("VR###LabelsVR",        &c, (1 << 2)); ImGui::SameLine();
+                ImGui::CheckboxFlags("Map###LabelsMap",      &c, (1 << 3));
                 ImGui::TableNextCell();
             }
             if (c != dataRefs.GetLabelShowCfg().GetUInt()) {
                 cfgSet(DR_CFG_LABEL_SHOWN, int(c));
                 XPMPEnableMap(true, dataRefs.ShallDrawMapLabels());
             }
-            
+            // When to show? (Flight Phase)
+            if (ImGui::FilteredLabel("Show in which flight phase", sFilter)) {
+                ImGui::CheckboxDr("Parked###LabelsPark",  DR_CFG_LABEL_FOR_PARKED);  ImGui::SameLine();
+                ImGui::CheckboxDr("Taxiing###LabelsTaxi", DR_CFG_LABEL_FOR_TAXIING); ImGui::SameLine();
+                ImGui::CheckboxDr("Flying###LabelsFly",   DR_CFG_LABEL_FOR_FLYING);  ImGui::SameLine();
+                ImGui::TableNextCell();
+            }
             // Label cut off: distance / visibility
             ImGui::FilteredCfgNumber  ("Max Distance",          sFilter, DR_CFG_LABEL_MAX_DIST, 1, 50, 1, "%d nm");
             ImGui::FilteredCfgCheckbox("Cut off at Visibility", sFilter, DR_CFG_LABEL_VISIBILITY_CUT_OFF);
-            ImGui::FilteredCfgCheckbox("Labels for Parked a/c", sFilter, DR_CFG_LABEL_FOR_PARKED);
 
             // Static / dynamic info
             c = dataRefs.GetLabelCfg().GetUInt();

@@ -536,6 +536,8 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/cfg/label_max_dist",              DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/label_visibility_cut_off",    DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
     {"livetraffic/cfg/label_for_parked",            DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
+    {"livetraffic/cfg/label_for_taxiing",           DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
+    {"livetraffic/cfg/label_for_flying",            DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true },
     {"livetraffic/cfg/label_col_dyn",               DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/label_color",                 DataRefs::LTGetInt, DataRefs::LTSetCfgValue,    GET_VAR, true },
     {"livetraffic/cfg/log_level",                   DataRefs::LTGetInt, DataRefs::LTSetLogLevel,    GET_VAR, true },
@@ -639,6 +641,8 @@ void* DataRefs::getVarAddr (dataRefsLT dr)
         case DR_CFG_LABEL_MAX_DIST:         return &labelMaxDist;
         case DR_CFG_LABEL_VISIBILITY_CUT_OFF: return &bLabelVisibilityCUtOff;
         case DR_CFG_LABEL_FOR_PARKED:       return &bLabelForParked;
+        case DR_CFG_LABEL_FOR_TAXIING:      return &bLabelForTaxiing;
+        case DR_CFG_LABEL_FOR_FLYING:       return &bLabelForFlying;
         case DR_CFG_LABEL_COL_DYN:          return &bLabelColDynamic;
         case DR_CFG_LABEL_COLOR:            return &labelColor;
         case DR_CFG_LOG_LEVEL:              return &iLogLevel;
@@ -1893,6 +1897,40 @@ void DataRefs::SetLastCheckedNewVerNow ()
     lastCheckNewVer = (int)
     std::chrono::duration_cast<std::chrono::hours>
     (std::chrono::system_clock::now().time_since_epoch()).count();
+}
+
+/// Shall show label depending on plane's flight phase?
+bool DataRefs::LabelShowForPhase(flightPhaseE ePhase) const
+{
+    switch (ePhase) {
+            // Parked
+        case FPH_UNKNOWN:
+        case FPH_PARKED:
+            return bLabelForParked;
+            // Taxiing
+        case FPH_PUSHBACK:
+        case FPH_TAXI:
+        case FPH_STOPPED_ON_RWY:
+            return bLabelForTaxiing;
+            // Flying
+        case FPH_TAKE_OFF:
+        case FPH_TO_ROLL:
+        case FPH_ROTATE:
+        case FPH_LIFT_OFF:
+        case FPH_INITIAL_CLIMB:
+        case FPH_CLIMB:
+        case FPH_CRUISE:
+        case FPH_DESCEND:
+        case FPH_APPROACH:
+        case FPH_FINAL:
+        case FPH_LANDING:
+        case FPH_FLARE:
+        case FPH_TOUCH_DOWN:
+        case FPH_ROLL_OUT:
+            return bLabelForFlying;
+    }
+    // Can't really get here...but make sure we always return something meaningful
+    return bLabelForFlying;
 }
 
 // return color into a RGB array as XP likes it
