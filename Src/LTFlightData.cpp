@@ -569,8 +569,10 @@ void LTFlightData::DataCleansing (bool& bChanged)
     // access guarded by a mutex
     std::lock_guard<std::recursive_mutex> lock (dataAccessMutex);
 
-    // nothing to cleanse?
-    if (posDeque.empty())
+    // Skip for helis
+    if (statData.hasRotor() ||
+        // nothing to cleanse?
+        posDeque.empty())
         return;
     
     // The flight model to use
@@ -678,6 +680,7 @@ void LTFlightData::SnapToTaxiways (bool& bChanged)
     if (dataRefs.GetFdSnapTaxiDist_m() <= 0 ||      // Snap-to-taxiway not enabled
         posDeque.empty() ||                         // no aircraft positions available to process
         statData.isGrndVehicle() ||                 // ground vehicle
+        statData.hasRotor() ||                      // helis
         (pAc && pAc->IsGroundVehicle()))
         return;
     
@@ -794,7 +797,8 @@ bool LTFlightData::CalcNextPos ( double simTime )
             // no positions left?
             if (posDeque.empty()) {
                 // If descending: Try finding a runway to land on
-                if (pAc->GetVSI_ft() < -pAc->pMdl->VSI_STABLE)
+                if (!statData.hasRotor() &&                             // not for helis
+                    pAc->GetVSI_ft() < -pAc->pMdl->VSI_STABLE)
                 {
                     // *** Auto-Land ***
                     const positionTy& acTo = pAc->GetToPos();
@@ -1000,8 +1004,8 @@ bool LTFlightData::CalcNextPos ( double simTime )
             SnapToTaxiways(bChanged);
         
         // *** Landing / Take-Off Detection ***
-        
-        if ( pAc && !posDeque.empty() ) {
+        //     (not for helis)
+        if ( pAc && !posDeque.empty() && !statData.hasRotor() ) {
             // *** Landing ***
             
             // If current pos is in the air and next pos is approaching or touching ground
@@ -1017,7 +1021,8 @@ bool LTFlightData::CalcNextPos ( double simTime )
 
             if (!toPos_ac.IsOnGnd() &&                      // currently not heading for ground
                 next.IsOnGnd() &&                           // future: on ground
-                pAc->GetVSI_ft() < -mdl.VSI_STABLE) {       // right now descending considerably
+                pAc->GetVSI_ft() < -mdl.VSI_STABLE)         // right now descending considerably
+            {
                 // Case determined: We are landing and have live positional
                 //                  data down the runway
                 const double descendAlt      = toPos_ac.alt_m() - next.alt_m(); // height to sink
