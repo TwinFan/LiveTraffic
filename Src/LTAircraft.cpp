@@ -928,7 +928,6 @@ tsLastCalcRequested(0),
 phase(FPH_UNKNOWN),
 rotateTs(NAN),
 vsi(0.0),
-bVsiNan(false),
 bArtificalPos(false),
 heading(pMdl->TAXI_TURN_TIME, 360, 0, true, true),
 corrAngle(pMdl->FLIGHT_TURN_TIME / 2.0, 90, -90, false, true),
@@ -1580,30 +1579,23 @@ bool LTAircraft::CalcPPos()
     // Calculate roll based on heading change
     CalcRoll(prevHead);
     
-    // *** VSI / Pitch ***
+    // *** Pitch ***
     //     can only be determined once sure about the altitude (like the above clamp to ground)
     
+    const double nextVsi =
     // On the ground hard-coded to 0.0 (terrain altitude not accurate enough).
-    vsi = bOnGrnd ? 0.0 :
-          // In the air, delta-altitude is VSI (convert from m/s to ft/min)
-          (ppos.alt_m() - prevAlt_m) / (currCycle.diffTime * Ms_per_FTm);
+    bOnGrnd ? 0.0 :
+    // there are (near-)zero cycles, don't know why, to avoid NAN values or even "div by zero" fatals check it first:
+    currCycle.diffTime < 0.001 ? NAN :
+    // In the air, delta-altitude is VSI (convert from m/s to ft/min)
+    (ppos.alt_m() - prevAlt_m) / (currCycle.diffTime * Ms_per_FTm);
     
-    // This is a temporary measure to remove a symptom for which I don't yet know the root cause.
+    // The above calculation can result in NAN...then we just don't change anything this cycle
     // See https://forums.x-plane.org/forums/topic/350264-aircraft-not-visible-when-flying-toliss-flightfactor-zibo-assert-failed/
-    if (std::isnan(vsi))
-    {
-        if (!bVsiNan) {
-            LOG_MSG(logERR, "%s: vsi is '%f'! Constituents: bOnGrnd = %d, ppos.alt_m() = %f, prevAlt_m = %f, currCycle.diffTime = %f | Setting vsi = 0",
-                    labelInternal.c_str(),
-                    vsi, bOnGrnd, ppos.alt_m(), prevAlt_m, currCycle.diffTime);
-            bVsiNan = true;
-        }
-        vsi = 0.0;
-    }
-    else if (bVsiNan) {
-        LOG_MSG(logERR, "%s: vsi now is a proper value: %f", labelInternal.c_str(), vsi);
-        bVsiNan = false;
-    }
+    if (!std::isnan(nextVsi))
+        vsi = nextVsi;
+
+    // *** Pitch ***
 
     // if there is a pre-programmed pitch movement follow that
     if (pitch.isProgrammed()) {
@@ -2012,10 +2004,12 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
 void LTAircraft::CalcRoll (double _prevHeading)
 {
     double newRoll = NAN;
+    float newNWangle = NAN;
     
     // How much of a turn did we do since last frame?
     const double partOfCircle = HeadingDiff(_prevHeading, ppos.heading()) / 360.0;
     const double timeFullCircle = std::abs(partOfCircle) < 0.00000001 ? NAN :   // Minuscle heading change, avoids divison by zero
+                                  currCycle.diffTime < 0.001 ? NAN :            // avoid division by zero if cycle length is near-zero
                                   currCycle.diffTime / partOfCircle;            // at current turn rate (if small then we turn _very_ fast!)
 
     // On the ground we should actually better be levelled, but we turn the nose wheel.
@@ -2028,27 +2022,36 @@ void LTAircraft::CalcRoll (double _prevHeading)
         
         // Nose wheel steering: Hm...we would need to know a lot about the plane's
         // geometry to do that exactly right...so we just guess: 30° for a standard turn:
-        SetNoseWheelAngle(std::isnan(timeFullCircle) ? 0.0f :
-                          30.0f * float(pMdl->TAXI_TURN_TIME / timeFullCircle));
+        if (!std::isnan(timeFullCircle))
+            newNWangle = MDL_NOSE_WHEEL_MAX_ANGLE * float(pMdl->TAXI_TURN_TIME / timeFullCircle);
     }
     else {
         // In the air we make sure nose wheel looks straight
-        SetNoseWheelAngle(0.0f);
+        newNWangle = 0.0f;
         
         // For the roll we assume that max bank angle is applied for the tightest turn.
         // If we are turning more slowly then we apply less bank angle.
-        newRoll = (std::isnan(timeFullCircle) ? 0.0 :
-                   std::abs(timeFullCircle) < pMdl->MIN_FLIGHT_TURN_TIME ? std::copysign(pMdl->ROLL_MAX_BANK,timeFullCircle) :
-                   pMdl->ROLL_MAX_BANK * pMdl->MIN_FLIGHT_TURN_TIME / timeFullCircle);
+        if (!std::isnan(timeFullCircle))
+            newRoll = pMdl->ROLL_MAX_BANK * pMdl->MIN_FLIGHT_TURN_TIME / timeFullCircle;
+    }
+
+    // Apply new Roll angle
+    if (!std::isnan(newRoll)) {
+        // safeguard against to harsh roll rates (similar to MovingParam):
+        if (std::abs(ppos.roll()-newRoll) > currCycle.diffTime * pMdl->ROLL_RATE) {
+            if (newRoll < ppos.roll()) ppos.roll() -= currCycle.diffTime * pMdl->ROLL_RATE;
+            else                       ppos.roll() += currCycle.diffTime * pMdl->ROLL_RATE;
+        }
+        else
+            ppos.roll() = newRoll;
     }
     
-    // safeguard against to harsh roll rates (similar to MovingParam):
-    if (std::abs(ppos.roll()-newRoll) > currCycle.diffTime * pMdl->ROLL_RATE) {
-        if (newRoll < ppos.roll()) ppos.roll() -= currCycle.diffTime * pMdl->ROLL_RATE;
-        else                       ppos.roll() += currCycle.diffTime * pMdl->ROLL_RATE;
+    // Apply new Nose Wheel angle, limited to +/- 30°
+    if (!std::isnan(newNWangle)) {
+        SetNoseWheelAngle(std::clamp(newNWangle,
+                                     -MDL_NOSE_WHEEL_MAX_ANGLE,
+                                     MDL_NOSE_WHEEL_MAX_ANGLE));
     }
-    else
-        ppos.roll() = newRoll;
 }
 
 
