@@ -919,7 +919,9 @@ LTAircraft::LTAircraft(LTFlightData& inFd) :
 XPMP2::Aircraft(str_first_non_empty({dataRefs.cslFixAcIcaoType, inFd.WaitForSafeCopyStat().acTypeIcao}).c_str(),
                 str_first_non_empty({dataRefs.cslFixOpIcao,     inFd.WaitForSafeCopyStat().airlineCode()}).c_str(),
                 str_first_non_empty({dataRefs.cslFixLivery,     inFd.WaitForSafeCopyStat().reg}).c_str(),
-                inFd.key().num < MAX_MODE_S_ID ? (XPMPPlaneID)inFd.key().num : 0),      // OGN Ids can be larger than MAX_MODE_S_ID, in that case let XPMP2 assign a synthetic id
+                inFd.key().num < MAX_MODE_S_ID ? (XPMPPlaneID)inFd.key().num : 0,       // OGN Ids can be larger than MAX_MODE_S_ID, in that case let XPMP2 assign a synthetic id
+                "",
+                str_first_non_empty({dataRefs.cslFixCallSign,   inFd.WaitForSafeCopyStat().call}).c_str()),
 // class members
 fd(inFd),
 pMdl(&FlightModel::FindFlightModel(inFd, true)),      // find matching flight model
@@ -928,7 +930,6 @@ tsLastCalcRequested(0),
 phase(FPH_UNKNOWN),
 rotateTs(NAN),
 vsi(0.0),
-bVsiNan(false),
 bArtificalPos(false),
 heading(pMdl->TAXI_TURN_TIME, 360, 0, true, true),
 corrAngle(pMdl->FLIGHT_TURN_TIME / 2.0, 90, -90, false, true),
@@ -1030,12 +1031,15 @@ void LTAircraft::CalcLabelInternal (const LTFlightData::FDStaticData& statDat)
 LTAircraft::operator std::string() const
 {
     char buf[4048];
-    snprintf(buf,sizeof(buf),"a/c %s\nloc:\n%s\naltSpline:\n%s\nheading: %s\n%s Y: %.1fft %.0fkn %.0fft/m Phase: %02d %s\nposList:\n",
+    snprintf(buf,sizeof(buf),"a/c %s\nloc: %s\naltSpline: %s\nheading: %s\n%s Y: %.1fft %.0fkn %.0fft/m Phase: %02d %s\nposList:\n",
              labelInternal.c_str(),
              // location: CSpline or Bezier or nothing
-             locSpline ? locSpline.dbgTxt().c_str() :
+/*             locSpline ? locSpline.dbgTxt().c_str() :
              locBezier ? locBezier.dbgTxt().c_str() : "<undefined>",
-             altSpline.dbgTxt().c_str(),
+             altSpline.dbgTxt().c_str(), */
+             locSpline ? "<Spline>" :
+             locBezier ? "<Bezier>" : "<undefined>",
+             altSpline ? "<defined>": "<undefined>",
              heading.dbgTxt().c_str(),
              ppos.dbgTxt().c_str(), GetTerrainAlt_ft(),
              GetSpeed_kt(),
@@ -1577,30 +1581,23 @@ bool LTAircraft::CalcPPos()
     // Calculate roll based on heading change
     CalcRoll(prevHead);
     
-    // *** VSI / Pitch ***
+    // *** Pitch ***
     //     can only be determined once sure about the altitude (like the above clamp to ground)
     
+    const double nextVsi =
     // On the ground hard-coded to 0.0 (terrain altitude not accurate enough).
-    vsi = bOnGrnd ? 0.0 :
-          // In the air, delta-altitude is VSI (convert from m/s to ft/min)
-          (ppos.alt_m() - prevAlt_m) / (currCycle.diffTime * Ms_per_FTm);
+    bOnGrnd ? 0.0 :
+    // there are (near-)zero cycles, don't know why, to avoid NAN values or even "div by zero" fatals check it first:
+    currCycle.diffTime < 0.001 ? NAN :
+    // In the air, delta-altitude is VSI (convert from m/s to ft/min)
+    (ppos.alt_m() - prevAlt_m) / (currCycle.diffTime * Ms_per_FTm);
     
-    // This is a temporary measure to remove a symptom for which I don't yet know the root cause.
+    // The above calculation can result in NAN...then we just don't change anything this cycle
     // See https://forums.x-plane.org/forums/topic/350264-aircraft-not-visible-when-flying-toliss-flightfactor-zibo-assert-failed/
-    if (std::isnan(vsi))
-    {
-        if (!bVsiNan) {
-            LOG_MSG(logERR, "%s: vsi is '%f'! Constituents: bOnGrnd = %d, ppos.alt_m() = %f, prevAlt_m = %f, currCycle.diffTime = %f | Setting vsi = 0",
-                    labelInternal.c_str(),
-                    vsi, bOnGrnd, ppos.alt_m(), prevAlt_m, currCycle.diffTime);
-            bVsiNan = true;
-        }
-        vsi = 0.0;
-    }
-    else if (bVsiNan) {
-        LOG_MSG(logERR, "%s: vsi now is a proper value: %f", labelInternal.c_str(), vsi);
-        bVsiNan = false;
-    }
+    if (!std::isnan(nextVsi))
+        vsi = nextVsi;
+
+    // *** Pitch ***
 
     // if there is a pre-programmed pitch movement follow that
     if (pitch.isProgrammed()) {
@@ -2009,10 +2006,12 @@ void LTAircraft::CalcFlightModel (const positionTy& /*from*/, const positionTy& 
 void LTAircraft::CalcRoll (double _prevHeading)
 {
     double newRoll = NAN;
+    float newNWangle = NAN;
     
     // How much of a turn did we do since last frame?
     const double partOfCircle = HeadingDiff(_prevHeading, ppos.heading()) / 360.0;
     const double timeFullCircle = std::abs(partOfCircle) < 0.00000001 ? NAN :   // Minuscle heading change, avoids divison by zero
+                                  currCycle.diffTime < 0.001 ? NAN :            // avoid division by zero if cycle length is near-zero
                                   currCycle.diffTime / partOfCircle;            // at current turn rate (if small then we turn _very_ fast!)
 
     // On the ground we should actually better be levelled, but we turn the nose wheel.
@@ -2025,27 +2024,36 @@ void LTAircraft::CalcRoll (double _prevHeading)
         
         // Nose wheel steering: Hm...we would need to know a lot about the plane's
         // geometry to do that exactly right...so we just guess: 30° for a standard turn:
-        SetNoseWheelAngle(std::isnan(timeFullCircle) ? 0.0f :
-                          30.0f * float(pMdl->TAXI_TURN_TIME / timeFullCircle));
+        if (!std::isnan(timeFullCircle))
+            newNWangle = MDL_NOSE_WHEEL_MAX_ANGLE * float(pMdl->TAXI_TURN_TIME / timeFullCircle);
     }
     else {
         // In the air we make sure nose wheel looks straight
-        SetNoseWheelAngle(0.0f);
+        newNWangle = 0.0f;
         
         // For the roll we assume that max bank angle is applied for the tightest turn.
         // If we are turning more slowly then we apply less bank angle.
-        newRoll = (std::isnan(timeFullCircle) ? 0.0 :
-                   std::abs(timeFullCircle) < pMdl->MIN_FLIGHT_TURN_TIME ? std::copysign(pMdl->ROLL_MAX_BANK,timeFullCircle) :
-                   pMdl->ROLL_MAX_BANK * pMdl->MIN_FLIGHT_TURN_TIME / timeFullCircle);
+        if (!std::isnan(timeFullCircle))
+            newRoll = pMdl->ROLL_MAX_BANK * pMdl->MIN_FLIGHT_TURN_TIME / timeFullCircle;
+    }
+
+    // Apply new Roll angle
+    if (!std::isnan(newRoll)) {
+        // safeguard against to harsh roll rates (similar to MovingParam):
+        if (std::abs(ppos.roll()-newRoll) > currCycle.diffTime * pMdl->ROLL_RATE) {
+            if (newRoll < ppos.roll()) ppos.roll() -= currCycle.diffTime * pMdl->ROLL_RATE;
+            else                       ppos.roll() += currCycle.diffTime * pMdl->ROLL_RATE;
+        }
+        else
+            ppos.roll() = newRoll;
     }
     
-    // safeguard against to harsh roll rates (similar to MovingParam):
-    if (std::abs(ppos.roll()-newRoll) > currCycle.diffTime * pMdl->ROLL_RATE) {
-        if (newRoll < ppos.roll()) ppos.roll() -= currCycle.diffTime * pMdl->ROLL_RATE;
-        else                       ppos.roll() += currCycle.diffTime * pMdl->ROLL_RATE;
+    // Apply new Nose Wheel angle, limited to +/- 30°
+    if (!std::isnan(newNWangle)) {
+        SetNoseWheelAngle(std::clamp(newNWangle,
+                                     -MDL_NOSE_WHEEL_MAX_ANGLE,
+                                     MDL_NOSE_WHEEL_MAX_ANGLE));
     }
-    else
-        ppos.roll() = newRoll;
 }
 
 
@@ -2636,7 +2644,8 @@ void LTAircraft::UpdatePosition (float, int cycle)
 #ifdef DEBUG
         gSelAcCalc = fd.bIsSelected = bIsSelected = (key() == dataRefs.GetSelectedAcKey());
 #endif
-        
+        // *** Lock (on LTFlightData level) to prevent race conditions on changing LTAircraft data like the position queues ***
+        std::lock_guard<std::recursive_mutex> fdLock (fd.dataAccessMutex);
         
         // *** Position ***
         if (!CalcPPos())
@@ -2773,7 +2782,8 @@ void LTAircraft::ChangeModel ()
     const std::string oldModelName(GetModelName());
     XPMP2::Aircraft::ChangeModel(str_first_non_empty({dataRefs.cslFixAcIcaoType, statData.acTypeIcao}),
                                  str_first_non_empty({dataRefs.cslFixOpIcao,     statData.airlineCode()}),
-                                 str_first_non_empty({dataRefs.cslFixLivery,     statData.reg}));
+                                 str_first_non_empty({dataRefs.cslFixLivery,     statData.reg}),
+                                 str_first_non_empty({dataRefs.cslFixCallSign,   statData.call}));
     CalcLabelInternal(statData);
 
     // if there was an actual change inform the log

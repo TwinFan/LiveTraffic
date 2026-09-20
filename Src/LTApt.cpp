@@ -2654,6 +2654,7 @@ positionTy LTAptFindRwy (const LTAircraft::FlightModel& _mdl,
     
     // --- Iterate the airports ---
     // Access to the list of airports is guarded by a lock
+    if (!LTAptAvailable()) return positionTy();
     std::unique_lock<std::recursive_timed_mutex> lock(mtxGMapApt,
                                                       dataRefs.IsXPThread() ?
                                                       std::chrono::milliseconds(100) :
@@ -2756,6 +2757,7 @@ positionTy LTAptFindRwy (const LTAircraft::FlightModel& _mdl,
 bool LTAptSnapIfOverRwy (positionTy& _pos)
 {
     // Access to the list of airports is guarded by a lock
+    if (!LTAptAvailable()) return false;
     std::unique_lock<std::recursive_timed_mutex> lock(mtxGMapApt,
                                                       dataRefs.IsXPThread() ?
                                                       std::chrono::milliseconds(100) :
@@ -2884,8 +2886,16 @@ void LTAptDisable ()
 bool LTAptDump (const std::string& _aptId)
 {
     // find the airport by id
-    if (gmapApt.count(_aptId) < 1) return false;
+    if (!LTAptAvailable() ||
+        gmapApt.count(_aptId) < 1) return false;
     try {
+        // Access to the list of airports is guarded by a lock, but we are careful how long we wait for it
+        std::unique_lock<std::recursive_timed_mutex> lock(mtxGMapApt,
+                                                          dataRefs.IsXPThread() ?
+                                                          std::chrono::milliseconds(100) :
+                                                          std::chrono::milliseconds(500));
+        if (!lock) return false;
+        
         const Apt& apt = gmapApt.at(_aptId);
         
         // open the output file

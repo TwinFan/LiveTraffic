@@ -79,7 +79,7 @@ NvgrTrafficData::NvgrTrafficData (MsgPack& msg)
             else if (field == NVGR_ALT) {       // barometric altitude given in feet
                 const double baroAlt_m = msg.GetDouble() * M_per_FT;
                 if (pos.f.onGrnd != GND_ON)     // only set/overwrite if not already clear that we are on the ground
-                    pos.alt_m() = BaroAltToGeoAlt_m(baroAlt_m, dataRefs.GetPressureHPA());
+                    pos.alt_m() = baroAlt_m;    // store barometric altitude for now, is going to be converted later
             }
             else if (field == NVGR_SPD)         spd             = msg.GetDouble();
             else if (field == NVGR_GND) {       // ground flag
@@ -482,6 +482,13 @@ bool NvgrFR24Connection::ProcessFetchedData ()
                 // Analysis shows there are situations, in which they will
                 // be ground positions, and others where they must be in the air already.
                 // Conclusion: We just ignore the data.
+                // Note: Apparently Navigraph never sends negative altitude.
+                //       However, it would need to do so in high pressure situations
+                //       near sea level (say Sydney or similar) or in actual
+                //       below zero locations (dead see). The following code
+                //       removes also such data.
+                //       Should be OK during approach as we just follow the sink rate.
+                //       For take offs that might be just too much data missing...
                 if (nvgrData.pos.f.onGrnd == GND_OFF &&
                     dequal(nvgrData.pos.alt_m(), 0.0))
                 {
@@ -489,6 +496,10 @@ bool NvgrFR24Connection::ProcessFetchedData ()
                             nvgrData.key.c_str(), nvgrData.pos.dbgTxt().c_str());
                     continue;
                 }
+
+                // Convert barometric to geometric altitude
+                if (!nvgrData.pos.IsOnGnd())
+                    nvgrData.pos.alt_m() = BaroAltToGeoAlt_m(nvgrData.pos.alt_m());
                 
                 // from here on access to fdMap guarded by a mutex
                 // until FD object is inserted and updated

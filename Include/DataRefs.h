@@ -381,7 +381,9 @@ enum dataRefsLT {
     DR_CFG_LABEL_SHOWN,
     DR_CFG_LABEL_MAX_DIST,
     DR_CFG_LABEL_VISIBILITY_CUT_OFF,
-    DR_CFG_LABEL_FOR_PARKED,
+    DR_CFG_LABEL_FOR_PARKED,        ///< labels for parked aircraft
+    DR_CFG_LABEL_FOR_TAXIING,       ///< labels for taxiing aircraft
+    DR_CFG_LABEL_FOR_FLYING,        ///< labels for flying aircraft
     DR_CFG_LABEL_COL_DYN,
     DR_CFG_LABEL_COLOR,
     DR_CFG_LOG_LEVEL,
@@ -726,6 +728,8 @@ protected:
     int labelMaxDist    = 3;            ///< [nm] max label distance
     int bLabelVisibilityCUtOff = true;  ///< cut off labels at reported visibility?
     int bLabelForParked     = true;     ///< show labels for parked aircraft?
+    int bLabelForTaxiing    = true;     ///< show labels for taxiing aircraft?
+    int bLabelForFlying     = true;     ///< show labels for flying aircraft?
     int bLabelColDynamic    = false;    ///< dynamic label color?
     int labelColor      = COLOR_YELLOW;             ///< label color, by default yellow
     int maxNumAc        = DEF_MAX_NUM_AC;           ///< how many aircraft to create at most?
@@ -811,6 +815,7 @@ public:
     std::string cslFixAcIcaoType;       // set of fixed values to use for...
     std::string cslFixOpIcao;           // ...newly created aircraft for...
     std::string cslFixLivery;           // ...CSL model package testing
+    std::string cslFixCallSign;
     
 // MARK: Public members
 public:
@@ -997,7 +1002,7 @@ public:
     inline LabelCfgTy GetLabelCfg() const { return labelCfg; }
     inline LabelShowCfgTy GetLabelShowCfg() const { return labelShown; }
     inline bool IsLabelColorDynamic() const { return bLabelColDynamic; }
-    bool LabelShowForParked() const { return bLabelForParked; }
+    bool LabelShowForPhase(flightPhaseE ePhase) const;
     inline int GetLabelColor() const { return labelColor; }
     void GetLabelColor (float outColor[4]) const;
     inline int GetMaxNumAc() const { return maxNumAc; }

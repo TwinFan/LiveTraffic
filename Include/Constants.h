@@ -116,6 +116,7 @@ constexpr double MDL_TIRE_SLOW_TIME = 5.0;  ///< [s] time till tires stop rotati
 constexpr double MDL_TIRE_MAX_RPM = 2000;   ///< [rpm] max tire rotation speed
 constexpr double MDL_TIRE_CF_M      = 3.2;  ///< [m] tire circumfence (3.2m for a 40-inch tire)
 constexpr double MDL_GEAR_DEFL_TIME = 0.5;  ///< [s] time for gear deflection (one direction...up down is twice this value)
+constexpr float  MDL_NOSE_WHEEL_MAX_ANGLE = 30.0f;  ///< [°] max nose wheel angle
 constexpr double MDL_CAR_MAX_TAXI = 80.0;   ///< [kn] Maximum allowed taxi speed for ground vehicles (before they turn into planes)
 constexpr double MDL_GLIDER_STOP_ROLL=7.0;  ///< [°] a stopped glider is tilted to rest on one of its wings
 
@@ -200,7 +201,7 @@ constexpr const char* REMOTE_SIGNATURE      =  "TwinFan.plugin.XPMP2.Remote";
 #define INFO_AC_SHOWN_AUTO      "A/c %s automatically visible"
 #define MSG_TOO_MANY_AC         "Reached limit of %d aircraft, will render nearest aircraft only."
 #define MSG_CSL_PACKAGE_LOADED  "Successfully loaded CSL package %s"
-#define MSG_MDL_FORCED          "Settings > Debug: Model matching forced to '%s'/'%s'/'%s'"
+#define MSG_MDL_FORCED          "Settings > Debug: Model matching forced to '%s'/'%s'/'%s'/'%s'"
 #define MSG_MDL_NOT_FORCED      "Settings > Debug: Model matching no longer forced"
 #define WHITESPACE              " \t\f\v\r\n"
 #define CSL_DEFAULT_ICAO_TYPE   "A320"

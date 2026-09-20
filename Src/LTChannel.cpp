@@ -753,25 +753,37 @@ void LTOnlineChannel::DebugLogRaw(const char *data, long httpCode, size_t dataLe
     bool bHex = false;
     if (dataLen > 0) {                      // if length is given, then there's a chance it is non-printable data
         for (size_t i = 0; !bHex && i < std::min<size_t>(dataLen, 100); ++i)
-            if (!std::isprint(data[i]))     // if anything non-printable, then do hex dump
+            // if anything non-printable, then do hex dump
+            if (!std::isprint(data[i]) && !std::isspace(data[i]))
                 bHex = true;
     }
     
     // *** Hex Dump ***
     
     if (bHex) {
+        const size_t LINE_LN = 32;
         const uint8_t* pIn = reinterpret_cast<const uint8_t*>(data);
+        
+        // String for printable characters, added to end of line
+        std::string sPrintable;
         
         // Configure the string stream for hex format
         outRaw << std::hex << std::setfill('0');
         // Output each byte
-        for (size_t i = 0; i < dataLen; ++i) {
+        size_t i = 0;
+        for (i = 0; i < dataLen; ++i) {
             const unsigned uOut = pIn[i];
             outRaw << std::setw(2) << uOut << " ";      // 2 digit output
+            sPrintable += std::isprint(int(uOut)) ? char(uOut) : '.';
             // new line after 32 chars
-            if ((i + 1) % 32 == 0 && (i + 1) < dataLen) {
-                outRaw << "\n";
+            if ((i + 1) % LINE_LN == 0 && (i + 1) < dataLen) {
+                outRaw << " | " << sPrintable << '\n';
+                sPrintable.clear();
             }
+        }
+        // Finish output of last line
+        if (i % LINE_LN > 0) {
+            outRaw << std::string((LINE_LN - (i % LINE_LN)) * 3, ' ') << " | " << sPrintable << '\n';
         }
     }
     

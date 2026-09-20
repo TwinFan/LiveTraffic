@@ -72,6 +72,7 @@ gndVehicleEntry (dataRefs.GetDefaultCarIcaoType()),
 txtDebugFilter  (dataRefs.GetDebugAcFilter()),
 txtFixAcType    (dataRefs.cslFixAcIcaoType),
 txtFixOp        (dataRefs.cslFixOpIcao),
+txtFixCall      (dataRefs.cslFixCallSign),
 txtFixLivery    (dataRefs.cslFixLivery)
 {
     /// GNF_COUNT is not available in SettingsUI.h (due to order of include files), make _now_ sure that aFlarmAcTys has the correct size
@@ -263,28 +264,6 @@ void LTSettingsUI::buildInterface()
                 }
             }
             
-            // --- Airplanes.live ---
-            if (ImGui::TreeNodeCbxLinkHelp(AIRPLANES_NAME, nCol,
-                                           DR_CHANNEL_AIRPLANES_LIVE, "Connect to Airplanes.live for tracking data",
-                                           ICON_FA_EXTERNAL_LINK_SQUARE_ALT " " AIRPLANES_CHECK_NAME,
-                                           AIRPLANES_CHECK_URL,
-                                           AIRPLANES_CHECK_POPUP,
-                                           HELP_SET_CH_AIRPLANES, "Open Help on Airplanes.live in Browser",
-                                           sFilter, nOpCl))
-            {
-                // Airplanes.live's connection status details
-                if (ImGui::FilteredLabel("Connection Status", sFilter)) {
-                    if (const LTChannel* pAirplanesCh = LTFlightDataGetCh(DR_CHANNEL_AIRPLANES_LIVE)) {
-                        ImGui::TextWrapped("%s", pAirplanesCh->GetStatusText().c_str());
-                    } else {
-                        ImGui::TextUnformatted("Off");
-                    }
-                    ImGui::TableNextCell();
-                }
-                
-                if (!*sFilter) ImGui::TreePop();
-            }
-
             // --- adsb.fi ---
             if (ImGui::TreeNodeCbxLinkHelp(ADSBFI_NAME, nCol,
                                            DR_CHANNEL_ADSB_FI_ONLINE, "Connect to adsb.fi for tracking data",
@@ -448,35 +427,6 @@ void LTSettingsUI::buildInterface()
                 if (!*sFilter) ImGui::TreePop();
             }
             
-            // --- ADSBHub ---
-            const bool bWasADSBHubEnabled = dataRefs.IsChannelEnabled(DR_CHANNEL_ADSB_HUB);
-            if (ImGui::TreeNodeCbxLinkHelp(ADSBHUB_NAME, nCol,
-                                           DR_CHANNEL_ADSB_HUB, "Connect to ADSBHub for tracking data, requires feeder setup",
-                                           ICON_FA_EXTERNAL_LINK_SQUARE_ALT " " ADSBHUB_CHECK_NAME,
-                                           ADSBHUB_CHECK_URL,
-                                           ADSBHUB_CHECK_POPUP,
-                                           HELP_SET_CH_ADSBHUB, "Open Help on ADSBHub in Browser",
-                                           sFilter, nOpCl))
-            {
-                // If ADSBHub has just been enabled then, as a courtesy,
-                // we also make sure that OpenSky Masterdata File is enabled as it doesn't send a/c type info
-                if (!bWasADSBHubEnabled && dataRefs.IsChannelEnabled(DR_CHANNEL_ADSB_HUB)) {
-                    dataRefs.SetChannelEnabled(DR_CHANNEL_OPEN_SKY_AC_MASTERFILE, true);
-                }
-                
-                // ADSBHub's connection status details
-                if (ImGui::FilteredLabel("Connection Status", sFilter)) {
-                    if (const LTChannel* pADSBHubCh = LTFlightDataGetCh(DR_CHANNEL_ADSB_HUB)) {
-                        ImGui::TextWrapped("%s", pADSBHubCh->GetStatusText().c_str());
-                    } else {
-                        ImGui::TextUnformatted("Off");
-                    }
-                    ImGui::TableNextCell();
-                }
-                
-                if (!*sFilter) ImGui::TreePop();
-            }
-
             // --- Open Glider Network ---
             if (ImGui::TreeNodeCbxLinkHelp(OPGLIDER_NAME, nCol,
                                            DR_CHANNEL_OPEN_GLIDER_NET, "Enable OGN tracking data",
@@ -502,7 +452,7 @@ void LTSettingsUI::buildInterface()
                     ImGui::TextUnformatted("Map FLARM's aircraft types to one or more ICAO types for model matching:");
                     ImGui::TableNextCell();
                 }
-                    
+                
                 // One edit field for each Flarm aircraft type
                 for (size_t i = 0; i < aFlarmAcTys.size(); i++) {
                     // Flarm Aircraft Type in human readable text
@@ -515,7 +465,7 @@ void LTSettingsUI::buildInterface()
                             ImGui::Indicator(false, "", "Too short a text to serve as ICAO aircraft type");
                             ImGui::TableNextCell();
                         }
-
+                        
                         // Edit field for entering ICAO aircraft type(s)
                         ImGui::SetNextItemWidth(2 * fSmallWidth);
                         ImGui::InputText("", &aFlarmAcTys[i], ImGuiInputTextFlags_CharsUppercase);
@@ -545,6 +495,57 @@ void LTSettingsUI::buildInterface()
                 if (!*sFilter) ImGui::TreePop();
             }
             
+            // --- Airplanes.live ---
+            if (ImGui::TreeNodeCbxLinkHelp(AIRPLANES_NAME, nCol,
+                                           DR_CHANNEL_AIRPLANES_LIVE, "Connect to Airplanes.live for tracking data",
+                                           ICON_FA_EXTERNAL_LINK_SQUARE_ALT " " AIRPLANES_CHECK_NAME,
+                                           AIRPLANES_CHECK_URL,
+                                           AIRPLANES_CHECK_POPUP,
+                                           HELP_SET_CH_AIRPLANES, "Open Help on Airplanes.live in Browser",
+                                           sFilter, nOpCl))
+            {
+                // Airplanes.live's connection status details
+                if (ImGui::FilteredLabel("Connection Status", sFilter)) {
+                    if (const LTChannel* pAirplanesCh = LTFlightDataGetCh(DR_CHANNEL_AIRPLANES_LIVE)) {
+                        ImGui::TextWrapped("%s", pAirplanesCh->GetStatusText().c_str());
+                    } else {
+                        ImGui::TextUnformatted("Off");
+                    }
+                    ImGui::TableNextCell();
+                }
+                
+                if (!*sFilter) ImGui::TreePop();
+            }
+            
+            // --- ADSBHub ---
+            const bool bWasADSBHubEnabled = dataRefs.IsChannelEnabled(DR_CHANNEL_ADSB_HUB);
+            if (ImGui::TreeNodeCbxLinkHelp(ADSBHUB_NAME, nCol,
+                                           DR_CHANNEL_ADSB_HUB, "Connect to ADSBHub for tracking data, requires feeder setup",
+                                           ICON_FA_EXTERNAL_LINK_SQUARE_ALT " " ADSBHUB_CHECK_NAME,
+                                           ADSBHUB_CHECK_URL,
+                                           ADSBHUB_CHECK_POPUP,
+                                           HELP_SET_CH_ADSBHUB, "Open Help on ADSBHub in Browser",
+                                           sFilter, nOpCl))
+            {
+                // If ADSBHub has just been enabled then, as a courtesy,
+                // we also make sure that OpenSky Masterdata File is enabled as it doesn't send a/c type info
+                if (!bWasADSBHubEnabled && dataRefs.IsChannelEnabled(DR_CHANNEL_ADSB_HUB)) {
+                    dataRefs.SetChannelEnabled(DR_CHANNEL_OPEN_SKY_AC_MASTERFILE, true);
+                }
+                
+                // ADSBHub's connection status details
+                if (ImGui::FilteredLabel("Connection Status", sFilter)) {
+                    if (const LTChannel* pADSBHubCh = LTFlightDataGetCh(DR_CHANNEL_ADSB_HUB)) {
+                        ImGui::TextWrapped("%s", pADSBHubCh->GetStatusText().c_str());
+                    } else {
+                        ImGui::TextUnformatted("Off");
+                    }
+                    ImGui::TableNextCell();
+                }
+                
+                if (!*sFilter) ImGui::TreePop();
+            }
+
             // --- RealTraffic ---
             if (ImGui::TreeNodeCbxLinkHelp(REALTRAFFIC_NAME, nCol,
                                            DR_CHANNEL_REAL_TRAFFIC_ONLINE,
@@ -1119,24 +1120,29 @@ void LTSettingsUI::buildInterface()
                                 HELP_SET_ACLABELS, "Open Help on Aircraft Label options in Browser",
                                 sFilter, nOpCl))
         {
-            // When to show?
+            // When to show? (View)
             unsigned c = dataRefs.GetLabelShowCfg().GetUInt();
             if (ImGui::FilteredLabel("Show in which views", sFilter)) {
-                ImGui::CheckboxFlags("External", &c, (1 << 0)); ImGui::SameLine();
-                ImGui::CheckboxFlags("Internal", &c, (1 << 1)); ImGui::SameLine();
-                ImGui::CheckboxFlags("VR",       &c, (1 << 2)); ImGui::SameLine();
-                ImGui::CheckboxFlags("Map",      &c, (1 << 3));
+                ImGui::CheckboxFlags("External###LabelsExt", &c, (1 << 0)); ImGui::SameLine();
+                ImGui::CheckboxFlags("Internal###LabelsInt", &c, (1 << 1)); ImGui::SameLine();
+                ImGui::CheckboxFlags("VR###LabelsVR",        &c, (1 << 2)); ImGui::SameLine();
+                ImGui::CheckboxFlags("Map###LabelsMap",      &c, (1 << 3));
                 ImGui::TableNextCell();
             }
             if (c != dataRefs.GetLabelShowCfg().GetUInt()) {
                 cfgSet(DR_CFG_LABEL_SHOWN, int(c));
                 XPMPEnableMap(true, dataRefs.ShallDrawMapLabels());
             }
-            
+            // When to show? (Flight Phase)
+            if (ImGui::FilteredLabel("Show in which flight phase", sFilter)) {
+                ImGui::CheckboxDr("Parked###LabelsPark",  DR_CFG_LABEL_FOR_PARKED);  ImGui::SameLine();
+                ImGui::CheckboxDr("Taxiing###LabelsTaxi", DR_CFG_LABEL_FOR_TAXIING); ImGui::SameLine();
+                ImGui::CheckboxDr("Flying###LabelsFly",   DR_CFG_LABEL_FOR_FLYING);  ImGui::SameLine();
+                ImGui::TableNextCell();
+            }
             // Label cut off: distance / visibility
             ImGui::FilteredCfgNumber  ("Max Distance",          sFilter, DR_CFG_LABEL_MAX_DIST, 1, 50, 1, "%d nm");
             ImGui::FilteredCfgCheckbox("Cut off at Visibility", sFilter, DR_CFG_LABEL_VISIBILITY_CUT_OFF);
-            ImGui::FilteredCfgCheckbox("Labels for Parked a/c", sFilter, DR_CFG_LABEL_FOR_PARKED);
 
             // Static / dynamic info
             c = dataRefs.GetLabelCfg().GetUInt();
@@ -1617,6 +1623,7 @@ void LTSettingsUI::buildInterface()
         !dataRefs.GetDebugAcFilter().empty() ||
         !dataRefs.cslFixAcIcaoType.empty() ||
         !dataRefs.cslFixOpIcao.empty() ||
+        !dataRefs.cslFixCallSign.empty() ||
         !dataRefs.cslFixLivery.empty();
 
         if (ImGui::TreeNodeLinkHelp("Debug", nCol,
@@ -1655,22 +1662,28 @@ void LTSettingsUI::buildInterface()
                                     sFilter, nOpCl,
                                     (bLimitations ? ImGuiTreeNodeFlags_DefaultOpen : 0) | ImGuiTreeNodeFlags_SpanFullWidth))
             {
-                bool bChanged = ImGui::FilteredInputText("ICAO a/c type", sFilter, txtFixAcType, fSmallWidth, nullptr, flags);
-                bChanged = ImGui::FilteredInputText("ICAO operator/airline", sFilter, txtFixOp, fSmallWidth, nullptr, flags) || bChanged;
+                bool bChanged = ImGui::FilteredInputText("ICAO a/c type",    sFilter, txtFixAcType, fSmallWidth, nullptr, flags);
+                bChanged = ImGui::FilteredInputText("ICAO operator/airline", sFilter, txtFixOp,     fSmallWidth, nullptr, flags) || bChanged;
+                bChanged = ImGui::FilteredInputText("Call sign",             sFilter, txtFixCall,   fSmallWidth, nullptr, flags) || bChanged;
                 bChanged = ImGui::FilteredInputText("Livery / registration", sFilter, txtFixLivery, fSmallWidth, nullptr, flags) || bChanged;
                 if (bChanged) {
+                    ImGuiContext* pCtxt = ImGui::GetCurrentContext();       // don't know what happens due to processing the values, better keep our context to avoid crashes
                     dataRefs.cslFixAcIcaoType = txtFixAcType;
                     dataRefs.cslFixOpIcao = txtFixOp;
+                    dataRefs.cslFixCallSign = txtFixCall;
                     dataRefs.cslFixLivery = txtFixLivery;
                     if (dataRefs.cslFixAcIcaoType.empty()   &&
                         dataRefs.cslFixOpIcao.empty()       &&
+                        dataRefs.cslFixCallSign.empty()     &&
                         dataRefs.cslFixLivery.empty())
                         SHOW_MSG(logWARN, MSG_MDL_NOT_FORCED)
                     else
                         SHOW_MSG(logWARN, MSG_MDL_FORCED,
                                  dataRefs.cslFixAcIcaoType.c_str(),
                                  dataRefs.cslFixOpIcao.c_str(),
+                                 dataRefs.cslFixCallSign.c_str(),
                                  dataRefs.cslFixLivery.c_str());
+                    ImGui::SetCurrentContext(pCtxt);
                 }
                 
                 if (!*sFilter) ImGui::TreePop();

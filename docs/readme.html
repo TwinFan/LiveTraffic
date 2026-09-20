@@ -133,6 +133,54 @@
 
     <h2>v4</h2>
 
+    <h3>v4.6.4</h3>
+    
+    <P>
+    <b>Update:</b> In case of doubt you can always just copy all files from the archive
+    over the files of your existing installation.
+    </P>
+    
+    <P>At least copy the following files, which have changed compared to v4.6.3:</P>
+    <ul>
+        <li><code>lin|mac|win_x64/LiveTraffic.xpl</code></li>
+    </ul>
+    
+    <P>Change log:</P>
+    
+    <ul>
+        <li>Added <a href="https://github.com/TwinFan/LiveTraffic/issues/325">#325</a>
+            options to show/hide labels per flight phases "Parked", "Taxiing", "Flying"
+            to <a href="https://twinfan.gitbook.io/livetraffic/setup/configuration/settings-a-c-labels">Settings Aircraft Labels</a>.
+        <li>Fixed <a href="https://github.com/TwinFan/LiveTraffic/issues/327">#327</a> planes landing long,
+            especially for <b>Navigraph</b> data in high pressure situations on airports close to sea level,
+            where the bug even led to planes not landing at all.</li>
+        <li><b>Airplanes.live</b>: Since Aug-2026 only available to
+            <a href="https://airplanes.live/get-started/">feeders</a>,
+            <a href="https://forums.x-plane.org/forums/topic/350530-airplaneslive-inop-for-non-feeders-with-misleading-error-api-key-invalid/#findComment-3059546">see here</a> for details.<br>
+            Changed error handling to point this out more clearly.<br>
+            <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/airplanes.live">Documentation</a>
+            had been updated earlier already.
+        </li>
+        <li>Added <a href="https://github.com/TwinFan/LiveTraffic/issues/328">#328</a>
+            an enhancement to <b>model matching</b>, that allows to use the Call Sign
+            <i>in addition</i> to the ICAO Operator Code, if the latter doesn't
+            produce a match. See
+            <a href="https://twinfan.github.io/XPMP2/Matching.html">documentation</a>
+            for more details.
+        </li>
+        <li><b>Mac/Linux</b>: Fixed a race condition <a href="https://github.com/TwinFan/LiveTraffic/issues/326">#326</a>
+            that can have caused CTDs in thread "LT_CalcPos" as discussed
+            <a href="https://forums.x-plane.org/forums/topic/345618-ctd-in-lt_calcpos-calcnextpos-since-lt-435-seen-on-linux-and-mac/">here</a>.
+        </li>
+        <li>Fixed <a href="https://github.com/TwinFan/LiveTraffic/issues/323">#323</a>
+            <b>helicopters</b> being snapped to runways or taxiways. They can no roam freely.
+        </li>
+        <li>Final fix <a href="https://github.com/TwinFan/LiveTraffic/issues/324">#324</a>
+            for ASSERT FAILED due to VSI NAN,
+            removing the temporary logging introduced with v4.6.3.
+        </li>
+    </ul>
+    
     <h3>v4.6.3</h3>
     
     <P>
@@ -140,7 +188,7 @@
     over the files of your existing installation.
     </P>
     
-    <P>At least copy the following files, which have changed compared to v4.6.0:</P>
+    <P>At least copy the following files, which have changed compared to v4.6.2:</P>
     <ul>
         <li><code>lin|mac|win_x64/LiveTraffic.xpl</code></li>
     </ul>

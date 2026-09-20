@@ -128,6 +128,7 @@ protected:
 class ADSBExchangeConnection : public ADSBBase
 {
 protected:
+    bool    bForbidden = false;                             ///< Did we receive a HTTP_FORBIDDEN response?
     std::string apiKey;
     struct curl_slist* slistKey = NULL;
 public:
@@ -142,6 +143,8 @@ protected:
     bool InitCurl () override;
     void CleanupCurl () override;
     
+    /// Catch "unauthorized" responses, otherwise delegate to ADSBBase
+    bool ProcessFetchedData () override;
     /// Specific handling for authentication errors
     bool ProcessErrors (const JSON_Object* pObj) override;
 
@@ -175,14 +178,21 @@ protected:
 #define AIRPLANES_NAME          "Airplanes.live"
 #define AIRPLANES_URL           "https://api.airplanes.live/v2/point/%.3f/%.3f/%d"  // lat/lon/radius
 
+#define AIRPLANES_FORBIDDEN     "Forbidden! Airplanes.live is only available to feeders, see https://airplanes.live/get-started/"
+
 class AirplanesLiveConnection : public ADSBBase
 {
+protected:
+    bool    bForbidden = false;                             ///< Did we receive a HTTP_FORBIDDEN response?
 public:
     AirplanesLiveConnection ();                             ///< Constructor
     std::string GetURL (const positionTy& pos) override;    ///< Compile Airplanes.live request URL
-    
+    std::string GetStatusText () const override;            ///< process 'forbidden', otherwise delegate
+
 protected:
     void Main () override;                                  ///< virtual thread main function
+    /// Catch "unauthorized" responses, otherwise delegate to ADSBBase
+    bool ProcessFetchedData () override;
     bool ProcessErrors (const JSON_Object*) override        ///< No specific error processing for Airplanes.live
     { return true; }
 };
