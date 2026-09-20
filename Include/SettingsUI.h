@@ -105,6 +105,7 @@ protected:
     std::string txtDebugFilter;     ///< filter for single aircraft
     std::string txtFixAcType;       ///< fixed aircraft type
     std::string txtFixOp;           ///< fixed operator
+    std::string txtFixCall;         ///< fixed call sign
     std::string txtFixLivery;       ///< fixed livery
     std::string txtAptDump;         ///< airport id for dumping
 public:

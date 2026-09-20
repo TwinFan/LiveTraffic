@@ -72,6 +72,7 @@ gndVehicleEntry (dataRefs.GetDefaultCarIcaoType()),
 txtDebugFilter  (dataRefs.GetDebugAcFilter()),
 txtFixAcType    (dataRefs.cslFixAcIcaoType),
 txtFixOp        (dataRefs.cslFixOpIcao),
+txtFixCall      (dataRefs.cslFixCallSign),
 txtFixLivery    (dataRefs.cslFixLivery)
 {
     /// GNF_COUNT is not available in SettingsUI.h (due to order of include files), make _now_ sure that aFlarmAcTys has the correct size
@@ -1622,6 +1623,7 @@ void LTSettingsUI::buildInterface()
         !dataRefs.GetDebugAcFilter().empty() ||
         !dataRefs.cslFixAcIcaoType.empty() ||
         !dataRefs.cslFixOpIcao.empty() ||
+        !dataRefs.cslFixCallSign.empty() ||
         !dataRefs.cslFixLivery.empty();
 
         if (ImGui::TreeNodeLinkHelp("Debug", nCol,
@@ -1660,22 +1662,28 @@ void LTSettingsUI::buildInterface()
                                     sFilter, nOpCl,
                                     (bLimitations ? ImGuiTreeNodeFlags_DefaultOpen : 0) | ImGuiTreeNodeFlags_SpanFullWidth))
             {
-                bool bChanged = ImGui::FilteredInputText("ICAO a/c type", sFilter, txtFixAcType, fSmallWidth, nullptr, flags);
-                bChanged = ImGui::FilteredInputText("ICAO operator/airline", sFilter, txtFixOp, fSmallWidth, nullptr, flags) || bChanged;
+                bool bChanged = ImGui::FilteredInputText("ICAO a/c type",    sFilter, txtFixAcType, fSmallWidth, nullptr, flags);
+                bChanged = ImGui::FilteredInputText("ICAO operator/airline", sFilter, txtFixOp,     fSmallWidth, nullptr, flags) || bChanged;
+                bChanged = ImGui::FilteredInputText("Call sign",             sFilter, txtFixCall,   fSmallWidth, nullptr, flags) || bChanged;
                 bChanged = ImGui::FilteredInputText("Livery / registration", sFilter, txtFixLivery, fSmallWidth, nullptr, flags) || bChanged;
                 if (bChanged) {
+                    ImGuiContext* pCtxt = ImGui::GetCurrentContext();       // don't know what happens due to processing the values, better keep our context to avoid crashes
                     dataRefs.cslFixAcIcaoType = txtFixAcType;
                     dataRefs.cslFixOpIcao = txtFixOp;
+                    dataRefs.cslFixCallSign = txtFixCall;
                     dataRefs.cslFixLivery = txtFixLivery;
                     if (dataRefs.cslFixAcIcaoType.empty()   &&
                         dataRefs.cslFixOpIcao.empty()       &&
+                        dataRefs.cslFixCallSign.empty()     &&
                         dataRefs.cslFixLivery.empty())
                         SHOW_MSG(logWARN, MSG_MDL_NOT_FORCED)
                     else
                         SHOW_MSG(logWARN, MSG_MDL_FORCED,
                                  dataRefs.cslFixAcIcaoType.c_str(),
                                  dataRefs.cslFixOpIcao.c_str(),
+                                 dataRefs.cslFixCallSign.c_str(),
                                  dataRefs.cslFixLivery.c_str());
+                    ImGui::SetCurrentContext(pCtxt);
                 }
                 
                 if (!*sFilter) ImGui::TreePop();

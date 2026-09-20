@@ -201,7 +201,7 @@ constexpr const char* REMOTE_SIGNATURE      =  "TwinFan.plugin.XPMP2.Remote";
 #define INFO_AC_SHOWN_AUTO      "A/c %s automatically visible"
 #define MSG_TOO_MANY_AC         "Reached limit of %d aircraft, will render nearest aircraft only."
 #define MSG_CSL_PACKAGE_LOADED  "Successfully loaded CSL package %s"
-#define MSG_MDL_FORCED          "Settings > Debug: Model matching forced to '%s'/'%s'/'%s'"
+#define MSG_MDL_FORCED          "Settings > Debug: Model matching forced to '%s'/'%s'/'%s'/'%s'"
 #define MSG_MDL_NOT_FORCED      "Settings > Debug: Model matching no longer forced"
 #define WHITESPACE              " \t\f\v\r\n"
 #define CSL_DEFAULT_ICAO_TYPE   "A320"

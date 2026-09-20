@@ -815,6 +815,7 @@ public:
     std::string cslFixAcIcaoType;       // set of fixed values to use for...
     std::string cslFixOpIcao;           // ...newly created aircraft for...
     std::string cslFixLivery;           // ...CSL model package testing
+    std::string cslFixCallSign;
     
 // MARK: Public members
 public:
