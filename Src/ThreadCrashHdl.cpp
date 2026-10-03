@@ -10,7 +10,7 @@
 ///             out crashes in plugins and doesn't write a dump any longer
 ///             in such cases).
 /// @author     Birger Hoppe
-/// @copyright  (c) 2024 Birger Hoppe
+/// @copyright  (c) 2026 Birger Hoppe
 /// @copyright  Permission is hereby granted, free of charge, to any person obtaining a
 ///             copy of this software and associated documentation files (the "Software"),
 ///             to deal in the Software without restriction, including without limitation
@@ -329,6 +329,10 @@ void handle_crash(EXCEPTION_POINTERS *ei)
 #endif
 {
     char sz[1024];
+    
+    // Current time stamp for later logging
+    const float netwTime = dataRefs.GetMiscNetwTime();
+    const std::string sNetwTime ( NetwTimeString(netwTime) );
 
     // Determine a name for the dump file
     char szFileName[255];
@@ -393,7 +397,8 @@ void handle_crash(EXCEPTION_POINTERS *ei)
 	}
 	
     // Last thing: we _try_ to leave a trace in X-Plane's Log.txt
-    snprintf(sz, sizeof(sz), "LiveTraffic crashed%s%s by signal %d, please upload this Log.txt and the following dump file to the LiveTraffic Support Forum:\n",
+    snprintf(sz, sizeof(sz), "%s LiveTraffic crashed%s%s by signal %d, please upload this Log.txt and the following dump file to the LiveTraffic Support Forum:\n",
+        sNetwTime.c_str(),
         *crash_thread_name ? " in thread " : "",
         *crash_thread_name ? crash_thread_name : "",
         sig);
@@ -403,7 +408,8 @@ void handle_crash(EXCEPTION_POINTERS *ei)
 	write_mini_dump(ei, szFileName);
 
     // Last thing: we _try_ to leave a trace in X-Plane's Log.txt
-    snprintf(sz, sizeof(sz), "LiveTraffic crashed%s%s by %s at address %p, please upload this Log.txt and the following dump file to the LiveTraffic Support Forum:\n",
+    snprintf(sz, sizeof(sz), "%s LiveTraffic crashed%s%s by %s at address %p, please upload this Log.txt and the following dump file to the LiveTraffic Support Forum:\n",
+        sNetwTime.c_str(),
         *crash_thread_name ? " in thread " : "",
         *crash_thread_name ? crash_thread_name : "",
         ExceptionCode2Txt(ei->ExceptionRecord->ExceptionCode),
