@@ -94,7 +94,7 @@ constexpr long RT_DRCT_DEFAULT_WAIT = long(SIMILAR_TS_INTVL) * 1000;        ///<
 constexpr std::chrono::seconds RT_DRCT_ERR_WAIT = std::chrono::seconds(5);  ///< standard wait between errors
 constexpr std::chrono::seconds RT_DRCT_ERR_RATE = std::chrono::seconds(10); ///< wait in case of rate violations, too many sessions
 constexpr std::chrono::minutes RT_DRCT_WX_WAIT = std::chrono::minutes(1);   ///< How often to update weather?
-constexpr int RT_DRCT_MAX_WX_ERR = 5;                                       ///< Max number of consecutive errors during initial weather requests we wait for...before not asking for weather any longer
+constexpr int RT_DRCT_MAX_WX_ERR = 3;                                       ///< Max number of consecutive errors during initial weather requests we wait for...before not asking for weather any longer
 constexpr int RT_CNT_SEND_TIMING = 240;                                     ///< RT App: After how many position messages also to send a timing message? (with 250ms period, 240 means: every minute)
 constexpr int RT_BUFFER_PERIOD = 10;                                        ///< [s] When requesting buffered traffic, how much time between two buffers?
 

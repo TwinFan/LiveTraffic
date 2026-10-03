@@ -213,6 +213,7 @@ void RealTrafficConnection::MainDirect ()
     ThreadSettings TS ("LT_RT_Direct", LC_ALL_MASK);
     // can right away read parked traffic if parked aircraft enabled and airport data is already available, otherwise we'll be triggered later when airport data has been processed
     bDoParkedTraffic = dataRefs.ShallKeepParkedAircraft() && LTAptAvailable();
+    tLastParkedRefresh = 0;
     // If we could theoretically set weather we prepare the interpolation settings
     if (WeatherCanSet()) {
         rtWx.interp = LTWeather::ComputeInterpol(RT_ATMOS_LAYERS,
@@ -537,10 +538,26 @@ bool RealTrafficConnection::ProcessFetchedData ()
             IncErrCnt();
             tNextTraffic = tNextWeather = std::chrono::steady_clock::now() + RT_DRCT_ERR_WAIT;
             return false;
-            
+
+        case HTTP_PROXY_AUTH_REQU:
         case HTTP_INTERNAL_ERR:
+            // RealTraffic returns 500 or 407 (???) with text "History too far back" if attempting to read historic data from too long ago
+            if (stribeginwith(rMsg, "History too far back")) {
+                SHOW_MSG(logERR, "RealTraffic returned an error: %ld - %s", rStatus, rMsg.c_str());
+                SetValid(false,true);               // set invalid, stop trying
+                return false;
+            }
+            // RealTraffic returns 500 with text "No parked traffic data" for example if attempting to read historic data...ignore parked traffic then
+            if (stribeginwith(rMsg, "No parked traffic data")) {
+                LOG_MSG(logWARN, "RealTraffic returned an error: %ld - %s", rStatus, rMsg.c_str());
+                bDoParkedTraffic = false;                   // don't do parked traffic now
+                tLastParkedRefresh = std::time(nullptr);    // earliest after the RT_PARKED_REFRESH_INTVL_S period again
+                return true;                                // just ignore the error, it's handled
+            }
+            [[fallthrough]];
+            
         default:
-            LOG_MSG(logERR, "RealTraffic returned an error: %s", rMsg.c_str());
+            LOG_MSG(logERR, "RealTraffic returned an error: %ld - %s", rStatus, rMsg.c_str());
             IncErrCnt();
             tNextTraffic = tNextWeather = std::chrono::steady_clock::now() + RT_DRCT_ERR_WAIT;
             return false;
@@ -657,16 +674,34 @@ bool RealTrafficConnection::ProcessFetchedData ()
     }
     
     // If RealTraffic returns `full_count = 0` then something's wrong...
-    // like data requested too far in the past
+    // like data requested too far in the past.
+    // But as full_count=0 is occasionally also returned for normal requests,
+    // we report on it only after seeing it 3 times in a row:
+    static unsigned cntFullCountZero = 0;
     lTotalFlights = jog_l(pObj, "full_count");
     if (lTotalFlights == 0) {
-        static std::chrono::steady_clock::time_point prevWarn;
-        const auto now = std::chrono::steady_clock::now();
-        if (now - prevWarn > std::chrono::minutes(5)) {
+        ++cntFullCountZero;
+        // After 9 times in a row give up!
+        if (cntFullCountZero >= 9) {
+            // Show to user
+            SHOW_MSG(logERR, "GIVING UP: RealTraffic has no traffic at all! %s",
+                     curr.tOff > 0 ? "Maybe requested historic data too far in the past?" : "(full_count=0)");
+            SetValid(false,true);               // set invalid, stop trying
+            return false;
+        }
+        // Every 3rd response in a row tell the user
+        if (cntFullCountZero % 3 == 0) {
+            // Show to user
             SHOW_MSG(logWARN, "RealTraffic has no traffic at all! %s",
                      curr.tOff > 0 ? "Maybe requested historic data too far in the past?" : "(full_count=0)");
-            prevWarn = now;
+        } else {
+            // else just log
+            LOG_MSG(logINFO, "RealTraffic has no traffic at all! %s",
+                    curr.tOff > 0 ? "Maybe requested historic data too far in the past?" : "(full_count=0)");
         }
+    } else {
+        // full_count is greater zero -> we've got data (again)
+        cntFullCountZero = 0;
     }
     
     // The 'data' object holds the aircraft data in two different variants:

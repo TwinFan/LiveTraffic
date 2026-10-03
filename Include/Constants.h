@@ -327,6 +327,7 @@ constexpr long HTTP_PAYMENT_REQU =  402;
 constexpr long HTTP_FORBIDDEN =     403;
 constexpr long HTTP_NOT_FOUND =     404;
 constexpr long HTTP_METH_NOT_ALLWD =405;
+constexpr long HTTP_PROXY_AUTH_REQU=407;
 constexpr long HTTP_TOO_MANY_REQU = 429;        ///< too many requests, e.g. OpenSky after request limit ran out
 constexpr long HTTP_INTERNAL_ERR =  500;
 constexpr long HTTP_BAD_GATEWAY =   502;        // typical cloudflare responses: Bad Gateway

@@ -852,7 +852,7 @@
 				LIVETRAFFIC_VERSION_BETA = 1;
 				LIVETRAFFIC_VER_MAJOR = 4;
 				LIVETRAFFIC_VER_MINOR = 6;
-				LIVETRAFFIC_VER_PATCH = 4;
+				LIVETRAFFIC_VER_PATCH = 5;
 				LLVM_LTO = NO;
 				MACH_O_TYPE = mh_dylib;
 				MACOSX_DEPLOYMENT_TARGET = 10.15;
@@ -972,7 +972,7 @@
 				LIVETRAFFIC_VERSION_BETA = 1;
 				LIVETRAFFIC_VER_MAJOR = 4;
 				LIVETRAFFIC_VER_MINOR = 6;
-				LIVETRAFFIC_VER_PATCH = 4;
+				LIVETRAFFIC_VER_PATCH = 5;
 				LLVM_LTO = YES;
 				MACH_O_TYPE = mh_dylib;
 				MACOSX_DEPLOYMENT_TARGET = 10.15;
@@ -1003,7 +1003,6 @@
 					"$(inherited)",
 					"$(PROJECT_DIR)/Lib/fmod",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 11.0;
 				OTHER_LDFLAGS = (
 					"$(OTHER_LDFLAGS)",
 					"-Wl,-exported_symbol",
@@ -1040,7 +1039,6 @@
 					"$(inherited)",
 					"$(PROJECT_DIR)/Lib/fmod",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 11.0;
 				OTHER_LDFLAGS = (
 					"$(OTHER_LDFLAGS)",
 					"-Wl,-exported_symbol",
