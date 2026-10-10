@@ -781,6 +781,7 @@ protected:
     
     std::string sDefaultAcIcaoType  = CSL_DEFAULT_ICAO_TYPE;
     std::string sDefaultCarIcaoType = CSL_CAR_ICAO_TYPE;
+    std::string sDefaultLiveryAirline;  ///< Default airline code in case no better livery match
     std::string sSoundDevice = CFG_SND_NO_DEVICE;               ///< Output sound device name
     std::string sOpenSkyClient;         ///< OpenSky Network Client ID
     std::string sOpenSkySecret;         ///< OpenSky Network Client Secret
@@ -1046,8 +1047,10 @@ public:
     bool LoadCSLPackage(const std::string& _path);
     const std::string& GetDefaultAcIcaoType() const { return sDefaultAcIcaoType; }
     const std::string& GetDefaultCarIcaoType() const { return sDefaultCarIcaoType; }
-    bool SetDefaultAcIcaoType(const std::string type);
-    bool SetDefaultCarIcaoType(const std::string type);
+    const std::string& GetDefaultLiveryAirline() const { return sDefaultLiveryAirline; }
+    bool SetDefaultAcIcaoType(const std::string& type);
+    bool SetDefaultCarIcaoType(const std::string& type);
+    void SetDefaultLiveryAirline(const std::string& airline);
     
     WeatherCtrlTy GetWeatherControl() const { return weatherCtl; }
     int GetWeatherMaxMetarHeight_ft() const { return weatherMaxMETARheight_ft; }

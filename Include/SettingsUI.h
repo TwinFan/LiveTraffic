@@ -96,6 +96,8 @@ protected:
     int acTypeOK = 0;               ///< -1 error, 0 untested, 1 OK
     std::string gndVehicleEntry;    ///< edit buffer for ground vehicle
     int gndVehicleOK = 0;           ///< -1 error, 0 untested, 1 OK
+    std::string defLiveryEntry;     ///< edit buffer for default livery
+    int defLiveryOK = 0;            ///< 0 unsaved, 1 saved
 
     // Advanced
     std::vector<std::string> vecSndDevs;    ///< List of possible sound devices

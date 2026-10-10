@@ -68,6 +68,7 @@ bADSBExKeyClearText (sADSBExKeyEntry.empty()),
 // Fill CSL type entry with current values
 acTypeEntry     (dataRefs.GetDefaultAcIcaoType()),
 gndVehicleEntry (dataRefs.GetDefaultCarIcaoType()),
+defLiveryEntry  (dataRefs.GetDefaultLiveryAirline()),
 // Fill debug entry texts with current values
 txtDebugFilter  (dataRefs.GetDebugAcFilter()),
 txtFixAcType    (dataRefs.cslFixAcIcaoType),
@@ -1442,6 +1443,24 @@ void LTSettingsUI::buildInterface()
                         gndVehicleOK = dataRefs.SetDefaultCarIcaoType(gndVehicleEntry) ? 1 : -1;
                     }
                     if (ImGui::IsItemEdited()) gndVehicleOK = 0;
+                    ImGui::TableNextCell();
+                }
+                
+                if (ImGui::FilteredLabel("Default Livery", sFilter)) {
+                    // Indicator if saved OK
+                    if (defLiveryOK > 0) {
+                        ImGui::TablePrevCell();
+                        ImGui::Indicator(true,
+                                         "New default livery airline code successfully saved", "");
+                        ImGui::TableNextCell();
+                    }
+                    ImGui::SetNextItemWidth(fSmallWidth);
+                    ImGui::InputText("##DefLivery", &defLiveryEntry, ImGuiInputTextFlags_CharsUppercase);
+                    if (ImGui::IsItemDeactivatedAfterEdit()) {
+                        dataRefs.SetDefaultLiveryAirline(defLiveryEntry);
+                        defLiveryOK = 1;
+                    }
+                    if (ImGui::IsItemEdited()) defLiveryOK = 0;
                     ImGui::TableNextCell();
                 }
                 

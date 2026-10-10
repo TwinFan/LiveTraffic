@@ -2337,6 +2337,8 @@ bool DataRefs::LoadConfigFile()
                 SetDefaultAcIcaoType(sVal);
             else if (sDataRef == CFG_DEFAULT_CAR_TYPE)
                 SetDefaultCarIcaoType(sVal);
+            else if (sDataRef == CFG_DEFAULT_LIVERY)
+                SetDefaultLiveryAirline(sVal);
             else if (sDataRef == CFG_SOUND_DEVICE)
                 sSoundDevice = sVal;            // can't set device now, too early
             else if (sDataRef == CFG_OPENSKY_CLIENT)
@@ -2489,8 +2491,10 @@ bool DataRefs::SaveConfigFile()
     fOut << CFG_WNDPOS_ILW << ' ' << ILWrect << '\n';
     
     // *** Strings ***
-    fOut << CFG_DEFAULT_AC_TYPE << ' ' << GetDefaultAcIcaoType() << '\n';
+    fOut << CFG_DEFAULT_AC_TYPE  << ' ' << GetDefaultAcIcaoType() << '\n';
     fOut << CFG_DEFAULT_CAR_TYPE << ' ' << GetDefaultCarIcaoType() << '\n';
+    if (!GetDefaultLiveryAirline().empty())
+        fOut << CFG_DEFAULT_LIVERY   << ' ' << GetDefaultLiveryAirline() << '\n';
     if (!sSoundDevice.empty())
         fOut << CFG_SOUND_DEVICE << ' ' << sSoundDevice << '\n';
     if (!sOpenSkyClient.empty())
@@ -2578,7 +2582,7 @@ bool DataRefs::LoadCSLPackage(const std::string& _path)
 
 
 // sets the default a/c icao type after validation with Doc8643
-bool DataRefs::SetDefaultAcIcaoType(const std::string type)
+bool DataRefs::SetDefaultAcIcaoType(const std::string& type)
 {
     if (Doc8643::get(type) != DOC8643_EMPTY) {
         sDefaultAcIcaoType = type;
@@ -2595,7 +2599,7 @@ bool DataRefs::SetDefaultAcIcaoType(const std::string type)
 
 // sets default car type. this is a fake value, so no validation agains Doc8643
 // but still needs to be 1 through 4 characters long
-bool DataRefs::SetDefaultCarIcaoType(const std::string type)
+bool DataRefs::SetDefaultCarIcaoType(const std::string& type)
 {
     if (1 <= type.length() && type.length() <= 4) {
         sDefaultCarIcaoType = type;
@@ -2609,6 +2613,19 @@ bool DataRefs::SetDefaultCarIcaoType(const std::string type)
             sDefaultCarIcaoType.c_str());
     return false;
 }
+
+/// Set the default livery airline code
+void DataRefs::SetDefaultLiveryAirline(const std::string& airline)
+{
+    if (sDefaultLiveryAirline != airline) {
+        sDefaultLiveryAirline = airline;
+        XPMPSetDefaultLivery(sDefaultLiveryAirline.c_str());
+        if (!sDefaultLiveryAirline.empty()) {
+            LOG_MSG(logINFO,CFG_DEFAULT_LIVERY_INFO,sDefaultLiveryAirline.c_str());
+        }
+    }
+}
+
 
 // Set the channel's status
 void DataRefs::SetChannelEnabled (dataRefsLT ch, bool bEnable)
