@@ -127,7 +127,16 @@ bool FDInfo::UpdateFrom (const LTFlightData& fd)
         v[ACT_COL_MAN]          = stat.man;
         v[ACT_COL_MDL]          = stat.mdl;
         v[ACT_COL_CAT_DESCR]    = stat.catDescr;
-        v[ACT_COL_OP]           = stat.op;
+        if (!stat.opIcao.empty()) {                 // operator: opIcao + ' ' + op
+            v[ACT_COL_OP]           = stat.opIcao;
+            if (!stat.op.empty()) {
+                v[ACT_COL_OP] += ' ';
+                v[ACT_COL_OP] += stat.op;
+            }
+        }
+        else {
+            v[ACT_COL_OP]           = stat.op;
+        }
         v[ACT_COL_CALLSIGN]     = stat.call;
         v[ACT_COL_FLIGHT]       = stat.flight;
         v[ACT_COL_ROUTE]        = stat.route();
