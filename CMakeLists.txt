@@ -149,6 +149,9 @@ add_compile_definitions(APL=$<BOOL:${APPLE}> IBM=$<BOOL:${WIN32}> LIN=$<AND:$<BO
 set (INCLUDE_FMOD_SOUND 1)                          # tells XPMP2 to build with FMOD
 add_compile_definitions(INCLUDE_FMOD_SOUND=1)       # tells LiveTraffic compile to include FMOD from XPMP2 headers
 
+# Enable X-Plane 12.4.4+ Panel Graphics backend in ImgWindow v2 (with automatic OpenGL fallback)
+add_compile_definitions(IMGWINDOW_USE_PANEL_GRAPHICS=1)
+
 # Enable stricter warnings and then disable some we are not interested in.
 if (MSVC)
     # Deprecation warning: once is enough / provide me with actual __cplusplus
@@ -307,6 +310,7 @@ set(Source_Files
     Lib/SHA256/sha256.c
     Lib/parson/parson.c
     Lib/ImGui/imgui_draw.cpp
+    Lib/ImGui/imgui_tables.cpp
     Lib/ImGui/imgui_widgets.cpp
     Lib/ImGui/imgui.cpp
     Lib/ImGui/misc/cpp/imgui_stdlib.cpp
@@ -327,6 +331,7 @@ add_library(LiveTraffic MODULE ${ALL_FILES})
 if (NOT MSVC)
     set_source_files_properties(
         Lib/ImGui/imgui_draw.cpp
+        Lib/ImGui/imgui_tables.cpp
         Lib/ImGui/imgui_widgets.cpp
         Lib/ImGui/imgui.cpp
         Lib/ImgWindow/ImgWindow.cpp
@@ -377,6 +382,7 @@ set_source_files_properties(
     Lib/SHA256/sha256.c
     Lib/parson/parson.c
     Lib/ImGui/imgui_draw.cpp
+    Lib/ImGui/imgui_tables.cpp
     Lib/ImGui/imgui_widgets.cpp
     Lib/ImGui/imgui.cpp
     Lib/ImGui/misc/cpp/imgui_stdlib.cpp
