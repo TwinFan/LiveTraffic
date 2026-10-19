@@ -8,3 +8,7 @@
 [submodule "Lib/metaf"]
 	path = Lib/metaf
 	url = https://github.com/TwinFan/metaf
+[submodule "Lib/ImgWindow"]
+	path = Lib/ImgWindow
+	url = https://github.com/slgoldberg/ImgWindow.git
+	branch = master
