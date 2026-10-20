@@ -208,7 +208,7 @@ include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/XPMP2/lib/fmod/logo")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/LTAPI")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/ImGui")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/ImGui/misc/cpp")
-# ImgWindow v2 (git submodule, pinned to tagged release v2.2.0)
+# ImgWindow (git submodule)
 if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Lib/ImgWindow/ImgWindow.h")
     message(STATUS "Initializing ImgWindow submodule...")
     execute_process(
