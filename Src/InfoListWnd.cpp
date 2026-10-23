@@ -145,14 +145,14 @@ void InfoListWnd::buildInterface()
 {
     // Scale the font for this window
     const float fFontScale = float(dataRefs.UIFontScale)/100.0f;
-    ImGui::SetWindowFontScale(fFontScale);
+    ImGui::PushFont(nullptr, ImGui::GetStyle().FontSizeBase * fFontScale);
     
     // --- Title Bar ---
     buildTitleBar(GetWndTitle());
 
     // --- Tab Bar ---
     if (ImGui::BeginTabBar("InfoListWnd",
-                           ImGuiTabBarFlags_Reorderable | ImGuiTabBarFlags_FittingPolicyResizeDown))
+                           ImGuiTabBarFlags_Reorderable | ImGuiTabBarFlags_FittingPolicyShrink))
     {
         // MARK: Aircraft List
         if (ImGui::BeginTabItem(ICON_FA_PLANE " Aircraft List  ", nullptr,
@@ -215,11 +215,10 @@ void InfoListWnd::buildInterface()
                                   ImGuiTableFlags_Resizable | ImGuiTableFlags_Reorderable |
                                   ImGuiTableFlags_Hideable |
                                   ImGuiTableFlags_RowBg |
-                                  ImGuiTableFlags_ScrollY |
-                                  ImGuiTableFlags_ScrollFreezeTopRow |
-                                  ImGuiTableFlags_ScrollFreezeLeftColumn))
+                                  ImGuiTableFlags_ScrollY))
             {
                 // Set up columns
+                ImGui::TableSetupScrollFreeze(1, 1);
                 ImGui::TableSetupColumn("Time",         ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoHeaderWidth,  70);
                 ImGui::TableSetupColumn("Network Time", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoHeaderWidth,  85);
                 ImGui::TableSetupColumn("Level",        ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoHeaderWidth,  70);
@@ -227,7 +226,7 @@ void InfoListWnd::buildInterface()
                 ImGui::TableSetupColumn("Line",         ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_DefaultHide | ImGuiTableColumnFlags_NoHeaderWidth,  50);
                 ImGui::TableSetupColumn("Function",     ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_DefaultHide | ImGuiTableColumnFlags_NoHeaderWidth, 120);
                 ImGui::TableSetupColumn("Message",      ImGuiTableColumnFlags_WidthStretch | ImGuiTableColumnFlags_NoHeaderWidth, 650);
-                ImGui::TableAutoHeaders();
+                ImGui::TableHeadersRow();
                 
                 // Set up / update list of messages to show
                 
@@ -361,7 +360,7 @@ void InfoListWnd::buildInterface()
                 // Aircraft / Channel status
                 if (ImGui::TreeNodeEx("Aircraft / Channel Status", ImGuiTreeNodeFlags_DefaultOpen)) {
                 
-                    if (ImGui::BeginTable("StatusInfo", 2, ImGuiTableFlags_SizingPolicyFixedX)) {
+                    if (ImGui::BeginTable("StatusInfo", 2, ImGuiTableFlags_SizingFixedFit)) {
                         static float xCol1 = ImGui::CalcTextSize("Number of available CSL Models").x;
                         ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, xCol1);
                         ImGui::TableSetupColumn("Info",  ImGuiTableColumnFlags_WidthStretch);
@@ -543,9 +542,8 @@ void InfoListWnd::buildInterface()
                 // See https://www.fmod.com/attribution
                 if (ImGui::TreeNodeEx(MSG_FMOD_SOUND, ImGuiTreeNodeFlags_DefaultOpen)) {
                     // FMOD Logo in white
-                    int logoId = 0;
-                    if (FMODLogo::GetTexture(logoId,false)) {
-                        ImGui::Image((void*)(intptr_t)logoId, ImVec2(FMODLogo::IMG_WIDTH/4, FMODLogo::IMG_HEIGHT/4));
+                    if (ImTextureID logoId = LTImgWindowGetFMODLogo(false)) {
+                        ImGui::Image(logoId, ImVec2(FMODLogo::IMG_WIDTH/4, FMODLogo::IMG_HEIGHT/4));
                     }
 
                     ImGui::TreePop();
@@ -553,7 +551,7 @@ void InfoListWnd::buildInterface()
                 
                 // X-Plane Version info
                 if (ImGui::TreeNode(dataRefs.sXpVer.c_str())) {
-                    if (ImGui::BeginTable("X-Plane Version Info", 2, ImGuiTableFlags_SizingPolicyFixedX)) {
+                    if (ImGui::BeginTable("X-Plane Version Info", 2, ImGuiTableFlags_SizingFixedFit)) {
                         ImGui::TableNextRow();
                         if (ImGui::TableSetColumnIndex(0)) ImGui::TextUnformatted("X-Plane Build");
                         if (ImGui::TableSetColumnIndex(1)) ImGui::Text("%d", dataRefs.xpVer);
@@ -635,25 +633,27 @@ void InfoListWnd::buildInterface()
         if (bSettingsActive) {
             TabActive(ILW_TAB_SETTINGS);
             
-            if (ImGui::BeginTable("StatusSettings", 2, ImGuiTableFlags_SizingPolicyFixedX)) {
+            if (ImGui::BeginTable("StatusSettings", 2, ImGuiTableFlags_SizingFixedFit)) {
                 
                 ImGui::TableNextRow();
-                ImGui::TableNextCell();
+                ImGui::TableSetColumnIndex(1);
                 ImGui::TextUnformatted("Settings also affect A/C Info windows.");
                 ImGui::TextUnformatted("Drag controls with mouse:");
                 
                 ImGui::TableNextRow();
+                ImGui::TableNextColumn();
                 ImGui::TextUnformatted("Font Scaling");
-                ImGui::TableNextCell();
+                ImGui::TableNextColumn();
                 ImGui::DragInt("##FontScaling", &dataRefs.UIFontScale, 1.0f, 10, 200, "%d%%");
                 
                 ImGui::TableNextRow();
+                ImGui::TableNextColumn();
                 ImGui::TextUnformatted("Opacity");
-                ImGui::TableNextCell();
+                ImGui::TableNextColumn();
                 ImGui::DragInt("##Opacity", &dataRefs.UIopacity, 1.0f, 0, 100, "%d%%");
 
                 ImGui::TableNextRow();
-                ImGui::TableNextCell();
+                ImGui::TableSetColumnIndex(1);
                 if (ImGui::Button(ICON_FA_UNDO " Reset to Defaults")) {
                     dataRefs.UIFontScale   = DEF_UI_FONT_SCALE;
                     dataRefs.UIopacity      = DEF_UI_OPACITY;
@@ -671,7 +671,7 @@ void InfoListWnd::buildInterface()
     }
 
     // Reset font scaling
-    ImGui::SetWindowFontScale(1.0f);
+    ImGui::PopFont();
     
     // Reset saved state of active tab...so user can switch again
     gIlwState.activeTab = ILW_TAB_NONE;
