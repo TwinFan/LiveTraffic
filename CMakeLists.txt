@@ -149,6 +149,9 @@ add_compile_definitions(APL=$<BOOL:${APPLE}> IBM=$<BOOL:${WIN32}> LIN=$<AND:$<BO
 set (INCLUDE_FMOD_SOUND 1)                          # tells XPMP2 to build with FMOD
 add_compile_definitions(INCLUDE_FMOD_SOUND=1)       # tells LiveTraffic compile to include FMOD from XPMP2 headers
 
+# Enable X-Plane 12.4.4+ Panel Graphics backend in ImgWindow v2 (with automatic OpenGL fallback)
+add_compile_definitions(IMGWINDOW_USE_PANEL_GRAPHICS=1)
+
 # Enable stricter warnings and then disable some we are not interested in.
 if (MSVC)
     # Deprecation warning: once is enough / provide me with actual __cplusplus
@@ -205,6 +208,14 @@ include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/XPMP2/lib/fmod/logo")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/LTAPI")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/ImGui")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/ImGui/misc/cpp")
+# ImgWindow (git submodule)
+if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Lib/ImgWindow/ImgWindow.h")
+    message(STATUS "Initializing ImgWindow submodule...")
+    execute_process(
+        COMMAND git submodule update --init --recursive Lib/ImgWindow
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+endif()
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/ImgWindow")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/portable-file-dialogs")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/Font")
@@ -299,6 +310,7 @@ set(Source_Files
     Lib/SHA256/sha256.c
     Lib/parson/parson.c
     Lib/ImGui/imgui_draw.cpp
+    Lib/ImGui/imgui_tables.cpp
     Lib/ImGui/imgui_widgets.cpp
     Lib/ImGui/imgui.cpp
     Lib/ImGui/misc/cpp/imgui_stdlib.cpp
@@ -319,6 +331,7 @@ add_library(LiveTraffic MODULE ${ALL_FILES})
 if (NOT MSVC)
     set_source_files_properties(
         Lib/ImGui/imgui_draw.cpp
+        Lib/ImGui/imgui_tables.cpp
         Lib/ImGui/imgui_widgets.cpp
         Lib/ImGui/imgui.cpp
         Lib/ImgWindow/ImgWindow.cpp
@@ -369,6 +382,7 @@ set_source_files_properties(
     Lib/SHA256/sha256.c
     Lib/parson/parson.c
     Lib/ImGui/imgui_draw.cpp
+    Lib/ImGui/imgui_tables.cpp
     Lib/ImGui/imgui_widgets.cpp
     Lib/ImGui/imgui.cpp
     Lib/ImGui/misc/cpp/imgui_stdlib.cpp

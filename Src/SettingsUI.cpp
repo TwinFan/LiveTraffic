@@ -122,7 +122,6 @@ ImGuiWindowFlags_ LTSettingsUI::beforeBegin()
     // If not yet done calculate some common widths
     if (std::isnan(SUI_LABEL_SIZE)) {
         /// Size of longest text plus some room for tree indenttion, rounded up to the next 10
-        ImGui::SetWindowFontScale(1.0f);
         SUI_LABEL_SIZE = std::ceil(ImGui::CalcTextSize("_____OpenSky Network Master Data_").x / 10.0f) * 10.0f;
         SUI_VALUE_SIZE =
         ImGui::GetWidthIconBtn() +
@@ -184,7 +183,7 @@ void LTSettingsUI::buildInterface()
     ImGui::PushStyleColor(ImGuiCol_TableRowBgAlt, IM_COL32_BLACK_TRANS);
 
     // minimum 2 columns, in wider windows we allow for more columns dynamically
-    const int nCol = std::max (2, int(ImGui::GetWindowContentRegionWidth() / (SUI_LABEL_SIZE+SUI_VALUE_SIZE)) * 2);
+    const int nCol = std::max (2, int(ImGui::GetContentRegionAvail().x / (SUI_LABEL_SIZE+SUI_VALUE_SIZE)) * 2);
     if (ImGui::BeginTable("Settings", nCol,
                           ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg |
                           ImGuiTableFlags_BordersInnerH))
@@ -197,6 +196,7 @@ void LTSettingsUI::buildInterface()
             ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch | ImGuiTableColumnFlags_NoSort);
         }
         ImGui::TableNextRow();
+        ImGui::TableNextColumn();
         
         // MARK: --- Basics ---
         if (ImGui::TreeNodeHelp("Basics", nCol,
@@ -238,7 +238,7 @@ void LTSettingsUI::buildInterface()
                     int n = 1 - std::clamp<int>(dataRefs.GetRemoteSupport(),-1,1);  // this turns the order around: 0 - on, 1 - Auto, 2 - Off
                     if (ImGui::Combo("##RemoteSupport", &n, "Always On\0Auto Detect (default)\0Off\0", 5))
                         DATA_REFS_LT[DR_CFG_REMOTE_SUPPORT].setData(1-n);
-                    ImGui::TableNextCell();
+                    ImGui::TableNextColumn();
                 }
 
                 if (!*sFilter) ImGui::TreePop();
@@ -261,7 +261,7 @@ void LTSettingsUI::buildInterface()
                 if (ImGui::FilteredLabel(ICON_FA_EXCLAMATION_TRIANGLE " There are stopped channels:", sFilter)) {
                     if (ImGui::ButtonTooltip(ICON_FA_UNDO " Restart Stopped Channels", "Restarts all channels that got temporarily inactivated"))
                         LTFlightDataRestartInvalidChs();
-                    ImGui::TableNextCell();
+                    ImGui::TableNextColumn();
                 }
             }
             
@@ -281,7 +281,7 @@ void LTSettingsUI::buildInterface()
                     } else {
                         ImGui::TextUnformatted("Off");
                     }
-                    ImGui::TableNextCell();
+                    ImGui::TableNextColumn();
                 }
                 
                 if (!*sFilter) ImGui::TreePop();
@@ -307,10 +307,10 @@ void LTSettingsUI::buildInterface()
                     ImGui::ButtonURL(ICON_FA_EXTERNAL_LINK_SQUARE_ALT " Registration",
                                      "https://opensky-network.org/login?view=registration",
                                      "Opens OpenSky Network's user registration page");
-                    ImGui::TableNextCell();
+                    ImGui::TableNextColumn();
                     ImGui::TextWrapped("%s", "Using a registered user allows for more requests to OpenSky per day. After regstration, "
                                        "you need to go to your OpenSky Network Account page and retrieve you personal API Client credentials.");
-                    ImGui::TableNextCell();
+                    ImGui::TableNextColumn();
                 }
                 
                 // Offer to read Client ID/Secret from the downloaded JSON file
@@ -364,7 +364,7 @@ void LTSettingsUI::buildInterface()
                         ImGui::TextUnformatted(" to read Client Id/Secret from it");
                     }
                     
-                    ImGui::TableNextCell();
+                    ImGui::TableNextColumn();
                 }
                 
                 // Client ID
@@ -375,7 +375,7 @@ void LTSettingsUI::buildInterface()
                                              &sOpenSkyClientId);
                     ImGui::Unindent(ImGui::GetWidthIconBtn(true));
                     
-                    ImGui::TableNextCell();
+                    ImGui::TableNextColumn();
                 }
                 
                 // Client Secret
@@ -392,15 +392,15 @@ void LTSettingsUI::buildInterface()
                                              &sOpenSkySecret,
                                              // clear text or password mode?
                                              (bOpenSkySecretClearText ? ImGuiInputTextFlags_None     : ImGuiInputTextFlags_Password));
-                    ImGui::TableNextCell();
+                    ImGui::TableNextColumn();
                 }
                 
                 // Save button
                 if (!*sFilter) {
-                    ImGui::TableNextCell();
+                    ImGui::TableNextColumn();
                     if (ImGui::ButtonTooltip(ICON_FA_SAVE " Save and Try", "Saves the credentials and activates the channel"))
                         bDoSave = true;
-                    ImGui::TableNextCell();
+                    ImGui::TableNextColumn();
                 }
                 
                 // OpenSky's connection status details
@@ -410,7 +410,7 @@ void LTSettingsUI::buildInterface()
                     } else {
                         ImGui::TextUnformatted("Off");
                     }
-                    ImGui::TableNextCell();
+                    ImGui::TableNextColumn();
                 }
                 
                 // Do the Save?
@@ -444,14 +444,14 @@ void LTSettingsUI::buildInterface()
                     } else {
                         ImGui::TextUnformatted("Off");
                     }
-                    ImGui::TableNextCell();
+                    ImGui::TableNextColumn();
                 }
                 
                 if (!*sFilter) {
                     ImGui::TextUnformatted("Flarm A/c Types");
-                    ImGui::TableNextCell();
+                    ImGui::TableNextColumn();
                     ImGui::TextUnformatted("Map FLARM's aircraft types to one or more ICAO types for model matching:");
-                    ImGui::TableNextCell();
+                    ImGui::TableNextColumn();
                 }
                 
                 // One edit field for each Flarm aircraft type
@@ -464,7 +464,7 @@ void LTSettingsUI::buildInterface()
                         if (aFlarmAcTys[i].length() < 2) {
                             ImGui::TablePrevCell();
                             ImGui::Indicator(false, "", "Too short a text to serve as ICAO aircraft type");
-                            ImGui::TableNextCell();
+                            ImGui::TableNextColumn();
                         }
                         
                         // Edit field for entering ICAO aircraft type(s)
@@ -485,7 +485,7 @@ void LTSettingsUI::buildInterface()
                             ImGui::TextUnformatted("Press [Enter] to save");
                         }
                         
-                        ImGui::TableNextCell();
+                        ImGui::TableNextColumn();
                         ImGui::PopID();
                     } // if Flarm type visible
                 } // for all Flarm types
@@ -512,7 +512,7 @@ void LTSettingsUI::buildInterface()
                     } else {
                         ImGui::TextUnformatted("Off");
                     }
-                    ImGui::TableNextCell();
+                    ImGui::TableNextColumn();
                 }
                 
                 if (!*sFilter) ImGui::TreePop();
@@ -541,7 +541,7 @@ void LTSettingsUI::buildInterface()
                     } else {
                         ImGui::TextUnformatted("Off");
                     }
-                    ImGui::TableNextCell();
+                    ImGui::TableNextColumn();
                 }
                 
                 if (!*sFilter) ImGui::TreePop();
@@ -577,7 +577,7 @@ void LTSettingsUI::buildInterface()
                             DATA_REFS_LT[DR_CFG_RT_CONNECT_TYPE].setData(n);
                         }
                     }
-                    ImGui::TableNextCell();
+                    ImGui::TableNextColumn();
                 }
 
                 // License - only shown for Direct API mode
@@ -610,7 +610,7 @@ void LTSettingsUI::buildInterface()
                                 bRTLicClearText = false;                                                    // and hide the license now
                             }
                         }
-                        ImGui::TableNextCell();
+                        ImGui::TableNextColumn();
                     }
                 }
                 
@@ -690,7 +690,7 @@ void LTSettingsUI::buildInterface()
                         bRTZuluTime = bNewZulu;                                 // Save the Zulu/Local setting now
                     }
                     
-                    ImGui::TableNextCell();
+                    ImGui::TableNextColumn();
                 }
 
                 // RealTraffic's connection status details
@@ -700,7 +700,7 @@ void LTSettingsUI::buildInterface()
                     } else {
                         ImGui::TextUnformatted("Off");
                     }
-                    ImGui::TableNextCell();
+                    ImGui::TableNextColumn();
                 }
                 
                 if (!*sFilter) ImGui::TreePop();
@@ -755,7 +755,9 @@ void LTSettingsUI::buildInterface()
                                 
                             // Just wait a second...server's busy
                             case NvgrFR24Connection::NVGR_AUTH_UI_WAIT:
-                                ImGui::ButtonEx(ICON_FA_SPINNER " ...wait a second...", sizeAuthBtn, ImGuiButtonFlags_Disabled);
+                                ImGui::BeginDisabled();
+                                ImGui::Button(ICON_FA_SPINNER " ...wait a second...", sizeAuthBtn);
+                                ImGui::EndDisabled();
                                 break;
                                 
                             // We have a verification URI...make the user go there!
@@ -806,7 +808,7 @@ void LTSettingsUI::buildInterface()
                                     tNvgrReset = std::chrono::steady_clock::now() + std::chrono::seconds(30);
                                 break;
                         }
-                        ImGui::TableNextCell();
+                        ImGui::TableNextColumn();
                     }
                     
                 }
@@ -818,7 +820,7 @@ void LTSettingsUI::buildInterface()
                     } else {
                         ImGui::TextUnformatted("Off");
                     }
-                    ImGui::TableNextCell();
+                    ImGui::TableNextColumn();
                 }
 
                 if (!*sFilter) ImGui::TreePop();
@@ -839,7 +841,7 @@ void LTSettingsUI::buildInterface()
                 if (dataRefs.GetADSBExAPIKey().empty()) {
                     if (ImGui::FilteredLabel("ADS-B Exchange", sFilter, false)) {
                         ImGui::TextDisabled("%s", "requires an API key:");
-                        ImGui::TableNextCell();
+                        ImGui::TableNextColumn();
                     }
                 }
                 
@@ -896,7 +898,7 @@ void LTSettingsUI::buildInterface()
                     else if (eADSBExKeyTest == ADSBX_KEY_FAILED)
                         ImGui::TextUnformatted(ICON_FA_EXCLAMATION_TRIANGLE " Key test failed!");
                     
-                    ImGui::TableNextCell();
+                    ImGui::TableNextColumn();
                 }
                 
                 // ADSBEx's connection status details (only if there is an API key defined)
@@ -908,7 +910,7 @@ void LTSettingsUI::buildInterface()
                     } else {
                         ImGui::TextUnformatted("Off");
                     }
-                    ImGui::TableNextCell();
+                    ImGui::TableNextColumn();
                 }
                 
                 if (!*sFilter) ImGui::TreePop();
@@ -938,7 +940,7 @@ void LTSettingsUI::buildInterface()
                                                  (bFSCon ? ImGuiInputTextFlags_ReadOnly : ImGuiInputTextFlags_None));
                         ImGui::Unindent(ImGui::GetWidthIconBtn(true));
                         
-                        ImGui::TableNextCell();
+                        ImGui::TableNextColumn();
                     }
                     
                     // Password
@@ -958,12 +960,12 @@ void LTSettingsUI::buildInterface()
                                                  // prohibit changes to the pwd while channel on
                                                  (bFSCon ? ImGuiInputTextFlags_ReadOnly : ImGuiInputTextFlags_None));
                         
-                        ImGui::TableNextCell();
+                        ImGui::TableNextColumn();
                     }
                     
                     // Save button or hint how to change
                     if (!*sFilter) {
-                        ImGui::TableNextCell();
+                        ImGui::TableNextColumn();
                         if (bFSCon) {
                             ImGui::TextUnformatted("Disable the channel first if you want to change user/password.");
                         } else {
@@ -975,7 +977,7 @@ void LTSettingsUI::buildInterface()
                                 bFSCPwdClearText = false;           // and hide the pwd now
                             }
                         }
-                        ImGui::TableNextCell();
+                        ImGui::TableNextColumn();
                     }
                 }
 
@@ -986,7 +988,7 @@ void LTSettingsUI::buildInterface()
                     } else {
                         ImGui::TextUnformatted("Off");
                     }
-                    ImGui::TableNextCell();
+                    ImGui::TableNextColumn();
                 }
 
                 if (!*sFilter) ImGui::TreePop();
@@ -1012,7 +1014,7 @@ void LTSettingsUI::buildInterface()
                         dataRefs.SetSIDisplayName(sSIDisplayName);
                     ImGui::Unindent(ImGui::GetWidthIconBtn(true));
 
-                    ImGui::TableNextCell();
+                    ImGui::TableNextColumn();
                 }
 
                 // Filter for Skynet_enabled flights only?
@@ -1026,7 +1028,7 @@ void LTSettingsUI::buildInterface()
                     } else {
                         ImGui::TextUnformatted("Off");
                     }
-                    ImGui::TableNextCell();
+                    ImGui::TableNextColumn();
                 }
 
                 if (!*sFilter) ImGui::TreePop();
@@ -1040,7 +1042,7 @@ void LTSettingsUI::buildInterface()
             if (ImGui::MatchesFilter(AATC_NAME, sFilter)) {
                 ImGui::SameLine();
                 ImGui::ButtonURL(ICON_FA_EXTERNAL_LINK_SQUARE_ALT " " AATC_CHECK_NAME, AATC_CHECK_URL, AATC_CHECK_POPUP);
-                ImGui::TableNextCell();
+                ImGui::TableNextColumn();
             }
             ImGui::Unindent();
 
@@ -1070,7 +1072,7 @@ void LTSettingsUI::buildInterface()
                     ImGui::SetNextItemWidth(cbWidth);
                     if (ImGui::Combo("##FFSendTraffic", &n, "None\0All\0Only non-TCAS target traffic\0", 3))
                         DATA_REFS_LT[DR_CFG_FF_SEND_TRAFFIC].setData(n);
-                    ImGui::TableNextCell();
+                    ImGui::TableNextColumn();
                 }
                 ImGui::FilteredCfgNumber("Send traffic every", sFilter, DR_CFG_FF_SEND_TRAFFIC_INTVL, 1, 30, 1, "%d seconds");
 
@@ -1096,7 +1098,7 @@ void LTSettingsUI::buildInterface()
                     DATA_REFS_LT[DR_CFG_WEATHER_CONTROL].setData(n);
                     ImGui::SetCurrentContext(pCtxt);
                 }
-                ImGui::TableNextCell();
+                ImGui::TableNextColumn();
             }
             
             // Use/prefer METAR up to which height AGL?
@@ -1128,7 +1130,7 @@ void LTSettingsUI::buildInterface()
                 ImGui::CheckboxFlags("Internal###LabelsInt", &c, (1 << 1)); ImGui::SameLine();
                 ImGui::CheckboxFlags("VR###LabelsVR",        &c, (1 << 2)); ImGui::SameLine();
                 ImGui::CheckboxFlags("Map###LabelsMap",      &c, (1 << 3));
-                ImGui::TableNextCell();
+                ImGui::TableNextColumn();
             }
             if (c != dataRefs.GetLabelShowCfg().GetUInt()) {
                 cfgSet(DR_CFG_LABEL_SHOWN, int(c));
@@ -1139,7 +1141,7 @@ void LTSettingsUI::buildInterface()
                 ImGui::CheckboxDr("Parked###LabelsPark",  DR_CFG_LABEL_FOR_PARKED);  ImGui::SameLine();
                 ImGui::CheckboxDr("Taxiing###LabelsTaxi", DR_CFG_LABEL_FOR_TAXIING); ImGui::SameLine();
                 ImGui::CheckboxDr("Flying###LabelsFly",   DR_CFG_LABEL_FOR_FLYING);  ImGui::SameLine();
-                ImGui::TableNextCell();
+                ImGui::TableNextColumn();
             }
             // Label cut off: distance / visibility
             ImGui::FilteredCfgNumber  ("Max Distance",          sFilter, DR_CFG_LABEL_MAX_DIST, 1, 50, 1, "%d nm");
@@ -1226,7 +1228,7 @@ void LTSettingsUI::buildInterface()
                     ImGui::SameLine();
                     if (ImGui::ColorButton("Blue",  ImVec4(0.0f, 0.94f, 0.94f, 1.0f)))
                         cfgSet(DR_CFG_LABEL_COLOR, COLOR_BLUE);
-                    ImGui::TableNextCell();
+                    ImGui::TableNextColumn();
                 }
 
                 if (!*sFilter) ImGui::TreePop();
@@ -1250,14 +1252,14 @@ void LTSettingsUI::buildInterface()
                     int n = dataRefs.GetLogLevel();
                     if (ImGui::Combo("##LogLevel", &n, "Debug\0Info\0Warning (default)\0Error\0Fatal\0", 5))
                         dataRefs.SetLogLevel(n);
-                    ImGui::TableNextCell();
+                    ImGui::TableNextColumn();
                 }
                 if (ImGui::FilteredLabel("Message area", sFilter)) {
                     ImGui::SetNextItemWidth(cbWidth);
                     int n = dataRefs.GetMsgAreaLevel()-1;   // 0=Debug is not used
                     if (ImGui::Combo("##MsgLevel", &n, "Info (default)\0Warning\0Error\0Fatal\0", 4))
                         dataRefs.SetMsgAreaLevel(n+1);
-                    ImGui::TableNextCell();
+                    ImGui::TableNextColumn();
                 }
                 ImGui::FilteredCfgNumber("Max Message List Len", sFilter, DR_CFG_LOG_LIST_LEN, 25, 500, 25);
 
@@ -1349,7 +1351,7 @@ void LTSettingsUI::buildInterface()
                         CreateMsgWindow(0, logMSG, MSG_REPOSITION_WND);
                         ImGui::SetCurrentContext(pCtxt);
                     }
-                    ImGui::TableNextCell();
+                    ImGui::TableNextColumn();
                 }
                 if (ImGui::FilteredLabel("Transparent Settings", sFilter)) {
                     ImGui::CheckboxFlags(// If setting mismatches reality then show re-open hint
@@ -1357,25 +1359,25 @@ void LTSettingsUI::buildInterface()
                                          "Reopen Settings window to take effect##TranspSettings" :
                                          "##TranspSettings",
                                          (unsigned*)&dataRefs.SUItransp, 1);
-                    ImGui::TableNextCell();
+                    ImGui::TableNextColumn();
                 }
                 
                 if (ImGui::FilteredLabel("Font Scaling", sFilter)) {
                     ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);            // Slider is otherwise calculated too large, so we help here a bit
                     ImGui::SliderInt("##FontScaling", &dataRefs.UIFontScale, 10, 200, "%d%%");
-                    ImGui::TableNextCell();
+                    ImGui::TableNextColumn();
                 }
                 if (ImGui::FilteredLabel("Opacity", sFilter)) {
                     ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);            // Slider is otherwise calculated too large, so we help here a bit
                     ImGui::SliderInt("##Opacity", &dataRefs.UIopacity, 0, 100, "%d%%");
-                    ImGui::TableNextCell();
+                    ImGui::TableNextColumn();
                 }
                 if (!*sFilter) ImGui::TreePop();
             }
 
             // "Reset to Defaults" button: Pop up a confirmation dialog before actually resetting
             if (!*sFilter) {
-                ImGui::TableNextCell();
+                ImGui::TableNextColumn();
                 constexpr const char* SUI_ADVSET_POPUP = "Advanced Settings";
                 if (ImGui::Button(ICON_FA_UNDO " Reset to Defaults..."))
                     ImGui::OpenPopup(SUI_ADVSET_POPUP);
@@ -1393,7 +1395,7 @@ void LTSettingsUI::buildInterface()
                     ImGui::EndPopup();
                 } // Popup
                 
-                ImGui::TableNextCell();
+                ImGui::TableNextColumn();
             }
 
             if (!*sFilter) { ImGui::TreePop(); ImGui::Spacing(); }
@@ -1417,7 +1419,7 @@ void LTSettingsUI::buildInterface()
                         ImGui::Indicator(acTypeOK > 0,
                                          "New default successfully saved",
                                          "Type doesn't exist, not saved");
-                        ImGui::TableNextCell();
+                        ImGui::TableNextColumn();
                     }
                     ImGui::SetNextItemWidth(fSmallWidth);
                     ImGui::InputText("##DefaultAcType", &acTypeEntry, ImGuiInputTextFlags_CharsUppercase);
@@ -1425,7 +1427,7 @@ void LTSettingsUI::buildInterface()
                         acTypeOK = dataRefs.SetDefaultAcIcaoType(acTypeEntry) ? 1 : -1;
                     }
                     if (ImGui::IsItemEdited()) acTypeOK = 0;
-                    ImGui::TableNextCell();
+                    ImGui::TableNextColumn();
                 }
 
                 if (ImGui::FilteredLabel("Ground vehicle type", sFilter)) {
@@ -1435,7 +1437,7 @@ void LTSettingsUI::buildInterface()
                         ImGui::Indicator(gndVehicleOK > 0,
                                          "New vehicle type successfully saved",
                                          "Wrong text length, not saved");
-                        ImGui::TableNextCell();
+                        ImGui::TableNextColumn();
                     }
                     ImGui::SetNextItemWidth(fSmallWidth);
                     ImGui::InputText("##CarType", &gndVehicleEntry, ImGuiInputTextFlags_CharsUppercase);
@@ -1443,7 +1445,7 @@ void LTSettingsUI::buildInterface()
                         gndVehicleOK = dataRefs.SetDefaultCarIcaoType(gndVehicleEntry) ? 1 : -1;
                     }
                     if (ImGui::IsItemEdited()) gndVehicleOK = 0;
-                    ImGui::TableNextCell();
+                    ImGui::TableNextColumn();
                 }
                 
                 if (ImGui::FilteredLabel("Default Livery", sFilter)) {
@@ -1452,7 +1454,7 @@ void LTSettingsUI::buildInterface()
                         ImGui::TablePrevCell();
                         ImGui::Indicator(true,
                                          "New default livery airline code successfully saved", "");
-                        ImGui::TableNextCell();
+                        ImGui::TableNextColumn();
                     }
                     ImGui::SetNextItemWidth(fSmallWidth);
                     ImGui::InputText("##DefLivery", &defLiveryEntry, ImGuiInputTextFlags_CharsUppercase);
@@ -1461,7 +1463,7 @@ void LTSettingsUI::buildInterface()
                         defLiveryOK = 1;
                     }
                     if (ImGui::IsItemEdited()) defLiveryOK = 0;
-                    ImGui::TableNextCell();
+                    ImGui::TableNextColumn();
                 }
                 
                 ImGui::FilteredCfgCheckbox("Enhance models, copies files", sFilter, DR_CFG_COPY_OBJ_FILES, "Replaces dataRefs and textures (if needed) to support more animation and show correct livery, requires disk spaces for copied .obj files");
@@ -1494,7 +1496,7 @@ void LTSettingsUI::buildInterface()
                                      "Path does not exist or is empty");
                     
                     // Path entry
-                    ImGui::TableNextCell();
+                    ImGui::TableNextColumn();
                     ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - 5.0f * ImGui::GetWidthIconBtn());
                     if (cslActiveLn == i) {
                         if (ImGui::InputText("##PathEntry", &cslEntry, ImGuiInputTextFlags_EnterReturnsTrue)) {
@@ -1568,7 +1570,7 @@ void LTSettingsUI::buildInterface()
                         }
                     }
                     
-                    ImGui::TableNextCell();
+                    ImGui::TableNextColumn();
                     ImGui::PopID();
                 } // for all CSL paths
                 
@@ -1585,7 +1587,7 @@ void LTSettingsUI::buildInterface()
                 }
                 
                 // Text Input
-                ImGui::TableNextCell();
+                ImGui::TableNextColumn();
                 ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - 5.0f * ImGui::GetWidthIconBtn());
                 if (ImGui::InputText("##NewCSLPath", &cslNew, ImGuiInputTextFlags_EnterReturnsTrue) &&
                     bCslNewExists)        // store new path only if it exists
@@ -1668,7 +1670,7 @@ void LTSettingsUI::buildInterface()
                 if (ImGui::FilteredLabel("Log Weather now", sFilter)) {
                     if (ImGui::ButtonTooltip("Log Weather now","Places information on current weather into Log.txt"))
                         WeatherLogCurrent_xp("Current weather:");
-                    ImGui::TableNextCell();
+                    ImGui::TableNextColumn();
                 }
                 ImGui::FilteredCfgCheckbox("Log Raw Network Data", sFilter, DR_DBG_LOG_RAW_FD,
                                            "Creates additional log file 'LTRawFD.log'\ncontaining all raw network requests and responses.");

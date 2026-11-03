@@ -307,9 +307,8 @@ void WndMsg::buildInterface()
         // Show the FMOD logo together with the FMOD attribution message
         else if (msg.text == MSG_FMOD_SOUND) {
             // FMOD Logo in white
-            int logoId = 0;
-            if (FMODLogo::GetTexture(logoId,false)) {
-                ImGui::Image((void*)(intptr_t)logoId, ImVec2(FMODLogo::IMG_WIDTH/4, FMODLogo::IMG_HEIGHT/4));
+            if (ImTextureID logoId = LTImgWindowGetFMODLogo(false)) {
+                ImGui::Image(logoId, ImVec2(FMODLogo::IMG_WIDTH/4, FMODLogo::IMG_HEIGHT/4));
             }
         }
         

@@ -178,7 +178,7 @@ IMGUI_API bool ButtonIcon(const char* label, const char* tooltip, bool rightAlig
     PushStyleColor(ImGuiCol_ButtonHovered, GetColorU32(ImGuiCol_ScrollbarGrab));  // gray
 
     if (rightAligned)
-        SetCursorPosX(GetWindowContentRegionMax().x - GetWidthIconBtn() - ImGui::GetStyle().ItemSpacing.x);
+        SetCursorPosX(GetCursorPosX() + GetContentRegionAvail().x - GetWidthIconBtn() - ImGui::GetStyle().ItemSpacing.x);
 
     bool b = ButtonTooltip(label, tooltip);
 
@@ -259,10 +259,10 @@ IMGUI_API bool CheckboxDr(const char* label, dataRefsLT idx, const char* tooltip
 }
 
 // Same as SliderFloat, but display is in percent, so values are expected to be around 1.0 to be displayed as 100%
-IMGUI_API bool SliderPercent(const char* label, float* v, float v_min, float v_max, const char* format, float power)
+IMGUI_API bool SliderPercent(const char* label, float* v, float v_min, float v_max, const char* format, ImGuiSliderFlags flags)
 {
     float f = *v * 100.0f;              // "convert" to percent
-    bool bRet = SliderFloat(label, &f, v_min*100.0f, v_max*100.0f, format, power);
+    bool bRet = SliderFloat(label, &f, v_min*100.0f, v_max*100.0f, format, flags);
     *v = f/100.0f;
     return bRet;
 }
@@ -289,10 +289,10 @@ IMGUI_API bool SliderDr(const char* label, dataRefsLT idx,
 
 
 // Same as DragFloat, but display is in percent, so values are expected to be around 1.0 to be displayed as 100%
-IMGUI_API bool DragPercent(const char* label, float* v, float v_speed, float v_min, float v_max, const char* format, float power)
+IMGUI_API bool DragPercent(const char* label, float* v, float v_speed, float v_min, float v_max, const char* format, ImGuiSliderFlags flags)
 {
     float f = *v * 100.0f;              // "convert" to percent
-    bool bRet = DragFloat(label, &f, v_speed*100.0f, v_min*100.0f, v_max*100.0f, format, power);
+    bool bRet = DragFloat(label, &f, v_speed*100.0f, v_min*100.0f, v_max*100.0f, format, flags);
     *v = f/100.0f;
     return bRet;
 }
@@ -311,6 +311,7 @@ IMGUI_API bool TreeNodeCbxLinkHelp(const char* label, int nCol,
     
     if (TableGetColumnIndex() > 0)                          // make sure we start on a row's beginning
         TableNextRow();
+    TableSetColumnIndex(0);
 
     // Set special background color for tree nodes
     ImGui::PushStyleColor(ImGuiCol_TableRowBg, ImGui::GetColorU32(ImGuiCol_Button, 0.4f));
@@ -325,7 +326,7 @@ IMGUI_API bool TreeNodeCbxLinkHelp(const char* label, int nCol,
     const bool b = TreeNodeEx(label, flags);                // draw tree node
     
     // add a checkbox
-    TableNextCell();
+    TableNextColumn();
     if (idxCbx < CNT_DATAREFS_LT) {
         CheckboxDr("##CheckboxDr", idxCbx, cbxPopup);
         SameLine();
@@ -354,6 +355,7 @@ IMGUI_API bool TreeNodeCbxLinkHelp(const char* label, int nCol,
     
     PopID();
     TableNextRow();                                         // move to next row
+    TableNextColumn();
     ImGui::PopStyleColor(2);                                // Restore row color
 
     return b;
@@ -384,7 +386,7 @@ IMGUI_API bool FilteredLabel(const char* label, const char* filter,
         TextUnformatted(label);
     else
         TextDisabled("%s", label);
-    TableNextCell();
+    TableNextColumn();
     return true;
 }
 
@@ -415,7 +417,7 @@ IMGUI_API bool FilteredInputText(const char* label, const char* filter,
         bRet = true;
     }
     PopID();
-    TableNextCell();
+    TableNextColumn();
     return bRet;
 }
 
@@ -433,7 +435,7 @@ IMGUI_API bool FilteredCfgCheckbox(const char* label, const char* filter, dataRe
     const bool bRet = CheckboxDr("", idx, tooltip);
     PopID();
     if (bNextCell)
-        TableNextCell();
+        TableNextColumn();
     return bRet;
 }
 
@@ -452,7 +454,7 @@ IMGUI_API bool FilteredCheckboxFlags(const char* label, const char* filter,
     if (tooltip && IsItemHovered())
         SetTooltip("%s", tooltip);
     PopID();
-    TableNextCell();
+    TableNextColumn();
     return bRet;
 }
 
@@ -471,7 +473,7 @@ IMGUI_API bool FilteredRadioButton(const char* label, const char* filter,
     if (tooltip && IsItemHovered())
         SetTooltip("%s", tooltip);
     PopID();
-    TableNextCell();
+    TableNextColumn();
     return bRet;
 }
 
@@ -487,7 +489,7 @@ IMGUI_API bool FilteredCfgNumber(const char* label, const char* filter, dataRefs
     PushID(label);
     const bool bRet = SliderDr("", idx, v_min, v_max, v_step, format);
     PopID();
-    TableNextCell();
+    TableNextColumn();
     return bRet;
 }
 
@@ -569,7 +571,7 @@ IMGUI_API bool SelectPath (const char* popupId, std::string& path)
 IMGUI_API void Indicator (bool bOK, const char* okText, const char* nokText)
 {
     // right-aligned
-    ImGui::SetCursorPosX(ImGui::GetContentRegionMax().x - ImGui::GetWidthIconBtn());
+    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x - ImGui::GetWidthIconBtn());
     // for the active line decide based on temporary check
     ImGui::TextUnformatted(bOK ? ICON_FA_CHECK_CIRCLE : ICON_FA_EXCLAMATION_TRIANGLE);
     if (ImGui::IsItemHovered())
@@ -782,7 +784,7 @@ void LTImgWindow::buildTitleBar (const std::string& _title,
     ImDrawList* draw_list = ImGui::GetWindowDrawList();
     ImVec2 pos_start = ImGui::GetCursorPos();
     pos_start.y += 3;
-    float x_end = ImGui::GetWindowContentRegionWidth();
+    float x_end = ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x - ImGui::GetStyle().WindowPadding.x;
     if (bWndBtns)
         x_end -= 2 * btnWidth;              // space for window buttons
     if (x_end > pos_start.x)                // any (positive) line to draw?
@@ -824,6 +826,7 @@ void LTImgWindow::buildWndButtons ()
     const bool bBtnVR     = dataRefs.IsVREnabled() && !IsInVR();
     int numBtn = bBtnHelp + bBtnPopOut + bBtnPopIn + bBtnVR;
     if (numBtn > 0) {
+        const float wndContentWidth = ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x - ImGui::GetStyle().WindowPadding.x;
         // Setup colors for window sizing buttons
         ImGui::PushStyleColor(ImGuiCol_Text, LTIM_BTN_COL);                                         // very light gray
         ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32_BLACK_TRANS);                               // transparent
@@ -831,28 +834,28 @@ void LTImgWindow::buildWndButtons ()
 
         if (bBtnHelp) {
             // Same line, but right-alinged
-            ImGui::SameLine(ImGui::GetWindowContentRegionWidth() - (float(numBtn) * btnWidth));
+            ImGui::SameLine(wndContentWidth - (float(numBtn) * btnWidth));
             if (ImGui::ButtonTooltip(ICON_FA_QUESTION_CIRCLE, "Open Help in Browser"))
                 LTOpenHelp(szHelpURL);
             --numBtn;
         }
         if (bBtnVR) {
             // Same line, but right-alinged
-            ImGui::SameLine(ImGui::GetWindowContentRegionWidth() - (float(numBtn) * btnWidth));
+            ImGui::SameLine(wndContentWidth - (float(numBtn) * btnWidth));
             if (ImGui::ButtonTooltip(ICON_FA_EXTERNAL_LINK_SQUARE_ALT, "Move into VR"))
                 nextWinMode = WND_MODE_VR;
             --numBtn;
         }
         if (bBtnPopIn) {
             // Same line, but right-alinged
-            ImGui::SameLine(ImGui::GetWindowContentRegionWidth() - (float(numBtn) * btnWidth));
+            ImGui::SameLine(wndContentWidth - (float(numBtn) * btnWidth));
             if (ImGui::ButtonTooltip(ICON_FA_WINDOW_MAXIMIZE, "Move back into X-Plane"))
                 nextWinMode = WND_MODE_FLOAT;
             --numBtn;
         }
         if (bBtnPopOut) {
             // Same line, but right-alinged
-            ImGui::SameLine(ImGui::GetWindowContentRegionWidth() - (float(numBtn) * btnWidth));
+            ImGui::SameLine(wndContentWidth - (float(numBtn) * btnWidth));
             if (ImGui::ButtonTooltip(ICON_FA_WINDOW_RESTORE, "Pop out into separate window"))
                 nextWinMode = WND_MODE_POPOUT;
             --numBtn;
@@ -977,9 +980,34 @@ bool LTImgWindowInit ()
     return true;
 }
 
+// Cached FMOD attribution logo textures (0 = white, 1 = black)
+static ImTextureID gFMODLogoTex[2] = { (ImTextureID)0, (ImTextureID)0 };
+
+// Retrieve (and lazily create via ImgWindow::CreateTexture) the FMOD attribution logo texture
+ImTextureID LTImgWindowGetFMODLogo (bool bBlack)
+{
+    ImTextureID& texId = gFMODLogoTex[bBlack ? 1 : 0];
+    if (!texId) {
+        if (uint8_t* pRGBA = FMODLogo::LoadRGBA(bBlack)) {
+            texId = ImgWindow::CreateTexture(pRGBA, FMODLogo::IMG_WIDTH, FMODLogo::IMG_HEIGHT);
+            delete[] pRGBA;
+        }
+    }
+    return texId;
+}
+
 // Cleanup of any resources
 void LTImgWindowCleanup ()
 {
+    // Destroy FMOD logo textures if created
+    for (ImTextureID& texId : gFMODLogoTex) {
+        if (texId) {
+            ImgWindow::DeleteTexture(texId);
+            texId = (ImTextureID)0;
+        }
+    }
     // Destroy the font atlas
     ImgWindow::sFontAtlas.reset();
+    // Shut down ImgWindow backend resources (Panel Graphics / shared state)
+    ImgWindow::Shutdown();
 }
