@@ -52,6 +52,11 @@ protected:
     } eADSBExKeyTest = ADSBX_KEY_NO_ACTION;
     std::string sADSBExKeyEntry;    ///< current ADSBEx key entry
     bool bADSBExKeyClearText = false;   ///< Is ADSBEx key displayed clear text?
+
+    // Channel: PlaneTrack (same key test states as ADS-B Exchange)
+    int eTrackKeyTest = ADSBX_KEY_NO_ACTION;    ///< PlaneTrack key test state
+    std::string sPlaneTrackKeyEntry;            ///< current PlaneTrack key entry
+    bool bPlaneTrackKeyClearText = false;       ///< Is PlaneTrack key displayed clear text?
     
     // Channel: Open Glider Network
     /// buffers for editing of Flarm a/c type mappings

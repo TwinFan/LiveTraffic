@@ -979,6 +979,7 @@ bool LTFlightDataEnable()
     listFDC.emplace_back(new AirplanesLiveConnection);
     listFDC.emplace_back(new ADSBfiConnection);
     listFDC.emplace_back(new ADSBExchangeConnection);
+    listFDC.emplace_back(new PlaneTrackConnection);
     listFDC.emplace_back(new OpenSkyConnection);
     listFDC.emplace_back(new ADSBHubConnection());
     listFDC.emplace_back(new OpenGliderConnection);
