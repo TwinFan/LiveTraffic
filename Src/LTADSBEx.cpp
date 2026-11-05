@@ -764,6 +764,290 @@ bool AirplanesLiveConnection::ProcessFetchedData ()
 }
 
 //
+// MARK: PlaneTrack
+//
+
+PlaneTrackConnection::PlaneTrackConnection () :
+ADSBBase(DR_CHANNEL_PLANETRACK_ONLINE, PLANETRACK_NAME, PLANETRACK_SLUG_BASE)
+{
+    // purely informational
+    urlName  = PLANETRACK_CHECK_NAME;
+    urlLink  = PLANETRACK_CHECK_URL;
+    urlPopup = PLANETRACK_CHECK_POPUP;
+}
+
+
+// put together the URL to fetch based on current view position
+std::string PlaneTrackConnection::GetURL (const positionTy& pos)
+{
+    char url[128] = "";
+    snprintf(url, sizeof(url), PLANETRACK_URL, pos.lat(), pos.lon(),
+             std::min(dataRefs.GetFdStdDistance_nm(), PLANETRACK_MAX_DIST_NM));
+    return std::string(url);
+}
+
+
+// get status info
+std::string PlaneTrackConnection::GetStatusText () const
+{
+    if (bForbidden)
+        return PLANETRACK_FORBIDDEN;
+    return ADSBBase::GetStatusText();
+}
+
+
+// virtual thread main function
+void PlaneTrackConnection::Main ()
+{
+    // This is a communication thread's main function, set thread's name and C locale
+    ThreadSettings TS ("LT_PlaneTrack", LC_ALL_MASK);
+
+    // try it (again)
+    bForbidden = false;
+
+    while ( shallRun() ) {
+        // LiveTraffic Top Level Exception Handling
+        try {
+            // basis for determining when to be called next
+            tNextWakeup = std::chrono::steady_clock::now();
+
+            // where are we right now?
+            const positionTy pos (dataRefs.GetViewPos());
+
+            // If the camera position is valid we can request data around it
+            if (pos.isNormal()) {
+                // Next wakeup is "refresh interval" from _now_
+                tNextWakeup += std::chrono::seconds(dataRefs.GetFdRefreshIntvl());
+
+                // fetch data and process it
+                if (FetchAllData(pos) && ProcessFetchedData())
+                    // reduce error count if processed successfully
+                    // as a chance to appear OK in the long run
+                    DecErrCnt();
+            }
+            else {
+                // Camera position is yet invalid, retry in a second
+                tNextWakeup += std::chrono::seconds(1);
+            }
+
+            // sleep for FD_REFRESH_INTVL or if woken up for termination
+            // by condition variable trigger
+            {
+                std::unique_lock<std::mutex> lk(FDThreadSynchMutex);
+                FDThreadSynchCV.wait_until(lk, tNextWakeup,
+                                           [this]{return !shallRun();});
+            }
+
+        } catch (const std::exception& e) {
+            LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, e.what());
+            IncErrCnt();
+        } catch (...) {
+            LOG_MSG(logERR, ERR_TOP_LEVEL_EXCEPTION, "(unknown type)");
+            IncErrCnt();
+        }
+    }
+}
+
+
+// add the API key header (called prior to each request)
+bool PlaneTrackConnection::InitCurl ()
+{
+    // we require an API key
+    const std::string theKey (dataRefs.GetPlaneTrackAPIKey());
+    if (theKey.empty()) {
+        apiKey.clear();
+        SHOW_MSG(logERR, ERR_PLANETRACK_NO_KEY_DEF);
+        SetValid(false);
+        return false;
+    }
+
+    // let's do the standard CURL init first
+    if (!LTOnlineChannel::InitCurl())
+        return false;
+
+    // did the API key change?
+    if (!slistKey || theKey != apiKey) {
+        apiKey = theKey;
+        CurlCleanupSlist(slistKey);
+        slistKey = MakeCurlSList(apiKey);
+    }
+
+    // now add/overwrite the key
+    LOG_ASSERT(slistKey);
+    curl_easy_setopt(pCurl, CURLOPT_HTTPHEADER, slistKey);
+    return true;
+}
+
+void PlaneTrackConnection::CleanupCurl ()
+{
+    LTOnlineChannel::CleanupCurl();
+    CurlCleanupSlist(slistKey);
+}
+
+
+// Catch "unauthorized" and rate-limit responses, otherwise delegate to ADSBBase
+bool PlaneTrackConnection::ProcessFetchedData ()
+{
+    // key invalid or not entitled: stop and ask for a valid key
+    if (httpResponse == HTTP_UNAUTHORIZED || httpResponse == HTTP_FORBIDDEN) {
+        bForbidden = true;
+        SHOW_MSG(logERR, ERR_PLANETRACK_KEY_FAILED,
+                 netDataPos ? FetchMsg(netData).c_str() : "");
+        SetValid(false);
+        dataRefs.SetChannelEnabled(DR_CHANNEL_PLANETRACK_ONLINE, false);
+        return false;
+    }
+    // polling too fast, or a free key's daily allowance used up: log and try again next cycle
+    if (httpResponse == HTTP_TOO_MANY_REQU || httpResponse == HTTP_PAYMENT_REQU) {
+        LOG_MSG(logWARN, ERR_PLANETRACK_RATE, httpResponse);
+        IncErrCnt();
+        return false;
+    }
+
+    // delegate
+    return ADSBBase::ProcessFetchedData();
+}
+
+// test for non-OK response in 'msg'
+bool PlaneTrackConnection::ProcessErrors (const JSON_Object* pObj)
+{
+    const std::string errTxt = jog_s(pObj, ADSBEX_MSG);
+    if (!errTxt.empty() && errTxt != ADSBEX_SUCCESS)
+    {
+        LOG_MSG(logERR, ERR_PLANETRACK_OTHER, errTxt.c_str());
+        IncErrCnt();
+        return false;
+    }
+    return true;
+}
+
+
+// make list of HTTP header fields
+struct curl_slist* PlaneTrackConnection::MakeCurlSList (const std::string& theKey)
+{
+    return curl_slist_append(NULL, (std::string(PLANETRACK_KEY_HDR)+theKey).c_str());
+}
+
+
+//
+// MARK: Static Test for PlaneTrack key
+//
+
+std::future<bool> futPlaneTrackKeyValid;
+bool bPlaneTrackKeyTestRunning = false;
+
+// sends one small request with the new key in a separate thread
+void PlaneTrackConnection::TestAPIKey (const std::string newKey)
+{
+    // this is not thread-safe if called from different threads...but we don't do that
+    if (bPlaneTrackKeyTestRunning)
+        return;
+    bPlaneTrackKeyTestRunning = true;
+    futPlaneTrackKeyValid = std::async(std::launch::async, DoTestAPIKey, newKey);
+}
+
+// Fetch result of last test
+bool PlaneTrackConnection::TestAPIKeyResult (bool& bIsKeyValid)
+{
+    if (std::future_status::ready != futPlaneTrackKeyValid.wait_for(std::chrono::microseconds(0)))
+        return false;
+    bIsKeyValid = futPlaneTrackKeyValid.get();
+    return true;
+}
+
+// actual test, blocks, should by called via std::async
+bool PlaneTrackConnection::DoTestAPIKey (const std::string newKey)
+{
+    ThreadSettings TS ("LT_TestPlaneTrack", LC_ALL_MASK);
+
+    bool bResult = false;
+    char curl_errtxt[CURL_ERROR_SIZE];
+    std::string readBuf;
+
+    if (newKey.empty()) {
+        bPlaneTrackKeyTestRunning = false;
+        return false;
+    }
+
+    CURL *pCurl = curl_easy_init();
+    if (!pCurl) {
+        LOG_MSG(logERR,ERR_CURL_EASY_INIT);
+        bPlaneTrackKeyTestRunning = false;
+        return false;
+    }
+
+    readBuf.reserve(CURL_MAX_WRITE_SIZE);
+    curl_easy_setopt(pCurl, CURLOPT_NOSIGNAL, 1);
+    curl_easy_setopt(pCurl, CURLOPT_TIMEOUT, dataRefs.GetNetwTimeoutMax());
+    curl_easy_setopt(pCurl, CURLOPT_ERRORBUFFER, curl_errtxt);
+    curl_easy_setopt(pCurl, CURLOPT_WRITEFUNCTION, DoTestAPIKeyCB);
+    curl_easy_setopt(pCurl, CURLOPT_WRITEDATA, &readBuf);
+    curl_easy_setopt(pCurl, CURLOPT_USERAGENT, HTTP_USER_AGENT);
+    curl_easy_setopt(pCurl, CURLOPT_URL, PLANETRACK_VERIFY_URL);
+
+    struct curl_slist* slist = MakeCurlSList(newKey);
+    LOG_ASSERT(slist);
+    curl_easy_setopt(pCurl, CURLOPT_HTTPHEADER, slist);
+
+    CURLcode cc = CURLE_OK;
+    if ( (cc=curl_easy_perform(pCurl)) != CURLE_OK )
+    {
+        // problem with querying revocation list?
+        if (IsRevocationError(curl_errtxt)) {
+            curl_easy_setopt(pCurl, CURLOPT_SSL_OPTIONS, CURLSSLOPT_NO_REVOKE);
+            LOG_MSG(logWARN, ERR_CURL_DISABLE_REV_QU, "TestPlaneTrack");
+            cc = curl_easy_perform(pCurl);
+        }
+        if (cc != CURLE_OK)
+            LOG_MSG(logERR, ERR_PLANETRACK_KEY_TECH, cc, curl_errtxt);
+    }
+
+    if (cc == CURLE_OK)
+    {
+        long httpResponse = 0;
+        curl_easy_getinfo(pCurl, CURLINFO_RESPONSE_CODE, &httpResponse);
+        const std::string msg = FetchMsg(readBuf.c_str());
+
+        switch (httpResponse) {
+            case HTTP_OK:
+                // a valid answer carries the aircraft array and 'now'
+                if (readBuf.find("\"" ADSBEX_AIRCRAFT_ARR "\"") != std::string::npos &&
+                    readBuf.find(ADSBEX_NOW) != std::string::npos)
+                {
+                    bResult = true;
+                    dataRefs.SetPlaneTrackAPIKey(newKey);
+                    dataRefs.SetChannelEnabled(DR_CHANNEL_PLANETRACK_ONLINE, true);
+                    SHOW_MSG(logMSG, MSG_PLANETRACK_KEY_SUCCESS);
+                }
+                else
+                    SHOW_MSG(logERR, ERR_PLANETRACK_KEY_UNKNOWN, msg.c_str());
+                break;
+
+            case HTTP_UNAUTHORIZED:
+            case HTTP_FORBIDDEN:
+                SHOW_MSG(logERR, ERR_PLANETRACK_KEY_FAILED, msg.c_str());
+                break;
+
+            default:
+                SHOW_MSG(logERR, ERR_PLANETRACK_KEY_TECH, (int)httpResponse, msg.c_str());
+        }
+    }
+
+    curl_easy_cleanup(pCurl);
+    CurlCleanupSlist(slist);
+
+    bPlaneTrackKeyTestRunning = false;
+    return bResult;
+}
+
+size_t PlaneTrackConnection::DoTestAPIKeyCB (char *ptr, size_t, size_t nmemb, void* userdata)
+{
+    std::string& readBuf = *reinterpret_cast<std::string*>(userdata);
+    readBuf.append(ptr, nmemb);
+    return nmemb;
+}
+
+//
 // MARK: adsb.fi
 //
 
