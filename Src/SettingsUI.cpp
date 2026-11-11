@@ -933,7 +933,7 @@ void LTSettingsUI::buildInterface()
                 if (dataRefs.GetPlaneTrackAPIKey().empty()) {
                     if (ImGui::FilteredLabel("PlaneTrack", sFilter, false)) {
                         ImGui::TextDisabled("%s", "requires an API key (planetrack.ai/simulators.html):");
-                        ImGui::TableNextCell();
+                        ImGui::TableNextColumn();
                     }
                 }
 
@@ -981,7 +981,7 @@ void LTSettingsUI::buildInterface()
                     else if (eTrackKeyTest == ADSBX_KEY_FAILED)
                         ImGui::TextUnformatted(ICON_FA_EXCLAMATION_TRIANGLE " Key test failed!");
 
-                    ImGui::TableNextCell();
+                    ImGui::TableNextColumn();
                 }
 
                 // connection status details (only if there is an API key defined)
@@ -993,7 +993,7 @@ void LTSettingsUI::buildInterface()
                     } else {
                         ImGui::TextUnformatted("Off");
                     }
-                    ImGui::TableNextCell();
+                    ImGui::TableNextColumn();
                 }
 
                 if (!*sFilter) ImGui::TreePop();

@@ -151,6 +151,8 @@ add_compile_definitions(INCLUDE_FMOD_SOUND=1)       # tells LiveTraffic compile 
 
 # Enable X-Plane 12.4.4+ Panel Graphics backend in ImgWindow v2 (with automatic OpenGL fallback)
 add_compile_definitions(IMGWINDOW_USE_PANEL_GRAPHICS=1)
+# but don't need any of the other additions to the ImgWindow lib
+add_compile_definitions(CONTRIB_DISABLE_ALL=1)
 
 # Enable stricter warnings and then disable some we are not interested in.
 if (MSVC)
@@ -208,14 +210,6 @@ include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/XPMP2/lib/fmod/logo")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/LTAPI")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/ImGui")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/ImGui/misc/cpp")
-# ImgWindow (git submodule)
-if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Lib/ImgWindow/ImgWindow.h")
-    message(STATUS "Initializing ImgWindow submodule...")
-    execute_process(
-        COMMAND git submodule update --init --recursive Lib/ImgWindow
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    )
-endif()
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/ImgWindow")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/portable-file-dialogs")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/Lib/Font")
