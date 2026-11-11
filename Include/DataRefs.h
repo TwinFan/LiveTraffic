@@ -460,6 +460,7 @@ enum dataRefsLT {
     DR_CHANNEL_ADSB_EXCHANGE_ONLINE,
     DR_CHANNEL_ADSB_FI_ONLINE,
     DR_CHANNEL_AIRPLANES_LIVE,
+    DR_CHANNEL_PLANETRACK_ONLINE,
     DR_CHANNEL_NVGR_FR24,
     DR_CHANNEL_REAL_TRAFFIC_ONLINE,     // currently highest-prio channel
     // always last, number of elements:
@@ -787,6 +788,7 @@ protected:
     std::string sOpenSkySecret;         ///< OpenSky Network Client Secret
     std::string sNvgrRefreshToken;      ///< Navigraph Refresh Token (that we get after initial authorization)
     std::string sADSBExAPIKey;          ///< ADS-B Exchange API key
+    std::string sPlaneTrackAPIKey;      ///< PlaneTrack API key
     std::string sRTLicense;             ///< RealTraffic License
     std::string sFSCUser;               ///< FSCharter login user
     std::string sFSCPwd;                ///< FSCharter login password
@@ -1074,6 +1076,8 @@ public:
     
     const std::string& GetADSBExAPIKey () const { return sADSBExAPIKey; }
     void SetADSBExAPIKey (const std::string& apiKey) { sADSBExAPIKey = apiKey; }
+    const std::string& GetPlaneTrackAPIKey () const { return sPlaneTrackAPIKey; }
+    void SetPlaneTrackAPIKey (const std::string& apiKey) { sPlaneTrackAPIKey = apiKey; }
     
     bool SetRTTrafficPort (int port) { return SetCfgValue(&rtTrafficPort, port); }
     SimTimeCtrlTy GetRTSTC () const { return rtSTC; }           ///< RealTraffic simulator time control setting
