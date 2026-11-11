@@ -198,6 +198,64 @@ protected:
 };
 
 //
+// MARK: PlaneTrack
+//
+
+#define PLANETRACK_CHECK_NAME       "PlaneTrack Map"
+#define PLANETRACK_CHECK_URL        "https://planetrack.ai/?lat=%.3f&lon=%.3f&zoom=8"
+#define PLANETRACK_SLUG_BASE        "https://planetrack.ai/?hex=" // + icao24 hex code
+#define PLANETRACK_CHECK_POPUP      "Check PlaneTrack's coverage"
+
+#define PLANETRACK_NAME             "PlaneTrack"
+#define PLANETRACK_URL              "https://planetrack.ai/v1/sim/v2/point/%.3f/%.3f/%d"  // lat/lon/radius in nm
+#define PLANETRACK_VERIFY_URL       "https://planetrack.ai/v1/sim/v2/point/0.0/0.0/1"
+#define PLANETRACK_KEY_HDR          "api-auth: "
+#define PLANETRACK_MAX_DIST_NM      250             ///< largest radius the PlaneTrack API accepts
+
+#define MSG_PLANETRACK_KEY_SUCCESS  "PlaneTrack: API Key tested SUCCESSFULLY"
+#define ERR_PLANETRACK_KEY_FAILED   "PlaneTrack: API Key test FAILED: %s"
+#define ERR_PLANETRACK_KEY_UNKNOWN  "PlaneTrack: API Key test responded with unknown answer: %s"
+#define ERR_PLANETRACK_KEY_TECH     "PlaneTrack: Technical problem while testing key: %d - %s"
+#define ERR_PLANETRACK_NO_KEY_DEF   "PlaneTrack: API Key missing. Get one at planetrack.ai/simulators.html and enter it in Basic Settings."
+#define ERR_PLANETRACK_OTHER        "PlaneTrack: Received an ERRor response: %s"
+#define ERR_PLANETRACK_RATE         "PlaneTrack: Request limit reached (HTTP %ld), will retry"
+#define PLANETRACK_FORBIDDEN        "Not authorized. Enter/verify your PlaneTrack API key in settings."
+
+/// @brief PlaneTrack (planetrack.ai) live traffic, ADSBEx v2 format, needs an API key sent as `api-auth` header
+class PlaneTrackConnection : public ADSBBase
+{
+protected:
+    bool    bForbidden = false;                             ///< Did we receive a HTTP_UNAUTHORIZED/FORBIDDEN response?
+    std::string apiKey;                                     ///< key currently in the HTTP header list
+    struct curl_slist* slistKey = NULL;                     ///< HTTP header list carrying the key
+public:
+    PlaneTrackConnection ();                                ///< Constructor
+    std::string GetURL (const positionTy& pos) override;    ///< Compile PlaneTrack request URL
+    std::string GetStatusText () const override;            ///< process 'forbidden', otherwise delegate
+
+protected:
+    void Main () override;                                  ///< virtual thread main function
+    bool InitCurl () override;                              ///< add the API key header
+    void CleanupCurl () override;                           ///< remove the API key header
+    /// Catch "unauthorized" and rate-limit responses, otherwise delegate to ADSBBase
+    bool ProcessFetchedData () override;
+    /// test for non-OK 'msg'
+    bool ProcessErrors (const JSON_Object* pObj) override;
+    /// make list of HTTP header fields
+    static struct curl_slist* MakeCurlSList (const std::string& theKey);
+
+public:
+    /// Sends one small request with the given key in a separate thread; saves the key on success
+    static void TestAPIKey (const std::string newKey);
+    /// Result of the last test: returns `true` if available, actual result in `bIsKeyValid`
+    static bool TestAPIKeyResult (bool& bIsKeyValid);
+protected:
+    /// actual test, blocks, called via std::async
+    static bool DoTestAPIKey (const std::string newKey);
+    static size_t DoTestAPIKeyCB (char *ptr, size_t, size_t nmemb, void* userdata);
+};
+
+//
 // MARK: adsb.fi
 //
 

@@ -614,6 +614,7 @@ DataRefs::dataRefDefinitionT DATA_REFS_LT[CNT_DATAREFS_LT] = {
     {"livetraffic/channel/adsb_exchange/online",    DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/adsb_fi/online",          DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/airplanes_live/online",   DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
+    {"livetraffic/channel/planetrack/online",       DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/navigraph/fr24",          DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
     {"livetraffic/channel/real_traffic/online",     DataRefs::LTGetInt, DataRefs::LTSetBool,        GET_VAR, true, true },
 };
@@ -2352,6 +2353,8 @@ bool DataRefs::LoadConfigFile()
                 if (conv != CFG_V420)
                     SetADSBExAPIKey(Cleartext(sVal));
             }
+            else if (sDataRef == CFG_PLANETRACK_API_KEY)
+                SetPlaneTrackAPIKey(Cleartext(sVal));
             else if (sDataRef == CFG_RT_LICENSE)
                 SetRTLicense(Cleartext(sVal));
             else if (sDataRef == CFG_FSC_USER)
@@ -2505,6 +2508,8 @@ bool DataRefs::SaveConfigFile()
         fOut << CFG_NVGR_REFRESH_TOKEN << ' ' << Obfuscate(sNvgrRefreshToken) << '\n';
     if (!GetADSBExAPIKey().empty())
         fOut << CFG_ADSBEX_API_KEY << ' ' << Obfuscate(GetADSBExAPIKey()) << '\n';
+    if (!GetPlaneTrackAPIKey().empty())
+        fOut << CFG_PLANETRACK_API_KEY << ' ' << Obfuscate(GetPlaneTrackAPIKey()) << '\n';
     if (!GetRTLicense().empty())
         fOut << CFG_RT_LICENSE << ' ' << Obfuscate(GetRTLicense()) << '\n';
     if (!sFSCUser.empty())

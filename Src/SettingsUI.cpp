@@ -65,6 +65,8 @@ pfdOpenFile(nullptr, pfd_open_file_deleter),
 // If a key is already defined, then by default obscure it
 sADSBExKeyEntry     (dataRefs.GetADSBExAPIKey()),
 bADSBExKeyClearText (sADSBExKeyEntry.empty()),
+sPlaneTrackKeyEntry (dataRefs.GetPlaneTrackAPIKey()),
+bPlaneTrackKeyClearText (sPlaneTrackKeyEntry.empty()),
 // Fill CSL type entry with current values
 acTypeEntry     (dataRefs.GetDefaultAcIcaoType()),
 gndVehicleEntry (dataRefs.GetDefaultCarIcaoType()),
@@ -916,6 +918,87 @@ void LTSettingsUI::buildInterface()
                 if (!*sFilter) ImGui::TreePop();
             }
             
+            // --- PlaneTrack ---
+            if (ImGui::TreeNodeCbxLinkHelp(PLANETRACK_NAME, nCol,
+                                           // we offer the enable checkbox only when an API key is defined
+                                           dataRefs.GetPlaneTrackAPIKey().empty() ? dataRefsLT(-1) : DR_CHANNEL_PLANETRACK_ONLINE,
+                                           dataRefs.GetPlaneTrackAPIKey().empty() ? "PlaneTrack requires an API key" : "Enable PlaneTrack tracking data",
+                                           ICON_FA_EXTERNAL_LINK_SQUARE_ALT " " PLANETRACK_CHECK_NAME,
+                                           PLANETRACK_CHECK_URL,
+                                           PLANETRACK_CHECK_POPUP,
+                                           HELP_SET_CH_PLANETRACK, "Open Help on PlaneTrack in Browser",
+                                           sFilter, nOpCl))
+            {
+                // Have no key?
+                if (dataRefs.GetPlaneTrackAPIKey().empty()) {
+                    if (ImGui::FilteredLabel("PlaneTrack", sFilter, false)) {
+                        ImGui::TextDisabled("%s", "requires an API key (planetrack.ai/simulators.html):");
+                        ImGui::TableNextCell();
+                    }
+                }
+
+                // PlaneTrack's API key
+                if (ImGui::FilteredLabel("API Key", sFilter)) {
+                    ImGui::Selectable(ICON_FA_EYE "##PlaneTrackKeyVisible", &bPlaneTrackKeyClearText,
+                                      ImGuiSelectableFlags_None, ImVec2(ImGui::GetWidthIconBtn(),0));
+                    if (ImGui::IsItemHovered())
+                        ImGui::SetTooltip("%s", "Show/Hide key");
+                    ImGui::SameLine();
+                    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+                    if (ImGui::InputTextWithHint("##PlaneTrackKey",
+                                                 "Enter or paste API key",
+                                                 &sPlaneTrackKeyEntry,
+                                                 (bPlaneTrackKeyClearText ? ImGuiInputTextFlags_None : ImGuiInputTextFlags_Password) |
+                                                 (eTrackKeyTest == ADSBX_KEY_TESTING ? ImGuiInputTextFlags_ReadOnly : ImGuiInputTextFlags_None)))
+                        eTrackKeyTest = ADSBX_KEY_NO_ACTION;
+                    // key is changed and different -> offer to test it
+                    if (eTrackKeyTest == ADSBX_KEY_NO_ACTION &&
+                        !sPlaneTrackKeyEntry.empty() &&
+                        sPlaneTrackKeyEntry != dataRefs.GetPlaneTrackAPIKey())
+                    {
+                        if (ImGui::ButtonTooltip(ICON_FA_UNDO " Reset to saved", "Resets the key to the previously saved key"))
+                            sPlaneTrackKeyEntry = dataRefs.GetPlaneTrackAPIKey();
+                        ImGui::SameLine();
+                        if (ImGui::ButtonTooltip(ICON_FA_CHECK " Test and Save Key", "Sends a request to PlaneTrack using your entered key to test its validity.\nKey is saved only after a successful test."))
+                        {
+                            PlaneTrackConnection::TestAPIKey(sPlaneTrackKeyEntry);
+                            eTrackKeyTest = ADSBX_KEY_TESTING;
+                        }
+                    }
+                    // Test of key underway? -> check for result
+                    if (eTrackKeyTest == ADSBX_KEY_TESTING) {
+                        bool bSuccess = false;
+                        if (PlaneTrackConnection::TestAPIKeyResult(bSuccess)) {
+                            eTrackKeyTest = bSuccess ? ADSBX_KEY_SUCCESS : ADSBX_KEY_FAILED;
+                            if (bSuccess)
+                                dataRefs.SetPlaneTrackAPIKey(sPlaneTrackKeyEntry);
+                        } else {
+                            ImGui::TextUnformatted(ICON_FA_SPINNER " Key is being tested...");
+                        }
+                    }
+                    if (eTrackKeyTest == ADSBX_KEY_SUCCESS)
+                        ImGui::TextUnformatted(ICON_FA_CHECK_CIRCLE " Key tested successfully");
+                    else if (eTrackKeyTest == ADSBX_KEY_FAILED)
+                        ImGui::TextUnformatted(ICON_FA_EXCLAMATION_TRIANGLE " Key test failed!");
+
+                    ImGui::TableNextCell();
+                }
+
+                // connection status details (only if there is an API key defined)
+                if (!dataRefs.GetPlaneTrackAPIKey().empty() &&
+                    ImGui::FilteredLabel("Connection Status", sFilter))
+                {
+                    if (const LTChannel* pPlaneTrackCh = LTFlightDataGetCh(DR_CHANNEL_PLANETRACK_ONLINE)) {
+                        ImGui::TextWrapped("%s", pPlaneTrackCh->GetStatusText().c_str());
+                    } else {
+                        ImGui::TextUnformatted("Off");
+                    }
+                    ImGui::TableNextCell();
+                }
+
+                if (!*sFilter) ImGui::TreePop();
+            }
+
             // --- FSCharter ---
             if (ImGui::TreeNodeCbxLinkHelp(FSC_NAME, nCol,
                                            DR_CHANNEL_FSCHARTER,
