@@ -151,8 +151,6 @@ add_compile_definitions(INCLUDE_FMOD_SOUND=1)       # tells LiveTraffic compile 
 
 # Enable X-Plane 12.4.4+ Panel Graphics backend in ImgWindow v2 (with automatic OpenGL fallback)
 add_compile_definitions(IMGWINDOW_USE_PANEL_GRAPHICS=1)
-# but don't need any of the other additions to the ImgWindow lib
-add_compile_definitions(CONTRIB_DISABLE_ALL=1)
 
 # Enable stricter warnings and then disable some we are not interested in.
 if (MSVC)

@@ -10,5 +10,4 @@
 	url = https://github.com/TwinFan/metaf
 [submodule "Lib/ImgWindow"]
 	path = Lib/ImgWindow
-	url = https://github.com/TwinFan/ImgWindow.git
-	branch = fix_contrib_disable_all
+	url = https://github.com/slgoldberg/ImgWindow.git
