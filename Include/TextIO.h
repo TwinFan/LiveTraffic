@@ -53,6 +53,9 @@ enum logLevelTy {
 
 // MARK: custom X-Plane message Window
 
+/// Permit showing of window (only to be called from the flight loop, when rendering becomes actually possible)
+void PermitShowingMsgWindow (bool bAllow);
+
 // Creates a window and displays the given szMsg for fTimeToDisplay seconds
 // fTimeToDisplay == 0 -> no limit
 void CreateMsgWindow(float fTimeToDisplay, logLevelTy lvl, const char* szMsg, ...) LT_FMTARGS(3);
