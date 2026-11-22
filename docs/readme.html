@@ -133,7 +133,7 @@
 
     <h2>v4</h2>
 
-    <h3>v4.6.5</h3>
+    <h3>v4.7.0</h3>
     
     <P>
     <b>Update:</b> In case of doubt you can always just copy all files from the archive
@@ -143,18 +143,27 @@
     <P>At least copy the following files, which have changed compared to v4.6.4:</P>
     <ul>
         <li><code>lin|mac|win_x64/LiveTraffic.xpl</code></li>
+        <li><code>Resource/</code></li>
+        <li><code>&nbsp;&nbsp;&nbsp;&nbsp;Doc8643.txt</code></li>
+        <li><code>&nbsp;&nbsp;&nbsp;&nbsp;FlightModels.prf</code></li>
+        <li><code>&nbsp;&nbsp;&nbsp;&nbsp;related.txt</code></li>
+        <li><code>&nbsp;&nbsp;&nbsp;&nbsp;relOp.txt</code></li>
     </ul>
     
     <P>Change log:</P>
     
     <ul>
+        <li>Added <a href="https://github.com/TwinFan/LiveTraffic/pull/332">#332</a> new channel <strong>PlaneTrack</strong>,
+            see <a href="https://planetrack.ai/simulators.html">PlaneTrack's Sim option</a> and
+            <a href="https://twinfan.gitbook.io/livetraffic/setup/installation/planetrack">LiveTraffic's configuration documentation</a>.<br>
+            Thanks to Tristan Munday of PlaneTrack.ai, who provided the implementation himself.</li>
         <li>Added CSL Setting for a <i>Default Livery</i> that is used if
             no livery match was found. It would replace the random livery
             pick, certainly only if a CSL model with that configured default
             livery is available.<br>
-            This can be used to display a <b>plain white livery</b>.
-            User n405wn provided white CSL models in
-            <a href="https://forums.x-plane.org/forums/topic/351856-possible-to-default-no-match-to-white-livery-planes-additonal-feature-request/#findComment-3071753">this post</a>
+            This can be used to display a <b>plain white livery</b> as discussed in
+            <a href="https://forums.x-plane.org/forums/topic/351856-possible-to-default-no-match-to-white-livery-planes-additonal-feature-request/">this post</a>.
+            User n405wn provides white CSL models <a href="https://forums.x-plane.org/files/file/101935-white-csl-liveries/">for download</a>
             under the airline code "ZZW".</li>
         <li><b>RealTraffic:</b> Reduced frequency of "RealTraffic has no traffic at all! (full_count=0)"
             message. Enhanced error handling, especially around historic data processing.</li>

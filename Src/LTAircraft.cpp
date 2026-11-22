@@ -1497,9 +1497,9 @@ bool LTAircraft::CalcPPos()
         ppos.setLoc(locSpline.val(currCycle.simTime));      // this is now local coordinates!
         ppos.LocalToWorld();                                // convert back to world coordinates
         // Heading/Speed vactor
-        const positionTy v = locSpline.slope(currCycle.simTime);
-        speed_m = v.lengthXZ();
-        heading.SetVal(ppos.heading() = v.angleXZ());
+        const positionTy vecSpline = locSpline.slope(currCycle.simTime);
+        speed_m = vecSpline.lengthXZ();
+        heading.SetVal(ppos.heading() = vecSpline.angleXZ());
     }
     // is instead a Bezier curve defined?
     else if (locBezier) {
