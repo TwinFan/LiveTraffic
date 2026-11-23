@@ -1220,6 +1220,7 @@ float LoopOneTimeSetup ()
         case ONCE_CB_ADD_DREFS:
         {
             // Create a message window and say hello
+            PermitShowingMsgWindow(true);
             SHOW_MSG(logINFO, MSG_WELCOME, LT_VERSION_FULL);
             if constexpr (LIVETRAFFIC_VERSION_BETA)
                 SHOW_MSG(logWARN, BETA_LIMITED_VERSION, LT_BETA_VER_LIMIT_TXT);

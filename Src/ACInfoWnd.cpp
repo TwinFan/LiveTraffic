@@ -197,7 +197,6 @@ ImGuiWindowFlags_ ACIWnd::beforeBegin()
     // If not yet done calculate some common widths
     if (std::isnan(ACI_LABEL_SIZE)) {
         /// Size of longest text plus some room for tree indenttion, rounded up to the next 10
-        ImGui::SetWindowFontScale(1.0f);
         ACI_LABEL_SIZE   = std::ceil(ImGui::CalcTextSize("___Heading | Pitch | Roll_").x / 10.0f) * 10.0f;
         ACI_AUTO_CB_SIZE = std::ceil(ImGui::CalcTextSize("_____AUTO").x / 10.0f) * 10.0f;
     }
@@ -225,7 +224,7 @@ void ACIWnd::buildInterface()
     
     // Scale the font for this window
     const float fFontScale = float(dataRefs.UIFontScale)/100.0f;
-    ImGui::SetWindowFontScale(fFontScale);
+    ImGui::PushFont(nullptr, ImGui::GetStyle().FontSizeBase * fFontScale);
     
     // The data we will deal with, can be NULL!
     const double ts = dataRefs.GetSimTime();
@@ -255,27 +254,29 @@ void ACIWnd::buildInterface()
     ImGui::PushStyleColor(ImGuiCol_TableRowBgAlt, IM_COL32(0,0,0,0x08));
     if (tblSize.y >= ImGui::GetTextLineHeight() &&
         ImGui::BeginTable("ACInfo", 2,
-                          ImGuiTableFlags_Scroll |
-                          ImGuiTableFlags_ScrollFreezeLeftColumn |
+                          ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY |
                           ImGuiTableFlags_RowBg,
                           tblSize))
     {
         // Set up the columns of the table
+        ImGui::TableSetupScrollFreeze(1, 0);
         ImGui::TableSetupColumn("Item",  ImGuiTableColumnFlags_WidthFixed   | ImGuiTableColumnFlags_NoSort, ACI_LABEL_SIZE * fFontScale);
         ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch | ImGuiTableColumnFlags_NoSort);
     
         // MARK: --- Identification ---
         ImGui::TableNextRow();
+        ImGui::TableNextColumn();
         snprintf(buf, sizeof(buf), pFD ? "A/C key (%s)" : "A/C key",    // add the key's type to the label
                  pFD ? pFD->key().GetKeyTypeText() : "");
         bool bOpen = ImGui::TreeNodeEx(buf,
                                        CollSecGetSet(ACI_SB_IDENTIFICATION) | ImGuiTreeNodeFlags_SpanFullWidth);
-        ImGui::TableNextCell();
+        ImGui::TableNextColumn();
         if (ImGui::BeginTable("KeyOrAUTO", 2))
         {
             ImGui::TableSetupColumn("Edit", ImGuiTableColumnFlags_WidthStretch | ImGuiTableColumnFlags_NoSort);
             ImGui::TableSetupColumn("Auto", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoSort, ACI_AUTO_CB_SIZE * fFontScale);
             ImGui::TableNextRow();
+            ImGui::TableNextColumn();
             if (ImGui::InputText("##NewKey", &keyEntry,
                                  ImGuiInputTextFlags_CharsUppercase |
                                  ImGuiInputTextFlags_CharsNoBlank |
@@ -285,7 +286,7 @@ void ACIWnd::buildInterface()
                 bAuto = false;
                 SearchAndSetFlightData();
             }
-            ImGui::TableNextCell();
+            ImGui::TableNextColumn();
             if (ImGui::Checkbox("AUTO", &bAuto))
                 lastAutoCheck = 0.0f;       // enforce search for a/c next frame
             
@@ -328,14 +329,15 @@ void ACIWnd::buildInterface()
         }
         
         // MARK: --- Flight Info / Tracking data ---
-        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + ACI_TREE_V_SEP*fFontScale);
+        ImGui::Dummy(ImVec2(0.0f, ACI_TREE_V_SEP*fFontScale));
         ImGui::TableNextRow();
+        ImGui::TableNextColumn();
         if (ImGui::TreeNodeEx("Call Sign | Squawk",
                               CollSecGetSet(ACI_SB_FLIGHT_INFO) | ImGuiTreeNodeFlags_SpanFullWidth))
         {
             // Node is open, add individual lines per value
             CollSecClear(ACI_SB_FLIGHT_INFO);
-            ImGui::TableNextCell();
+            ImGui::TableNextColumn();
             if (pFD)
                 ImGui::Text("%s | %s", stat.call.c_str(), dyn.GetSquawk().c_str());
             
@@ -360,7 +362,7 @@ void ACIWnd::buildInterface()
             ImGui::TreePop();
         } else {
             // Node is closed: Combine call sign, squawk, flight no into one cell
-            ImGui::TableNextCell();
+            ImGui::TableNextColumn();
             if (pFD) {
                 std::string s (stat.call);
                 s += " | ";
@@ -374,11 +376,12 @@ void ACIWnd::buildInterface()
         }
         
         // MARK: --- Position ---
-        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + ACI_TREE_V_SEP*fFontScale);
+        ImGui::Dummy(ImVec2(0.0f, ACI_TREE_V_SEP*fFontScale));
         ImGui::TableNextRow();
+        ImGui::TableNextColumn();
         bOpen =ImGui::TreeNodeEx("Position",
                                  CollSecGetSet(ACI_SB_POSITION) | ImGuiTreeNodeFlags_SpanFullWidth);
-        ImGui::TableNextCell();
+        ImGui::TableNextColumn();
         if (pAc)
             ImGui::TextUnformatted(pAc->RelativePositionText().c_str());
         if (bOpen)
@@ -389,8 +392,9 @@ void ACIWnd::buildInterface()
             buildRowLabel("Altitude | AGL");
             if (pAc && ImGui::BeginTable("##AltAGL", 2)) {
                 ImGui::TableNextRow();
+                ImGui::TableNextColumn();
                 ImGui::Text("%.f ft", pAc->GetAlt_ft());
-                ImGui::TableNextCell();
+                ImGui::TableNextColumn();
                 if (pAc->IsOnGrnd())
                     ImGui::TextUnformatted("On Grnd");
                 else {
@@ -405,28 +409,31 @@ void ACIWnd::buildInterface()
             buildRowLabel("Speed | VSI");
             if (pAc && ImGui::BeginTable("##SpeedVSI", 2)) {
                 ImGui::TableNextRow();
+                ImGui::TableNextColumn();
                 ImGui::Text("%.f kn", pAc->GetSpeed_kt());
-                ImGui::TableNextCell();
+                ImGui::TableNextColumn();
                 ImGui::Text("%+.f ft/min", pAc->GetVSI_ft());
                 ImGui::EndTable();
             }
             buildRowLabel("Track/Head. | Pitch/Roll");
             if (pAc && ImGui::BeginTable("##TrckPitchRll", 4)) {
                 ImGui::TableNextRow();
+                ImGui::TableNextColumn();
                 ImGui::Text("%03.0f°", pAc->GetTrack());
-                ImGui::TableNextCell();
+                ImGui::TableNextColumn();
                 ImGui::Text("%03.0f°", pAc->GetHeading());
-                ImGui::TableNextCell();
+                ImGui::TableNextColumn();
                 ImGui::Text("%.1f°", pAc->GetPitch());
-                ImGui::TableNextCell();
+                ImGui::TableNextColumn();
                 ImGui::Text("%.1f°", pAc->GetRoll());
                 ImGui::EndTable();
             }
             buildRowLabel("Bearing | Dist.");
             if (pAc && ImGui::BeginTable("##Bearing", 2)) {
                 ImGui::TableNextRow();
+                ImGui::TableNextColumn();
                 ImGui::Text("%03.0f°", pAc->GetCameraBearing());
-                ImGui::TableNextCell();
+                ImGui::TableNextColumn();
                 ImGui::Text("%.1fnm", pAc->GetCameraDist() / M_per_NM);
                 ImGui::EndTable();
             }
@@ -438,11 +445,12 @@ void ACIWnd::buildInterface()
         }
         
         // MARK: --- Simulation ---
-        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + ACI_TREE_V_SEP*fFontScale);
+        ImGui::Dummy(ImVec2(0.0f, ACI_TREE_V_SEP*fFontScale));
         ImGui::TableNextRow();
+        ImGui::TableNextColumn();
         bOpen =ImGui::TreeNodeEx("CSL Model",
                                  CollSecGetSet(ACI_SB_SIMULATION) | ImGuiTreeNodeFlags_SpanFullWidth);
-        ImGui::TableNextCell();
+        ImGui::TableNextColumn();
         if (pAc)
             ImGui::TextUnformatted(pAc->GetModelName().c_str());
         if (bOpen)
@@ -485,8 +493,9 @@ void ACIWnd::buildInterface()
             buildRowLabel("Gear | Flaps");
             if (pAc && ImGui::BeginTable("##GearFlpas", 2)) {
                 ImGui::TableNextRow();
+                ImGui::TableNextColumn();
                 ImGui::Text("%.f%%", pAc->GetGearPos() * 100.0);
-                ImGui::TableNextCell();
+                ImGui::TableNextColumn();
                 ImGui::Text("%.f%%", pAc->GetFlapsPos() * 100.0);
                 ImGui::EndTable();
             }
@@ -498,11 +507,12 @@ void ACIWnd::buildInterface()
 
         
         // MARK: --- Global Window configuration ---
-        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + ACI_TREE_V_SEP*fFontScale);
+        ImGui::Dummy(ImVec2(0.0f, ACI_TREE_V_SEP*fFontScale));
         ImGui::TableNextRow();
+        ImGui::TableNextColumn();
         if (ImGui::TreeNodeEx("Settings", ImGuiTreeNodeFlags_SpanFullWidth))
         {
-            ImGui::TableNextCell();
+            ImGui::TableNextColumn();
             ImGui::TextUnformatted("Drag controls with mouse:");
             
             buildRowLabel("Font Scaling");
@@ -512,7 +522,7 @@ void ACIWnd::buildInterface()
             ImGui::DragInt("##Opacity", &dataRefs.UIopacity, 1.0f, 0, 100, "%d%%");
 
             ImGui::TableNextRow();
-            ImGui::TableNextCell();
+            ImGui::TableSetColumnIndex(1);
             if (ImGui::Button(ICON_FA_UNDO " Reset to Defaults")) {
                 dataRefs.UIFontScale   = DEF_UI_FONT_SCALE;
                 dataRefs.UIopacity      = DEF_UI_OPACITY;
@@ -555,15 +565,16 @@ void ACIWnd::buildInterface()
     }
     
     // Reset font scaling
-    ImGui::SetWindowFontScale(1.0f);
+    ImGui::PopFont();
 }
 
 // Add a label to the list of a/c info
 void ACIWnd::buildRowLabel (const std::string& label)
 {
     ImGui::TableNextRow();
+    ImGui::TableNextColumn();
     ImGui::TextUnformatted(label.c_str());
-    ImGui::TableNextCell();
+    ImGui::TableNextColumn();
 }
 
 // Add a label and a value to the list of a/c info

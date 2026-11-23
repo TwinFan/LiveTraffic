@@ -139,7 +139,7 @@ IMGUI_API bool SelectableTooltip(const char* label,
 IMGUI_API bool CheckboxDr(const char* label, dataRefsLT idx, const char* tooltip = nullptr);
 
 /// @brief Same as ImGui::SliderFloat(), but display is in percent, so values are expected to be around 1.0 to be displayed as 100%
-IMGUI_API bool SliderPercent(const char* label, float* v, float v_min=0.0f, float v_max=1.0f, const char* format = "%.0f%%", float power = 1.0f);
+IMGUI_API bool SliderPercent(const char* label, float* v, float v_min=0.0f, float v_max=1.0f, const char* format = "%.0f%%", ImGuiSliderFlags flags = 0);
 
 /// @brief Integer Slider, which reads from/writes to a defined dataRef
 /// @param label Checkbox's label
@@ -154,7 +154,7 @@ IMGUI_API bool SliderDr(const char* label, dataRefsLT idx,
                         const char* format = "%d");
 
 /// @brief Same as DragFloat, but display is in percent, so values are expected to be around 1.0 to be displayed as 100%
-IMGUI_API bool DragPercent(const char* label, float* v, float v_speed = 0.01f, float v_min = 0.0f, float v_max = 1.0f, const char* format = "%.0f%%", float power = 1.0f);
+IMGUI_API bool DragPercent(const char* label, float* v, float v_speed = 0.01f, float v_min = 0.0f, float v_max = 1.0f, const char* format = "%.0f%%", ImGuiSliderFlags flags = 0);
 
 /// @brief Folder selection popup, returns true when done and confirmed
 /// @details Use instead of Begin/EndPop, but your one call to OpenPop is still needed
@@ -398,6 +398,9 @@ protected:
 
 /// One-time initializations for all ImGui windows
 bool LTImgWindowInit ();
+
+/// Retrieve (and lazily create via ImgWindow::CreateTexture) the FMOD attribution logo texture
+ImTextureID LTImgWindowGetFMODLogo (bool bBlack = false);
 
 /// Cleanup of any resources
 void LTImgWindowCleanup ();

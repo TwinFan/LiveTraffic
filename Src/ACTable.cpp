@@ -303,12 +303,12 @@ LTFlightData* ACTable::build (const std::string& _filter, int _x, int _y)
                           ImGuiTableFlags_Resizable | ImGuiTableFlags_Reorderable |
                           ImGuiTableFlags_Hideable | ImGuiTableFlags_Sortable |
                           ImGuiTableFlags_RowBg |
-                          ImGuiTableFlags_SizingPolicyFixedX | ImGuiTableFlags_Scroll |
-                          ImGuiTableFlags_ScrollFreezeTopRow |
-                          ImGuiTableFlags_ScrollFreezeLeftColumn,
+                          ImGuiTableFlags_SizingFixedFit |
+                          ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY,
                           tblSize))
     {
         // Set up the columns
+        ImGui::TableSetupScrollFreeze(1, 1);
         for (ImGuiID col = 0; col < ACT_COL_COUNT; ++col) {
             const ACTColDefTy& colDef = gCols[col];
             ImGui::TableSetupColumn(colDef.colName.c_str(),
@@ -316,22 +316,23 @@ LTFlightData* ACTable::build (const std::string& _filter, int _x, int _y)
                                     colDef.colWidth,
                                     col);       // use ACTColumnsTy as ColumnUserID
         }
-        ImGui::TableAutoHeaders();
+        ImGui::TableHeadersRow();
 
         // Set up a/c list
         bool bUpdated = UpdateFDIs(_filter);
 
         // Sort the data if and as needed
-        const ImGuiTableSortSpecs* sortSpecs = ImGui::TableGetSortSpecs();
+        ImGuiTableSortSpecs* sortSpecs = ImGui::TableGetSortSpecs();
         if (bUpdated ||
-            (sortSpecs && sortSpecs->SpecsChanged &&
+            (sortSpecs && sortSpecs->SpecsDirty &&
              sortSpecs->Specs && sortSpecs->SpecsCount >= 1 &&
              vecFDI.size() > 1))
         {
             // We sort only by one column, no multi-column sort yet
-            const ImGuiTableSortSpecsColumn& colSpec = *(sortSpecs->Specs);
+            const ImGuiTableColumnSortSpecs& colSpec = *(sortSpecs->Specs);
             Sort((ACTColumnsTy)colSpec.ColumnUserID,
                  colSpec.SortDirection == ImGuiSortDirection_Ascending);
+            sortSpecs->SpecsDirty = false;
         }
         
         // Fill the data into the list

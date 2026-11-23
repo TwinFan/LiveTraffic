@@ -149,6 +149,8 @@ protected:
 
 /// There's at most one global message window
 WndMsg* WndMsg::gpWnd = nullptr;
+/// Are we allowed to do rendering?
+static bool bRenderingAllowed = false;
 
 // Creates a new message window
 WndMsg::WndMsg (WndMode _wndMode) :
@@ -174,7 +176,7 @@ WndMsg::~WndMsg ()
 bool WndMsg::DoShow()
 {
     // must only do so if executed from XP's main thread
-    if (!dataRefs.IsXPThread())
+    if (!bRenderingAllowed || !dataRefs.IsXPThread())
         return false;
 
     // No message waiting - no deal
@@ -307,9 +309,8 @@ void WndMsg::buildInterface()
         // Show the FMOD logo together with the FMOD attribution message
         else if (msg.text == MSG_FMOD_SOUND) {
             // FMOD Logo in white
-            int logoId = 0;
-            if (FMODLogo::GetTexture(logoId,false)) {
-                ImGui::Image((void*)(intptr_t)logoId, ImVec2(FMODLogo::IMG_WIDTH/4, FMODLogo::IMG_HEIGHT/4));
+            if (ImTextureID logoId = LTImgWindowGetFMODLogo(false)) {
+                ImGui::Image(logoId, ImVec2(FMODLogo::IMG_WIDTH/4, FMODLogo::IMG_HEIGHT/4));
             }
         }
         
@@ -353,6 +354,20 @@ void WndMsg::buildInterface()
 //
 //MARK: custom X-Plane message Window - Create / Destroy
 //
+
+// Permit showing of window (only to be called from the flight loop, when rendering becomes actually possible)
+void PermitShowingMsgWindow (bool bAllow)
+{
+    bRenderingAllowed = bAllow;
+    // Show right away is something's to be sown
+    if (bRenderingAllowed && !listTexts.empty())
+        WndMsg::DoShow();
+    // Destroy now if no longer allowed
+    if (!bRenderingAllowed)
+        WndMsg::DoRemove();
+}
+
+
 void CreateMsgWindow(float fTimeToDisplay, logLevelTy lvl, const char* szMsg, ...)
 {
     // consider configured level for msg area

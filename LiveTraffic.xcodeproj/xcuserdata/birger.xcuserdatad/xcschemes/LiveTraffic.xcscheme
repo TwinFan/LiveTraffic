@@ -50,7 +50,7 @@
       <RemoteRunnable
          runnableDebuggingMode = "0"
          BundleIdentifier = "com.laminar-research.X-Plane"
-         RemotePath = "/Users/birger/Applications/X-Plane/12beta/X-Plane.app">
+         RemotePath = "/Users/birger/Applications/X-Plane/12/X-Plane.app">
       </RemoteRunnable>
       <MacroExpansion>
          <BuildableReference
@@ -61,6 +61,9 @@
             ReferencedContainer = "container:LiveTraffic.xcodeproj">
          </BuildableReference>
       </MacroExpansion>
+      <MetalAPIValidationSettings
+         isEnabled = "No">
+      </MetalAPIValidationSettings>
    </LaunchAction>
    <ProfileAction
       buildConfiguration = "Release"
