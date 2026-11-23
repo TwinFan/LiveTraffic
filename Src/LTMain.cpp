@@ -1330,8 +1330,14 @@ float LoopCBAircraftMaintenance (float inElapsedSinceLastCall, float, int, void*
 {
     // initialize in a way that the first maintenance is immediate
     static float elapsedSinceLastAcMaint = AC_MAINT_INTVL;
+    
+    // Make us aware that flight loop is being called
+    if (dataRefs.pluginState == STATE_ENABLED) {
+        dataRefs.pluginState = STATE_FLIGHTLOOP;
+        LOG_MSG(logDEBUG, "Received first flight loop callback");
+    }
+    
     do {
-        // *** check for new positons that require terrain altitude (Y Probes) ***
         // LiveTraffic Top Level Exception handling: catch all, reinit if something happens
         try {
             // regular calls collected here

@@ -1077,6 +1077,10 @@ float DataRefs::GetMiscNetwTime() const
 ///          if zulu data is before, on, or after local date.
 void DataRefs::UpdateXPSimTime()
 {
+    // Bail if sim not yet started to avoid X-Plane spitting message about it
+    if (pluginState < STATE_FLIGHTLOOP)
+        return;
+    
     constexpr time_t DAY_S = 24LL * 60LL * 60LL;        // 1 day in seconds
 
     const int locDay = GetLocalDayOfMonth();            // local day of XP user time
@@ -1162,6 +1166,10 @@ positionTy DataRefs::GetUsersPlanePos(double* pTrueAirspeed_m,
 
 void DataRefs::UpdateUsersPlanePos ()
 {
+    // bail if there can't be a position yet to avoid X-Plane spitting "Sim is not yet started..." messages
+    if (pluginState < STATE_FLIGHTLOOP)
+        return;
+    
     positionTy pos
     (
      XPLMGetDatad(adrXP[DR_PLANE_LAT]),

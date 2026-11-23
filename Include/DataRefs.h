@@ -212,7 +212,8 @@ class LTAircraft;
 enum pluginStateTy {
     STATE_STOPPED = 0,  // before init; after stop
     STATE_INIT,         // after init, before enabled; after disabled, before stop
-    STATE_ENABLED,      // after enabled; before disabled
+    STATE_ENABLED,      // after enabled; before first flight loop callback
+    STATE_FLIGHTLOOP,   ///< have received first flight loop callback
     STATE_SHOW_AC       // enabled + showing aircraft
 };
 
