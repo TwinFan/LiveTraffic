@@ -639,7 +639,7 @@ PLUGIN_API void    XPluginStop(void)
         dataRefs.Stop();
         
         // last chance to remove the message area window
-        PermitShowingMsgWindow(false);
+        DestroyWindow();
 
         // cleanup ImGui stuff
         LTImgWindowCleanup();

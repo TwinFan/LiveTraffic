@@ -314,7 +314,7 @@ IMGUI_API bool TreeNodeCbxLinkHelp(const char* label, int nCol,
     TableSetColumnIndex(0);
 
     // Set special background color for tree nodes
-    ImGui::PushStyleColor(ImGuiCol_TableRowBg, ImGui::GetColorU32(ImGuiCol_Button, 0.4f));
+    ImGui::PushStyleColor(ImGuiCol_TableRowBg, ImGui::GetColorU32(ImGuiCol_Button, 0.1f));
     ImGui::PushStyleColor(ImGuiCol_TableRowBgAlt, ImGui::GetStyleColorVec4(ImGuiCol_TableRowBg));
 
     // makes sure that all buttons here are recongized as different
