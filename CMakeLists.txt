@@ -224,6 +224,7 @@ set(Header_Files
     Include/DataRefs.h
     Include/InfoListWnd.h
     Include/LiveTraffic.h
+    Include/LT_imconfig.h
     Include/LTADSBEx.h
     Include/LTADSBHub.h
     Include/LTAircraft.h
@@ -319,6 +320,8 @@ set(ALL_FILES  ${Header_Files} ${Source_Files})
 
 add_library(LiveTraffic MODULE ${ALL_FILES})
 
+# Tell ImGui to use our configuration file
+target_compile_definitions(LiveTraffic PUBLIC IMGUI_USER_CONFIG="LT_imconfig.h")
 # ImGui files do a lot of comparisons on floats
 if (NOT MSVC)
     set_source_files_properties(

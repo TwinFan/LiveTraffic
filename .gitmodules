@@ -11,3 +11,6 @@
 [submodule "Lib/ImgWindow"]
 	path = Lib/ImgWindow
 	url = https://github.com/slgoldberg/ImgWindow.git
+[submodule "Lib/ImGui"]
+	path = Lib/ImGui
+	url = https://github.com/ocornut/imgui

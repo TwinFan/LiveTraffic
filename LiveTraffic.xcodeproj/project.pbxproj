@@ -126,6 +126,7 @@
 		256CA1D2248C6137009F4AAE /* build_LiveTraffic */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = build_LiveTraffic; sourceTree = "<group>"; };
 		256ECE02274AB6D300B02B8F /* LTFSCharter.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTFSCharter.h; sourceTree = "<group>"; };
 		256ECE03274AB6F000B02B8F /* LTFSCharter.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = LTFSCharter.cpp; sourceTree = "<group>"; };
+		2572120530B63D3B00A4DB7A /* LT_imconfig.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LT_imconfig.h; sourceTree = "<group>"; };
 		2573631922233008005210C5 /* LTRealTraffic.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LTRealTraffic.cpp; sourceTree = "<group>"; };
 		2573631B22233041005210C5 /* LTRealTraffic.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTRealTraffic.h; sourceTree = "<group>"; };
 		2573631C22233CCA005210C5 /* LTOpenSky.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTOpenSky.h; sourceTree = "<group>"; };
@@ -457,6 +458,7 @@
 				25A095C72203B01300658AA8 /* DataRefs.h */,
 				25C5254224D0264700C73482 /* InfoListWnd.h */,
 				25A095C82203B01300658AA8 /* LiveTraffic.h */,
+				2572120530B63D3B00A4DB7A /* LT_imconfig.h */,
 				2573631D22233CCA005210C5 /* LTADSBEx.h */,
 				251ED8842A02CA1D00274897 /* LTADSBHub.h */,
 				25A095C92203B01300658AA8 /* LTAircraft.h */,
@@ -816,6 +818,7 @@
 					"XPLM301=1",
 					"XPLM303=1",
 					"IMGWINDOW_USE_PANEL_GRAPHICS=1",
+					"IMGUI_USER_CONFIG='\"LT_imconfig.h\"'",
 					"DEBUG=1",
 					"LIVETRAFFIC_VERSION=\"\"${LIVETRAFFIC_VER_MAJOR}.${LIVETRAFFIC_VER_MINOR}.${LIVETRAFFIC_VER_PATCH}\"\"",
 					"LIVETRAFFIC_VER_MAJOR=${LIVETRAFFIC_VER_MAJOR}",
@@ -937,6 +940,7 @@
 					"XPLM301=1",
 					"XPLM303=1",
 					"IMGWINDOW_USE_PANEL_GRAPHICS=1",
+					"IMGUI_USER_CONFIG='\"LT_imconfig.h\"'",
 					"NDEBUG=1",
 					"LIVETRAFFIC_VERSION=\"\"${LIVETRAFFIC_VER_MAJOR}.${LIVETRAFFIC_VER_MINOR}.${LIVETRAFFIC_VER_PATCH}\"\"",
 					"LIVETRAFFIC_VER_MAJOR=${LIVETRAFFIC_VER_MAJOR}",
