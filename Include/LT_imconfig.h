@@ -19,7 +19,6 @@
 
 #pragma once
 
-#error Stop here just to make sure we do compile this file
 #include <cassert>
 
 //--- In cross compilations TARGET_OS_OSX might not be correctly defined
