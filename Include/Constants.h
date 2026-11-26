@@ -460,7 +460,7 @@ constexpr int ERR_CFG_FILE_MAXWARN = 10;     // maximum number of warnings while
 #define DBG_REUSING_TO_POS      "DEBUG RE-USED POS FOR TAKE-OFF: %s"
 #define DBG_AC_SWITCH_POS       "DEBUG A/C SWITCH POS: %s"
 #define DBG_AC_FLIGHT_PHASE     "DEBUG A/C FLIGHT PHASE CHANGED from %i %s to %i %s"
-#define DBG_AC_CHANNEL_SWITCH   "DEBUG %s: SWITCHED CHANNEL from '%s' to '%s'"
+#define DBG_AC_CHANNEL_SWITCH   "DEBUG %s (%s a/c): SWITCHED CHANNEL from %d - '%s' to %d - '%s'"
 #ifdef DEBUG
 #define DBG_DEBUG_BUILD         "DEBUG BUILD with additional run-time checks and no optimizations"
 #endif

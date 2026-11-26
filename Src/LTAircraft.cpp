@@ -1478,6 +1478,20 @@ bool LTAircraft::CalcPPos()
         }
         posNext = positionTy();
         bArtificalPos = true;                   // flag: we are working with an artifical position now
+#if DEBUG
+        // https://github.com/TwinFan/LiveTraffic/issues/333
+        // So sometimes we manage to insert wrongly-ordered timestamps???
+        // posDeque should still be sorted, i.e. no two adjacent positions a,b should be a > b
+        if (std::adjacent_find(posList.cbegin(), posList.cend(),
+                               // if the previous a is larger/later then next b, something's wrong
+                               [](const positionTy& a, const positionTy& b) {return a > b;}
+                               ) != posList.cend())
+        {
+            // Output the entire posList...maybe we can find something in the data
+            // (This is only a separate line for me to be able to place a breakpoint on it
+            LOG_ASSERT_FD(fd, false);
+        }
+#endif
     }
     
     // *** Plane Location / Heading ***

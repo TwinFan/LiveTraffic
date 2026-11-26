@@ -799,7 +799,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
                 if (!statData.hasRotor() &&                             // not for helis
                     pAc->GetVSI_ft() < -pAc->pMdl->VSI_STABLE)
                 {
-                    // *** Auto-Land ***
+                    // MARK: *** Auto-Land ***
                     const positionTy& acTo = pAc->GetToPos();
                     posRwy = LTAptFindRwy(*pAc, rwyId, dataRefs.GetDebugAcPos(key()));
                     if (posRwy.isNormal()) {
@@ -896,7 +896,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
         std::string debvec ( posDeque.size() >= 2 ? std::string(posDeque.front().between(posDeque[1])) : "<none>" );
 #endif
         
-        // *** Pushback Detection (no snapping!) ***
+        // MARK: *** Pushback Detection (no snapping!) ***
         if (!posDeque.empty() && statData.doesPushback() && !mdl.isGlider())  {
             // Is pushback already going on and traces of it in our posDeque?
             // ok, that's awkward...we reverse iterate our posDeque with a forward iterator...but we need to find the _last_ occurence of pPushback, and from there then later move forward
@@ -1005,7 +1005,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
         // *** Landing / Take-Off Detection ***
         //     (not for helis)
         if ( pAc && !posDeque.empty() && !statData.hasRotor() ) {
-            // *** Landing ***
+            // MARK: *** Landing ***
             
             // If current pos is in the air and next pos is approaching or touching ground
             // then we have live positional data on the ground.
@@ -1081,7 +1081,7 @@ bool LTFlightData::CalcNextPos ( double simTime )
                 bChanged = true;
             } // (landing case)
             
-            // *** Take Off ***
+            // MARK: *** Take Off ***
             
             // Similar issue as with landing, just reverse:
             // A/c is to take off (rotate and leave the runway) somewhere
@@ -2288,25 +2288,21 @@ void LTFlightData::AddDynData (const FDDynamicData& inDyn,
                 posDeque.clear();
                 LOG_MSG(logDEBUG, DBG_AC_CHANNEL_SWITCH,
                         keyDbg().c_str(),
+                        hasAc() ? "with" : "no",
+                        pLstChn ? pLstChn->GetChannel() : -1,
                         pLstChn ? pLstChn->ChName() : "<null>",
+                        inDyn.pChannel->GetChannel(),
                         inDyn.pChannel->ChName());
             }
         }
         
         // only need to bother adding data if it is newer than current data
-        if (dynDataDeque.empty() || dynDataDeque.front() < inDyn)
+        if (dynDataDeque.empty() || dynDataDeque.back() < inDyn)
         {
-            // must not yet have similar timestamp in our list
-            if (std::find_if(dynDataDeque.cbegin(),dynDataDeque.cend(),
-                             [&inDyn](const FDDynamicData& i){return inDyn.similarTo(i);}) == dynDataDeque.cend())
-            {
-                // add to list
-                dynDataDeque.emplace_back(inDyn);
-                // Potentially upgrade to Mode S transponder usage based on plane size
-                DetermineTransponderMode(dynDataDeque.back().radar.mode);
-                // and keep sorted
-                std::sort(dynDataDeque.begin(),dynDataDeque.end());
-            }
+            // add to list
+            dynDataDeque.emplace_back(inDyn);
+            // Potentially upgrade to Mode S transponder usage based on plane size
+            DetermineTransponderMode(dynDataDeque.back().radar.mode);
         }
             
         // also export and store the pos (lock is held recursively)
