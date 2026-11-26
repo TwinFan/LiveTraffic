@@ -43,7 +43,8 @@ static const CreditTy CREDITS[] = {
     { "libz/zlib", "as compression library (used by CURL)", "https://zlib.net/" },
     { "sha256", "SHA-256 implementaton by Brad Conte",  "https://github.com/B-Con/crypto-algorithms/blob/master/sha256.c" },
     { "ImGui", "for user interfaces",                   "https://github.com/ocornut/imgui" },
-    { "ImgWindow", "for integrating ImGui into X-Plane windows", "https://github.com/xsquawkbox/xsb_public" },
+    { "ImgWindow", "for integrating ImGui into X-Plane", "https://github.com/slgoldberg/ImgWindow" },
+    { "portable-file-dialogs", "for File Open dialog",  "https://github.com/samhocevar/portable-file-dialogs" },
     { "IconFontCppHeaders", "for header files for the included icon font", "https://github.com/juliettef/IconFontCppHeaders" },
 };
 
@@ -586,13 +587,19 @@ void InfoListWnd::buildInterface()
                 if (ImGui::TreeNode("Thanks")) {
                     ImGui::PushTextWrapPos();
 
+                    ImGui::TextUnformatted("Steve Goldberg for taking over maintenance of"); ImGui::SameLine();
+                    ImGui::ButtonURL("ImgWindow", "https://github.com/slgoldberg/ImgWindow", nullptr, true); ImGui::SameLine();
+                    ImGui::TextUnformatted(", upgrading LiveTraffic's imgui version, ");
+                    ImGui::TextUnformatted("and making all available under X-Plane's Panel Graphics.");
+                    ImGui::Spacing();
+                    
                     ImGui::TextUnformatted("Sparker for providing"); ImGui::SameLine();
                     ImGui::ButtonURL("imgui4xp", "https://github.com/sparker256/imgui4xp", nullptr, true); ImGui::SameLine();
                     ImGui::TextUnformatted("as a testbed for ImGui integration and for accepting my additions to it;");
                     ImGui::TextUnformatted("as well as for providing the initial Linux build Docker environment.");
                     ImGui::Spacing();
                     
-                    ImGui::TextUnformatted("Balthasar Indermuehle ("); ImGui::SameLine();
+                    ImGui::TextUnformatted("Balthasar Indermuehle"); ImGui::SameLine();
                     ImGui::ButtonURL("www.flyrealtraffic.com", "https://www.flyrealtraffic.com"); ImGui::SameLine();
                     ImGui::TextUnformatted("for contributing plane movement improvements in v4.5.0.");
                     
@@ -613,7 +620,7 @@ void InfoListWnd::buildInterface()
                     ImGui::TextUnformatted("Many thanks to my beta testers 172MC, Dozo, Sir.Anri, Flap, GAK, safeflight, FlyMe2dMoon, KosFlyer, akports103, Torkermax, and mainbrain!");
                     ImGui::Spacing();
                     
-                    ImGui::TextUnformatted("And let's not forget about the CSL model developers like Bluebell, Oktalist, and X-CSL, to name just a few. Without them there would only be labels in the sky but no planes.");
+                    ImGui::TextUnformatted("And let's not forget about the CSL model developers like Bluebell, Oktalist, X-CSL, and n405wn, to name just a few. Without them there would only be labels in the sky but no planes.");
                     ImGui::Spacing();
                     
                     ImGui::PopTextWrapPos();
